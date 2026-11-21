@@ -17,6 +17,7 @@ import '../../domain/engine/player.dart';
 import '../../domain/engine/player_colour.dart';
 import '../../domain/repositories/local_match_repository.dart';
 import '../app_dependencies_scope.dart';
+import '../feedback/feedback_service.dart';
 import '../navigation/app_routes.dart';
 import '../widgets/dice_widget.dart';
 import '../widgets/ludo_board.dart';
@@ -52,8 +53,20 @@ const String kMatchRecordFailedMessage =
 /// system back) deletes the snapshot and records nothing (D-11,
 /// D-12). No snapshot code for pause (M2.6) or results screen (M2.5)
 /// lives here — the win dialog is still the results presentation.
+///
+/// Haptics (M1.7, D-32): every completed move vibrates once through
+/// [FeedbackService], gated by the persisted `vibration_enabled`
+/// setting (default on, D-25). Sound is a named follow-up — there is
+/// no audio code here.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.initialSetup, this.initialState, this.diceRoller});
+  const GameScreen({
+    super.key,
+    this.initialSetup,
+    this.initialState,
+    this.diceRoller,
+    this.feedbackService,
+    this.vibrationEnabled,
+  });
 
   /// Setup supplied directly (widget tests, deep links). When null, the
   /// setup comes from the route arguments (see [AppRoutes.gameSetupOf]).
@@ -69,6 +82,14 @@ class GameScreen extends StatefulWidget {
   /// Dice source override for tests ([FixedDiceRoller]). Production
   /// always uses the engine's random roller.
   final DiceRoller? diceRoller;
+
+  /// Haptics override for tests (a recording fake). Production uses
+  /// [HapticFeedbackService].
+  final FeedbackService? feedbackService;
+
+  /// Vibration override for tests. Production reads the persisted
+  /// `vibration_enabled` setting (default on, D-25).
+  final bool? vibrationEnabled;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -105,6 +126,14 @@ class _GameScreenState extends State<GameScreen> {
   /// persisted, and completion reports the failure in the dialog.
   AppDependencies? _deps;
 
+  /// Haptics (M1.7, D-32): the move feedback goes through this
+  /// abstraction, gated by [_vibrationEnabled]. Production resolves
+  /// both from the persisted settings; tests inject a fake service
+  /// and an explicit flag.
+  FeedbackService _feedback = const HapticFeedbackService();
+  bool _vibrationEnabled = true;
+  bool _vibrationLoadStarted = false;
+
   bool _initialized = false;
   Timer? _rollTimer;
   Timer? _aiTimer;
@@ -114,6 +143,19 @@ class _GameScreenState extends State<GameScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _deps = AppDependenciesScope.maybeOf(context)?.dependencies;
+    _feedback = widget.feedbackService ?? const HapticFeedbackService();
+    // Resolve the vibration flag once: the startup-loaded snapshot
+    // is the first value, then [_loadVibrationSetting] refreshes it
+    // from the repository. Never re-resolve on a later
+    // didChangeDependencies call — that would clobber the fresh
+    // repository value with the stale startup snapshot.
+    if (widget.vibrationEnabled != null) {
+      _vibrationEnabled = widget.vibrationEnabled!;
+    } else if (!_vibrationLoadStarted) {
+      _vibrationEnabled =
+          _deps?.loadedSettings['vibration_enabled'] != '0';
+      _loadVibrationSetting();
+    }
     if (_initialized) return;
     _initialized = true;
     final resumed = widget.initialState ?? AppRoutes.resumedStateOf(context);
@@ -197,6 +239,31 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   // -- Persistence ---------------------------------------------------------
+
+  /// Refreshes the vibration flag from the persisted setting (M1.7).
+  ///
+  /// The startup-loaded snapshot is the first value (so a move can
+  /// never vibrate before this read lands), and this read picks up a
+  /// toggle changed after startup. Skipped when the test override
+  /// ([GameScreen.vibrationEnabled]) is given or there is nothing to
+  /// read from. A failed read keeps the current value: storage
+  /// trouble must never silence feedback by accident, and never
+  /// wedge the match.
+  Future<void> _loadVibrationSetting() async {
+    if (widget.vibrationEnabled != null || _vibrationLoadStarted) {
+      return;
+    }
+    _vibrationLoadStarted = true;
+    final deps = _deps;
+    if (deps == null) return;
+    try {
+      final stored = await deps.settings.getSetting('vibration_enabled');
+      if (!mounted || stored == null) return;
+      setState(() => _vibrationEnabled = stored != '0');
+    } catch (_) {
+      // Keep the startup-loaded value (see above).
+    }
+  }
 
   /// Queues a snapshot save of the current state (FR-29). Skipped
   /// when there is nothing to persist into, and never for a finished
@@ -294,8 +361,18 @@ class _GameScreenState extends State<GameScreen> {
         _status = '${_game.currentPlayer.name}, roll the dice.';
       }
     });
+    _vibrateOnMove();
     _afterTurnChange();
     _saveSnapshot();
+  }
+
+  /// One light haptic per completed move (M1.7, D-32), through the
+  /// [FeedbackService] abstraction and only while vibration is
+  /// enabled. Fire-and-forget and never throwing into the turn loop:
+  /// a failed haptic must not wedge a move.
+  void _vibrateOnMove() {
+    if (!_vibrationEnabled) return;
+    unawaited(_feedback.vibrateMove().catchError((_) {}));
   }
 
   void _onBoardTap(TapDownDetails details, double boardSide) {
