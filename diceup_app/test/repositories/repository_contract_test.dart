@@ -90,11 +90,18 @@ LocalPlayerSeat testSeat({
 /// interfaces (plus the value objects' own invariants): anything that
 /// needs fake internals — failure injection, deliberately diverged
 /// statistics — lives in `in_memory_fakes_test.dart`, not here.
-void defineRepositoryContractTests(RepositorySet Function() create) {
+///
+/// [create] is async because the SQLite factory must open its
+/// database; the in-memory fake factory just wraps the constructor
+/// in an async closure. No test body below depends on which backend
+/// built the repositories.
+void defineRepositoryContractTests(
+  Future<RepositorySet> Function() create,
+) {
   late RepositorySet repos;
 
-  setUp(() {
-    repos = create();
+  setUp(() async {
+    repos = await create();
   });
 
   group('value object invariants', () {
@@ -728,7 +735,7 @@ void defineRepositoryContractTests(RepositorySet Function() create) {
 }
 
 void main() {
-  defineRepositoryContractTests(() {
+  defineRepositoryContractTests(() async {
     final store = InMemoryStore();
     return RepositorySet(
       matches: InMemoryLocalMatchRepository(store),
