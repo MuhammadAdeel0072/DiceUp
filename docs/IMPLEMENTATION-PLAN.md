@@ -40,14 +40,18 @@ code-adjacent comments.
   `750646d` "chore: initialize Flutter mobile application"
   (21 Nov 2026 12:28 UTC). The audit below is against the branch head
   `e11ef1b` (Phases 2–3 work on `implementation/foundation-phase-2-3`);
-  `main` is still `750646d`.
+  `main` is still `750646d`. The audit baseline is that head — `e11ef1b`,
+  six commits above `main`. The current branch head is `52fb52e` (M0
+  record corrections, 21 Nov 2026), seven commits above `main`.
 - Pull requests: **draft PR #1 open, unmerged** — "Phase 2–3: design
   system, app shell, offline engine + AI, playable game screen", head
-  `e11ef1b` (unchanged since 21 Nov 2026 13:22 UTC). Branch
+  `52fb52e` (M0 record corrections, 21 Nov 2026). The head at audit time
+  was `e11ef1b` (unchanged since 21 Nov 2026 13:22 UTC). Branch
   `implementation/foundation-phase-2-3` commits, in order: `9b29d24`
   (33-file snapshot), `27763d6` (main.dart), `4a09b88` (widget tests),
   `2127503` (pubspec), `f0f141e` (analysis_options), `e11ef1b` (Anti's
-  `.docx` upload). PR #1 stays open and unmerged until M4 is green;
+  `.docx` upload), `52fb52e` (M0 record corrections — docs + comments
+  only). PR #1 stays open and unmerged until M4 is green;
   Anti merges it himself (D-19, decided 2026-11-21).
 - Work is done on dedicated implementation branches (never large unreviewed
   changes on `main`). This plan covers branch
@@ -351,10 +355,10 @@ the re-issue must contain:
     premise corrected) — testing requirements are distributed across
     §6.9, §7.4, §9.3, §15.4, §13.
 
-### M0.4 — pending Anti's separate approval (NOT done in M0)
+### M0.4 — DONE (PR #1 description updated and verified, 2026-11-21)
 
-PR #1 body text change only (no merge). Exactly what M0.4 would change,
-per the remediation plan:
+PR #1 body text change only (no merge). What M0.4 changed, per the
+remediation plan:
 
 - "not in the repo" → "are in the repo at the root (commit `e11ef1b`,
   Anti's upload)".
@@ -367,6 +371,16 @@ per the remediation plan:
 - Add: "Compliance audit 2026-11-21: NOT COMPLIANT (0 Critical, 10 High,
   23 Medium, 8 Low). Do not merge — remediation plan pending Anti's
   approval."
+
+Completion record (Phase 1, 2026-11-21 ~21:52 PKT): executed and verified
+by read-back — PR #1 `updated_at` 2026-11-21T16:52:36Z; title, draft
+state, labels and merge state untouched; head SHA unchanged by the update
+(`e11ef1b` at the time). The update call timed out at 120 s after
+approval, but the write had landed — the state was inspected before any
+retry and no retry was attempted. One judgement call: the approved
+substitution would have produced a self-contradictory sentence, so the
+`.docx` bullet was rewritten as a clean sentence carrying the same
+location fact.
 
 ### Plan corrections recorded in M0 (remediation plan wording, corrected here)
 
