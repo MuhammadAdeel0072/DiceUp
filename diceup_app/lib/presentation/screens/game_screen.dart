@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:developer';
+import 'dart:math' hide log;
 
 import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
+import '../../data/local/app_dependencies.dart';
 import '../../domain/ai/ai_player.dart';
 import '../../domain/engine/dice_roller.dart';
 import '../../domain/engine/game_state.dart';
@@ -13,9 +15,19 @@ import '../../domain/engine/ludo_game.dart';
 import '../../domain/engine/move.dart';
 import '../../domain/engine/player.dart';
 import '../../domain/engine/player_colour.dart';
+import '../../domain/repositories/local_match_repository.dart';
+import '../app_dependencies_scope.dart';
 import '../navigation/app_routes.dart';
 import '../widgets/dice_widget.dart';
 import '../widgets/ludo_board.dart';
+
+/// Shown in the win dialog when the completed match could not be
+/// recorded (M1.6). The snapshot is left in place in that case, so
+/// the finished match stays resumable and recording is retried on
+/// resume; the dialog must never present the win as if recording
+/// had succeeded without this notice.
+const String kMatchRecordFailedMessage =
+    "This match finished, but it couldn't be saved to your history.";
 
 /// Offline match screen (SRS UI-03…UI-05, FR-15…FR-28).
 ///
@@ -29,12 +41,30 @@ import '../widgets/ludo_board.dart';
 /// only displays random faces until it settles on the engine's value.
 ///
 /// AI pacing (FR-40): 700–1,199 ms before an AI rolls or moves (D-31).
+///
+/// Persistence (M1.6, FR-28…FR-31): after every completed move — and
+/// after a dice roll settles, because a roll changes state — the
+/// current snapshot is queued with [SnapshotSaver] (fire-and-forget,
+/// ordered, never throwing into the turn loop). A finished match is
+/// recorded exactly once via [LocalMatchRepository.recordMatch],
+/// which also deletes the snapshot in the same transaction (SDD
+/// §6.6). Leaving an unfinished match (AppBar close, Restart,
+/// system back) deletes the snapshot and records nothing (D-11,
+/// D-12). No snapshot code for pause (M2.6) or results screen (M2.5)
+/// lives here — the win dialog is still the results presentation.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.initialSetup, this.diceRoller});
+  const GameScreen({super.key, this.initialSetup, this.initialState, this.diceRoller});
 
   /// Setup supplied directly (widget tests, deep links). When null, the
   /// setup comes from the route arguments (see [AppRoutes.gameSetupOf]).
+  /// Ignored when [initialState] is given.
   final GameSetup? initialSetup;
+
+  /// A restored match to resume (M1.6): the exact [GameState] from
+  /// the saved snapshot, via route arguments (see
+  /// [AppRoutes.resumedStateOf]) or directly in tests. Takes
+  /// precedence over [initialSetup].
+  final GameState? initialState;
 
   /// Dice source override for tests ([FixedDiceRoller]). Production
   /// always uses the engine's random roller.
@@ -52,6 +82,29 @@ class _GameScreenState extends State<GameScreen> {
   bool _rolling = false;
   String _status = 'Roll the dice to start.';
   bool _winDialogShown = false;
+
+  /// Guard against duplicate completion callbacks: the win path can
+  /// be reached from a move, from a restored finished state, and
+  /// from a repeated turn-change notification. Set synchronously
+  /// when the completion flow starts; the existing [_winDialogShown]
+  /// flag alone is not sufficient because it only guards the dialog.
+  bool _completionRecorded = false;
+
+  /// True when the completion record failed (or no repository was
+  /// available): the win dialog carries [kMatchRecordFailedMessage].
+  bool _completionFailed = false;
+
+  /// The setup this match was started (or resumed) with — Play Again
+  /// and Restart reuse it instead of re-reading route arguments,
+  /// which a resumed match does not have as a [GameSetup].
+  GameSetup? _currentSetup;
+
+  /// The app dependencies, or null when the database is unavailable
+  /// (degraded startup) or the screen runs outside [DiceUpApp]
+  /// (bare widget tests): the match stays playable, nothing is
+  /// persisted, and completion reports the failure in the dialog.
+  AppDependencies? _deps;
+
   bool _initialized = false;
   Timer? _rollTimer;
   Timer? _aiTimer;
@@ -60,37 +113,80 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _deps = AppDependenciesScope.maybeOf(context)?.dependencies;
     if (_initialized) return;
     _initialized = true;
-    final setup = widget.initialSetup ?? AppRoutes.gameSetupOf(context);
-    _startMatch(setup);
+    final resumed = widget.initialState ?? AppRoutes.resumedStateOf(context);
+    if (resumed != null) {
+      _restoreMatch(resumed);
+    } else {
+      _startMatch(widget.initialSetup ?? AppRoutes.gameSetupOf(context));
+    }
   }
 
   void _startMatch(GameSetup setup) {
     final seats = List<SeatConfig>.generate(setup.playerCount, (i) {
-      final isAi = setup.aiSeats.containsKey(i);
+      final difficulty = setup.aiSeats[i];
       return SeatConfig(
         name: 'Player ${i + 1}',
         colour: PlayerColour.values[i],
-        type: isAi ? PlayerType.ai : PlayerType.human,
+        type: difficulty == null ? PlayerType.human : PlayerType.ai,
+        difficulty: difficulty,
       );
     });
     _game = LudoGame.newMatch(seats: seats, diceRoller: widget.diceRoller);
-    _aiPlayers.clear();
-    for (final entry in setup.aiSeats.entries) {
-      _aiPlayers[entry.key] = AiPlayer(
-        index: entry.key,
-        name: 'Player ${entry.key + 1}',
-        colour: PlayerColour.values[entry.key],
-        difficulty: entry.value,
-      );
-    }
+    _currentSetup = setup;
+    _rebuildAiPlayers();
     _legalMoves = [];
     _displayedRoll = null;
     _rolling = false;
     _winDialogShown = false;
+    _completionRecorded = false;
+    _completionFailed = false;
     _status = '${_game.currentPlayer.name}, roll the dice to start.';
     _afterTurnChange();
+  }
+
+  /// Rebuilds a match around a restored snapshot (M1.6, D-11).
+  ///
+  /// The exact state is restored via [LudoGame.fromState] — player
+  /// config, AI difficulty, ruleset, dice state, all required
+  /// fields — and the AI map is rebuilt from the restored state's
+  /// [AiPlayer] seats, never from route arguments.
+  void _restoreMatch(GameState state) {
+    _game = LudoGame.fromState(state, diceRoller: widget.diceRoller);
+    _currentSetup = GameSetup(
+      playerCount: state.players.length,
+      aiSeats: {
+        for (final player in state.players)
+          if (player is AiPlayer) player.index: player.difficulty,
+      },
+    );
+    _rebuildAiPlayers();
+    _legalMoves = _game.legalMoves();
+    _displayedRoll = state.lastRoll == 0 ? null : state.lastRoll;
+    _rolling = false;
+    _winDialogShown = false;
+    _completionRecorded = false;
+    _completionFailed = false;
+    _status = switch (state.phase) {
+      TurnPhase.awaitingMove =>
+        '${_game.currentPlayer.name}, choose a token to move.',
+      TurnPhase.finished => 'Match over.',
+      TurnPhase.awaitingRoll =>
+        '${_game.currentPlayer.name}, roll the dice to start.',
+    };
+    _afterTurnChange();
+  }
+
+  /// The live state's [AiPlayer] seats are the single source of
+  /// truth for AI difficulty — the map is rebuilt from them, never
+  /// from the setup, so a resumed match keeps its true difficulties.
+  void _rebuildAiPlayers() {
+    _aiPlayers.clear();
+    for (final player in _game.state.players) {
+      if (player is AiPlayer) _aiPlayers[player.index] = player;
+    }
   }
 
   @override
@@ -98,6 +194,35 @@ class _GameScreenState extends State<GameScreen> {
     _rollTimer?.cancel();
     _aiTimer?.cancel();
     super.dispose();
+  }
+
+  // -- Persistence ---------------------------------------------------------
+
+  /// Queues a snapshot save of the current state (FR-29). Skipped
+  /// when there is nothing to persist into, and never for a finished
+  /// match — the snapshot is deleted at completion, not saved.
+  /// Fire-and-forget: [SnapshotSaver.save] never throws.
+  void _saveSnapshot() {
+    final deps = _deps;
+    if (deps == null || _game.isFinished) return;
+    deps.snapshotSaver.save(_game.state);
+  }
+
+  /// Deletes the in-progress snapshot for a deliberate exit from an
+  /// unfinished match (D-11/D-12). A no-op for a finished match —
+  /// its snapshot is already gone — and when nothing is persisted.
+  /// Never throws: exiting must never trap the user behind storage.
+  Future<void> _discardSnapshot() async {
+    final deps = _deps;
+    if (deps == null || _game.isFinished) return;
+    try {
+      await deps.snapshotSaver.discard();
+    } catch (error) {
+      log(
+        'DiceUp snapshot discard failed ($error)',
+        name: 'DiceUpGameScreen',
+      );
+    }
   }
 
   // -- Dice ---------------------------------------------------------------
@@ -129,6 +254,10 @@ class _GameScreenState extends State<GameScreen> {
           _status = _rollStatus();
         });
         _afterTurnChange();
+        // A roll changes state (lastRoll / phase), and a capture
+        // after a roll but before a move must resume the rolled
+        // state — so the settled roll is snapshotted too (FR-29).
+        _saveSnapshot();
       } else {
         setState(() => _displayedRoll = _random.nextInt(6) + 1);
       }
@@ -166,6 +295,7 @@ class _GameScreenState extends State<GameScreen> {
       }
     });
     _afterTurnChange();
+    _saveSnapshot();
   }
 
   void _onBoardTap(TapDownDetails details, double boardSide) {
@@ -211,15 +341,98 @@ class _GameScreenState extends State<GameScreen> {
     if (_game.isFinished) {
       if (!_winDialogShown) {
         _winDialogShown = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _showWinDialog();
-        });
+        _recordCompletionAndShowDialog();
       }
       return;
     }
     if (_game.currentPlayer.isAi) {
       _scheduleAi();
     }
+  }
+
+  /// Records the finished match exactly once, then shows the win
+  /// dialog. The record runs before the dialog so a failed record
+  /// can be reported in the dialog itself, never presented as a
+  /// success. The [_completionRecorded] flag is set synchronously
+  /// here, before the first await, so a second completion callback
+  /// cannot start a second record.
+  Future<void> _recordCompletionAndShowDialog() async {
+    if (_completionRecorded) return;
+    _completionRecorded = true;
+    final recordFailed = await _recordCompletion();
+    if (!mounted) return;
+    _completionFailed = recordFailed;
+    _showWinDialog();
+  }
+
+  /// Records the match once via [LocalMatchRepository.recordMatch]
+  /// (one transaction: match row + statistics + prune + snapshot
+  /// delete, FR-30). Returns true when recording failed.
+  ///
+  /// On failure the match is not lost silently: the error is
+  /// logged, the game screen stays usable, and the win dialog
+  /// carries [kMatchRecordFailedMessage]. The snapshot is left in
+  /// place deliberately — the finished match stays resumable and
+  /// recording is retried when it is resumed.
+  Future<bool> _recordCompletion() async {
+    final deps = _deps;
+    if (deps == null) {
+      log(
+        'DiceUp match completed but no dependencies are available; '
+        'nothing was recorded.',
+        name: 'DiceUpGameScreen',
+      );
+      return true;
+    }
+    // No stale snapshot write may land after the record deletes the
+    // row in its transaction.
+    deps.snapshotSaver.invalidate();
+    try {
+      await deps.matches.recordMatch(_buildLocalMatch());
+      return false;
+    } catch (error) {
+      log(
+        'DiceUp match recording failed ($error)',
+        name: 'DiceUpGameScreen',
+      );
+      return true;
+    }
+  }
+
+  /// The completed match for the record (FR-30): date, mode,
+  /// players, winner and duration in one value. Mode is vs-AI when
+  /// any seat is AI, else local multiplayer; duration comes from the
+  /// state's [GameState.startedAt]; player difficulties come from
+  /// the live [AiPlayer] seats, never the setup default.
+  LocalMatch _buildLocalMatch() {
+    final state = _game.state;
+    final winner = _game.winner;
+    final now = DateTime.now();
+    final startedAt = state.startedAt;
+    return LocalMatch(
+      playedAt: now,
+      mode: state.players.any((player) => player.isAi)
+          ? LocalMatchMode.vsAi
+          : LocalMatchMode.localMultiplayer,
+      playerCount: state.players.length,
+      players: [
+        for (final player in state.players)
+          LocalMatchPlayer(
+            name: player.name,
+            colour: player.colour,
+            isAi: player.isAi,
+            difficulty:
+                player is AiPlayer ? player.difficulty : null,
+          ),
+      ],
+      winnerIndex: _game.winnerIndex,
+      winnerName: winner?.name,
+      durationSeconds: startedAt == null
+          ? null
+          : max(0, now.difference(startedAt).inSeconds),
+      rulesetVersion: state.rulesetVersion,
+      createdAt: now,
+    );
   }
 
   void _scheduleAi() {
@@ -247,15 +460,26 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _showWinDialog() async {
     final winner = _game.winner;
     if (winner == null) return;
-    final setup = AppRoutes.gameSetupOf(context);
+    final setup =
+        _currentSetup ?? AppRoutes.gameSetupOf(context);
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text('${winner.name} wins!'),
-        content: Text(
-          '${winner.name} brought all four tokens home in '
-          '${_game.state.moveCount} moves.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${winner.name} brought all four tokens home in '
+              '${_game.state.moveCount} moves.',
+            ),
+            if (_completionFailed) ...[
+              const SizedBox(height: 12),
+              const Text(kMatchRecordFailedMessage),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -286,7 +510,13 @@ class _GameScreenState extends State<GameScreen> {
           : 'Your progress in this match will be lost.',
       confirmLabel: 'Leave',
     );
-    if (leave && mounted) Navigator.of(context).pop();
+    if (!leave || !mounted) return;
+    // Clean exit (D-11/D-12): an unfinished match is deleted from
+    // the snapshot store and records nothing — no history row, no
+    // statistics, no saved match. A finished match's snapshot is
+    // already gone, so nothing is deleted.
+    if (!_game.isFinished) await _discardSnapshot();
+    if (mounted) Navigator.of(context).pop();
   }
 
   // -- Build ---------------------------------------------------------------
@@ -300,98 +530,119 @@ class _GameScreenState extends State<GameScreen> {
         !_rolling;
     final boardSide = _boardSide(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('DiceUp'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: 'Leave match',
-          onPressed: _confirmExit,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Restart match',
-            onPressed: () async {
-              final restart = await ConfirmationDialog.show(
-                context,
-                title: 'Restart match?',
-                message: 'The current match will be discarded.',
-                confirmLabel: 'Restart',
-              );
-              if (restart && mounted) {
-                setState(() => _startMatch(AppRoutes.gameSetupOf(context)));
-              }
-            },
+    // System back (PopScope) only guards the snapshot: a back-pop
+    // from an unfinished match deletes it, so the abandoned match
+    // can never be resumed. It builds no pause menu (M2.6) and adds
+    // no confirmation — the FR-28 confirmation still applies
+    // through the AppBar path. A finished match deletes nothing.
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop && !_game.isFinished) {
+          unawaited(_discardSnapshot());
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('DiceUp'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Leave match',
+            onPressed: _confirmExit,
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: DiceUpSpacing.screenPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _TurnBanner(
-                player: current,
-                status: _status,
-                rolling: _rolling,
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              Center(
-                child: GestureDetector(
-                  onTapDown: (details) => _onBoardTap(details, boardSide),
-                  child: SizedBox(
-                    width: boardSide,
-                    height: boardSide,
-                    child: CustomPaint(
-                      painter: LudoBoardPainter(
-                        tokens: _boardTokens(),
-                        legalTokenIds: _legalMoves
-                            .map((m) => '${m.playerIndex}:${m.tokenIndex}')
-                            .toSet(),
-                        currentSeat: state.currentPlayerIndex,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Restart match',
+              onPressed: () async {
+                // Resolve the setup before any async gap: the
+                // context must not be used after an await.
+                final setup =
+                    _currentSetup ?? AppRoutes.gameSetupOf(context);
+                final restart = await ConfirmationDialog.show(
+                  context,
+                  title: 'Restart match?',
+                  message: 'The current match will be discarded.',
+                  confirmLabel: 'Restart',
+                );
+                if (!restart || !mounted) return;
+                // Restart discards the current match (D-11/D-12):
+                // its snapshot is deleted before the new match
+                // starts, and nothing is recorded.
+                if (!_game.isFinished) await _discardSnapshot();
+                if (!mounted) return;
+                setState(() => _startMatch(setup));
+              },
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: DiceUpSpacing.screenPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _TurnBanner(
+                  player: current,
+                  status: _status,
+                  rolling: _rolling,
+                ),
+                const SizedBox(height: DiceUpSpacing.md),
+                Center(
+                  child: GestureDetector(
+                    onTapDown: (details) => _onBoardTap(details, boardSide),
+                    child: SizedBox(
+                      width: boardSide,
+                      height: boardSide,
+                      child: CustomPaint(
+                        painter: LudoBoardPainter(
+                          tokens: _boardTokens(),
+                          legalTokenIds: _legalMoves
+                              .map((m) => '${m.playerIndex}:${m.tokenIndex}')
+                              .toSet(),
+                          currentSeat: state.currentPlayerIndex,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  DiceWidget(value: _displayedRoll, rolling: _rolling),
-                  const SizedBox(width: DiceUpSpacing.lg),
-                  PrimaryButton(
-                    label: _rolling ? 'Rolling…' : 'Roll dice',
-                    onPressed: isHumanTurn &&
-                            state.phase == TurnPhase.awaitingRoll
-                        ? _rollDice
-                        : null,
-                  ),
-                ],
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              Wrap(
-                spacing: DiceUpSpacing.sm,
-                runSpacing: DiceUpSpacing.sm,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final player in state.players)
-                    _PlayerChip(
-                      player: player,
-                      isCurrent: player.index == state.currentPlayerIndex,
+                const SizedBox(height: DiceUpSpacing.md),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    DiceWidget(value: _displayedRoll, rolling: _rolling),
+                    const SizedBox(width: DiceUpSpacing.lg),
+                    PrimaryButton(
+                      label: _rolling ? 'Rolling…' : 'Roll dice',
+                      onPressed: isHumanTurn &&
+                              state.phase == TurnPhase.awaitingRoll
+                          ? _rollDice
+                          : null,
                     ),
-                ],
-              ),
-              const SizedBox(height: DiceUpSpacing.sm),
-              Text(
-                'Safe cells are marked with a star. '
-                'Tokens on safe cells cannot be captured.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: DiceUpSpacing.md),
+                Wrap(
+                  spacing: DiceUpSpacing.sm,
+                  runSpacing: DiceUpSpacing.sm,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final player in state.players)
+                      _PlayerChip(
+                        player: player,
+                        isCurrent: player.index == state.currentPlayerIndex,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: DiceUpSpacing.sm),
+                Text(
+                  'Safe cells are marked with a star. '
+                  'Tokens on safe cells cannot be captured.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../data/local/app_startup.dart';
 import '../../domain/ai/ai_player.dart';
+import '../../domain/engine/game_state.dart';
 import '../screens/game_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/home_screen.dart';
@@ -25,21 +27,35 @@ abstract final class AppRoutes {
   static const String history = '/history';
   static const String settings = '/settings';
 
-  static Map<String, WidgetBuilder> routes = {
-    splash: (_) => const SplashScreen(),
-    home: (_) => const HomeScreen(),
-    modeSelection: (_) => const ModeSelectionScreen(),
-    offlineSetup: (_) => const OfflineSetupScreen(),
-    game: (_) => const GameScreen(),
-    history: (_) => const HistoryScreen(),
-    settings: (_) => const SettingsScreen(),
-  };
+  /// Route table for a completed startup (M1.6): the splash
+  /// receives the ready [StartupResult] so it only shows the brand
+  /// moment, and the game route reads its arguments itself (see
+  /// [resumedStateOf] — a [GameState] argument resumes a match).
+  static Map<String, WidgetBuilder> routesFor({StartupResult? startup}) {
+    return {
+      splash: (_) => SplashScreen(startup: startup),
+      home: (_) => const HomeScreen(),
+      modeSelection: (_) => const ModeSelectionScreen(),
+      offlineSetup: (_) => const OfflineSetupScreen(),
+      game: (_) => const GameScreen(),
+      history: (_) => const HistoryScreen(),
+      settings: (_) => const SettingsScreen(),
+    };
+  }
 
   /// The offline game screen receives its [GameSetup] via route arguments.
   static GameSetup gameSetupOf(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is GameSetup) return args;
     return const GameSetup(playerCount: 2, aiSeats: {1: AiDifficulty.easy});
+  }
+
+  /// The resumed match, when the game route was opened with a
+  /// [GameState] argument (M1.6 resume flow from Home). Null for a
+  /// fresh match started from setup.
+  static GameState? resumedStateOf(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    return args is GameState ? args : null;
   }
 }
 

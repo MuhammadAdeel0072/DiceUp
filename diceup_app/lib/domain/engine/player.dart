@@ -129,11 +129,18 @@ class SeatConfig {
     required this.name,
     required this.colour,
     this.type = PlayerType.human,
+    this.difficulty,
   });
 
   final String name;
   final PlayerColour colour;
   final PlayerType type;
+
+  /// AI difficulty for an AI seat (M1.6: carried into the live
+  /// state so snapshots preserve the true difficulty instead of
+  /// defaulting to easy on resume). Ignored for human seats. Null
+  /// means the setup default ([AiDifficulty.easy]).
+  final AiDifficulty? difficulty;
 }
 
 /// Thrown when match setup is invalid (SDD §6.3): wrong player count,

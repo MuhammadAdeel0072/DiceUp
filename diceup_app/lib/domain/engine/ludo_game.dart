@@ -1,3 +1,4 @@
+import '../ai/ai_player.dart';
 import 'board.dart';
 import 'dice_roller.dart';
 import 'game_state.dart';
@@ -30,6 +31,11 @@ class LudoGame {
   /// Validates: 2–4 seats, distinct colours, at least one human seat
   /// (BR-01, FR-14) and a valid ruleset. Throws [InvalidMatchConfig]
   /// or [InvalidRulesetConfig]; no match is created on failure.
+  ///
+  /// AI seats are built as [AiPlayer]s carrying the seat's
+  /// difficulty (M1.6): a plain [Player] of type AI would lose the
+  /// difficulty on the first [Player.copyWith] and snapshots written
+  /// from the live match would resume every AI seat as easy.
   factory LudoGame.newMatch({
     required List<SeatConfig> seats,
     RulesetConfig ruleset = const RulesetConfig(),
@@ -55,12 +61,23 @@ class LudoGame {
     }
     final players = List<Player>.generate(
       seats.length,
-      (i) => Player(
-        index: i,
-        name: seats[i].name,
-        colour: seats[i].colour,
-        type: seats[i].type,
-      ),
+      (i) {
+        final seat = seats[i];
+        if (seat.type == PlayerType.ai) {
+          return AiPlayer(
+            index: i,
+            name: seat.name,
+            colour: seat.colour,
+            difficulty: seat.difficulty ?? AiDifficulty.easy,
+          );
+        }
+        return Player(
+          index: i,
+          name: seat.name,
+          colour: seat.colour,
+          type: seat.type,
+        );
+      },
     );
     final state = GameState.initial(
       players: players,
