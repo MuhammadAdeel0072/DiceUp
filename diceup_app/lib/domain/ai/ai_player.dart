@@ -35,6 +35,32 @@ class AiPlayer extends Player {
   final AiDifficulty difficulty;
   final Random _random;
 
+  /// Serialises the AI seat, including its difficulty (M1.1): without
+  /// this the difficulty would not survive a snapshot round-trip.
+  @override
+  Map<String, Object> toJson() => {
+        ...super.toJson(),
+        'difficulty': difficulty.name,
+      };
+
+  /// Preserves the AI identity across engine transitions: the base
+  /// [Player.copyWith] would downgrade an [AiPlayer] to a plain
+  /// [Player] and lose the difficulty after the first move (M1.1).
+  @override
+  AiPlayer copyWith({
+    List<Token>? tokens,
+    AiDifficulty? difficulty,
+    Random? random,
+  }) =>
+      AiPlayer(
+        index: index,
+        name: name,
+        colour: colour,
+        difficulty: difficulty ?? this.difficulty,
+        random: random ?? _random,
+        tokens: tokens ?? this.tokens,
+      );
+
   /// Chooses one move from [legalMoves] (never anything else).
   /// Throws [ArgumentError] if the list is empty — the engine, not
   /// the AI, decides that a turn with no legal move passes (BR-13).

@@ -1,4 +1,6 @@
+import 'json_validation.dart';
 import 'player.dart';
+import 'ruleset_config.dart';
 
 /// Turn state machine (SDD §6.4).
 enum TurnPhase {
@@ -19,11 +21,17 @@ enum TurnPhase {
 /// the AI and the resume store all observe snapshots and never mutate
 /// live state. A snapshot serialises to JSON, which is how resume
 /// (SRS FR-29) and the shared rule test vectors (SDD §6.9) work.
+///
+/// Deserialization is strict (M1.1, D-22): [GameState.fromJson]
+/// throws [FormatException] on any malformed or unsupported snapshot
+/// instead of silently repairing it.
 class GameState {
   const GameState({
     required this.players,
     required this.currentPlayerIndex,
     required this.rulesetVersion,
+    this.ruleset = const RulesetConfig(),
+    this.startedAt,
     this.phase = TurnPhase.awaitingRoll,
     this.lastRoll = 0,
     this.consecutiveSixes = 0,
@@ -41,6 +49,16 @@ class GameState {
 
   /// Version of the frozen ruleset (BR-14).
   final String rulesetVersion;
+
+  /// The frozen ruleset this match plays under (BR-14). Its [version]
+  /// always agrees with [rulesetVersion]; [fromJson] rejects a
+  /// snapshot where they disagree.
+  final RulesetConfig ruleset;
+
+  /// Wall-clock time the match started (M1.1). Used by the resume
+  /// store to compute match duration. Null for states built directly
+  /// in tests; stamped at match start by [GameState.initial].
+  final DateTime? startedAt;
 
   final TurnPhase phase;
 
@@ -69,6 +87,8 @@ class GameState {
   GameState copyWith({
     List<Player>? players,
     int? currentPlayerIndex,
+    RulesetConfig? ruleset,
+    DateTime? startedAt,
     TurnPhase? phase,
     int? lastRoll,
     int? consecutiveSixes,
@@ -81,6 +101,8 @@ class GameState {
       players: players ?? this.players,
       currentPlayerIndex: currentPlayerIndex ?? this.currentPlayerIndex,
       rulesetVersion: rulesetVersion,
+      ruleset: ruleset ?? this.ruleset,
+      startedAt: startedAt ?? this.startedAt,
       phase: phase ?? this.phase,
       lastRoll: lastRoll ?? this.lastRoll,
       consecutiveSixes: consecutiveSixes ?? this.consecutiveSixes,
@@ -93,20 +115,27 @@ class GameState {
   }
 
   /// Initial state for a fresh match: all tokens in their yards.
+  /// [startedAt] is stamped with the wall-clock time unless a fixed
+  /// value is supplied (tests that need deterministic snapshots).
   factory GameState.initial({
     required List<Player> players,
-    required String rulesetVersion,
+    RulesetConfig ruleset = const RulesetConfig(),
+    DateTime? startedAt,
   }) {
     return GameState(
       players: List.unmodifiable(players),
       currentPlayerIndex: 0,
-      rulesetVersion: rulesetVersion,
+      rulesetVersion: ruleset.version,
+      ruleset: ruleset,
+      startedAt: startedAt ?? DateTime.now(),
     );
   }
 
   Map<String, Object?> toJson() => {
         'formatVersion': 1,
         'rulesetVersion': rulesetVersion,
+        'ruleset': ruleset.toJson(),
+        'startedAt': startedAt?.toIso8601String(),
         'currentPlayerIndex': currentPlayerIndex,
         'phase': phase.name,
         'lastRoll': lastRoll,
@@ -118,29 +147,152 @@ class GameState {
         'players': players.map((p) => p.toJson()).toList(),
       };
 
+  /// Strict deserialization (M1.1, D-22).
+  ///
+  /// Throws [FormatException] — never a silent default, substitution,
+  /// or type coercion — on: a missing/non-integer/`!= 1`
+  /// `formatVersion`; a missing/invalid embedded `ruleset` (see
+  /// [RulesetConfig.fromJson]); a `rulesetVersion` that disagrees with
+  /// the embedded ruleset version; a missing/non-list `players`, a
+  /// player count outside 2–4, a non-map player entry, duplicate
+  /// colours, or zero human players; an out-of-range
+  /// `currentPlayerIndex`; a `lastRoll` outside 0–6; a
+  /// `consecutiveSixes` outside 0–2; a negative `moveCount`; an unknown
+  /// `phase`; a `winnerIndex` set while the phase is not finished, a
+  /// missing/out-of-range `winnerIndex` while finished, or a
+  /// non-integer `winnerIndex`; a malformed `startedAt`; or any
+  /// wrong-typed field.
+  ///
+  /// Unknown top-level keys are ignored (forward compatibility).
+  /// No `moveHistory` is read or written (D-23).
+  ///
+  /// Known limitation (M-11 as written): the `consecutiveSixes` bound
+  /// of 0–2 assumes the default ruleset (`maxConsecutiveSixes: 3`).
+  /// A match played with the limit disabled (`maxConsecutiveSixes: 0`)
+  /// or raised can legitimately reach 3+ consecutive sixes, and such
+  /// a snapshot would be rejected on restore. Revisit when ruleset
+  /// variants are exercised (M3.6 test vectors).
   factory GameState.fromJson(Map<String, Object?> json) {
-    final rawPlayers = (json['players'] as List?) ?? [];
-    final players = List<Player>.generate(
-      rawPlayers.length,
-      (i) => Player.fromJson(i, rawPlayers[i] as Map<String, Object?>),
+    final formatVersion = requireInt(json['formatVersion'], 'formatVersion');
+    if (formatVersion != 1) {
+      throw FormatException(
+        'Unsupported snapshot formatVersion $formatVersion; expected 1.',
+      );
+    }
+    final ruleset =
+        RulesetConfig.fromJson(requireMap(json['ruleset'], 'ruleset'));
+    final rulesetVersion = requireString(json['rulesetVersion'], 'rulesetVersion');
+    if (ruleset.version != rulesetVersion) {
+      throw FormatException(
+        'Snapshot rulesetVersion "$rulesetVersion" does not match '
+        'embedded ruleset version "${ruleset.version}".',
+      );
+    }
+    final rawPlayers = requireList(json['players'], 'players');
+    if (rawPlayers.length < 2 || rawPlayers.length > 4) {
+      throw FormatException(
+        'Snapshot must have 2–4 players (got ${rawPlayers.length}).',
+      );
+    }
+    final players = List<Player>.generate(rawPlayers.length, (i) {
+      final raw = requireMap(rawPlayers[i], 'players[$i]');
+      return Player.fromJson(i, raw);
+    });
+    final colours = players.map((p) => p.colour).toSet();
+    if (colours.length != players.length) {
+      throw const FormatException(
+        'Snapshot players must have distinct colours.',
+      );
+    }
+    if (players.every((p) => p.isAi)) {
+      throw const FormatException(
+        'Snapshot must have at least one human player.',
+      );
+    }
+    final currentPlayerIndex = requireIntInRange(
+      json['currentPlayerIndex'],
+      'currentPlayerIndex',
+      0,
+      players.length - 1,
     );
-    final phase = TurnPhase.values.firstWhere(
-      (p) => p.name == json['phase'],
-      orElse: () => TurnPhase.awaitingRoll,
+    final phase = requireEnum(json['phase'], 'phase', TurnPhase.values);
+    final lastRoll = requireIntInRange(json['lastRoll'], 'lastRoll', 0, 6);
+    final consecutiveSixes =
+        requireIntInRange(json['consecutiveSixes'], 'consecutiveSixes', 0, 2);
+    final moveCount = requireInt(json['moveCount'], 'moveCount');
+    if (moveCount < 0) {
+      throw const FormatException('Snapshot moveCount must not be negative.');
+    }
+    final lastRollWasThirdSix =
+        requireBool(json['lastRollWasThirdSix'], 'lastRollWasThirdSix');
+    final lastRollHadNoLegalMove = requireBool(
+      json['lastRollHadNoLegalMove'],
+      'lastRollHadNoLegalMove',
     );
+    final winnerIndex = _winnerIndex(json, phase, players.length);
+    final startedAt = _startedAt(json);
     return GameState(
       players: players,
-      currentPlayerIndex: json['currentPlayerIndex'] as int? ?? 0,
-      rulesetVersion: json['rulesetVersion'] as String? ?? '1.0.0',
+      currentPlayerIndex: currentPlayerIndex,
+      rulesetVersion: rulesetVersion,
+      ruleset: ruleset,
+      startedAt: startedAt,
       phase: phase,
-      lastRoll: json['lastRoll'] as int? ?? 0,
-      consecutiveSixes: json['consecutiveSixes'] as int? ?? 0,
-      winnerIndex: json['winnerIndex'] as int?,
-      moveCount: json['moveCount'] as int? ?? 0,
-      lastRollWasThirdSix: json['lastRollWasThirdSix'] as bool? ?? false,
-      lastRollHadNoLegalMove:
-          json['lastRollHadNoLegalMove'] as bool? ?? false,
+      lastRoll: lastRoll,
+      consecutiveSixes: consecutiveSixes,
+      winnerIndex: winnerIndex,
+      moveCount: moveCount,
+      lastRollWasThirdSix: lastRollWasThirdSix,
+      lastRollHadNoLegalMove: lastRollHadNoLegalMove,
     );
+  }
+
+  /// Winner consistency (BR-11): a finished match must name a winner
+  /// in range; an unfinished match must not name one.
+  static int? _winnerIndex(
+    Map<String, Object?> json,
+    TurnPhase phase,
+    int playerCount,
+  ) {
+    final raw = json['winnerIndex'];
+    if (raw == null) {
+      if (phase == TurnPhase.finished) {
+        throw const FormatException(
+          'A finished snapshot must have a winnerIndex.',
+        );
+      }
+      return null;
+    }
+    if (raw is! int) {
+      throw const FormatException('Snapshot winnerIndex must be an integer.');
+    }
+    if (phase != TurnPhase.finished) {
+      throw const FormatException(
+        'Snapshot winnerIndex must be null while the match is not finished.',
+      );
+    }
+    if (raw < 0 || raw >= playerCount) {
+      throw FormatException('Snapshot winnerIndex $raw is out of range.');
+    }
+    return raw;
+  }
+
+  /// `startedAt` is tolerated when missing or null (states built
+  /// directly in tests have none) but a present value must be a valid
+  /// ISO-8601 string.
+  static DateTime? _startedAt(Map<String, Object?> json) {
+    final raw = json['startedAt'];
+    if (raw == null) return null;
+    if (raw is! String) {
+      throw const FormatException(
+        'Snapshot startedAt must be an ISO-8601 string.',
+      );
+    }
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) {
+      throw FormatException('Snapshot startedAt "$raw" is not a valid date-time.');
+    }
+    return parsed;
   }
 
   @override

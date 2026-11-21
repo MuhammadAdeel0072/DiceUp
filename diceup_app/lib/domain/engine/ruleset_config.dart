@@ -1,3 +1,5 @@
+import 'json_validation.dart';
+
 /// A versioned, frozen set of Ludo rule options.
 ///
 /// SDD §6.2 (Table §6.2) and SRS BR-04..BR-14. The config is chosen at
@@ -83,17 +85,31 @@ class RulesetConfig {
         'version': version,
       };
 
+  /// Strict deserialization (M1.1, D-22): all eight fields must be
+  /// present with the correct types, and [validate] must pass. A
+  /// [InvalidRulesetConfig] from the JSON path is reported as a
+  /// [FormatException] (the setup path still throws
+  /// [InvalidRulesetConfig] directly).
   factory RulesetConfig.fromJson(Map<String, Object?> json) {
-    return RulesetConfig(
-      releaseOnSix: json['releaseOnSix'] as bool? ?? true,
-      releaseOnOne: json['releaseOnOne'] as bool? ?? false,
-      extraTurnOnSix: json['extraTurnOnSix'] as bool? ?? true,
-      extraTurnOnCapture: json['extraTurnOnCapture'] as bool? ?? true,
-      extraTurnOnHome: json['extraTurnOnHome'] as bool? ?? true,
-      maxConsecutiveSixes: json['maxConsecutiveSixes'] as int? ?? 3,
-      exactFinish: json['exactFinish'] as bool? ?? true,
-      version: json['version'] as String? ?? '1.0.0',
+    final config = RulesetConfig(
+      releaseOnSix: requireBool(json['releaseOnSix'], 'releaseOnSix'),
+      releaseOnOne: requireBool(json['releaseOnOne'], 'releaseOnOne'),
+      extraTurnOnSix: requireBool(json['extraTurnOnSix'], 'extraTurnOnSix'),
+      extraTurnOnCapture:
+          requireBool(json['extraTurnOnCapture'], 'extraTurnOnCapture'),
+      extraTurnOnHome:
+          requireBool(json['extraTurnOnHome'], 'extraTurnOnHome'),
+      maxConsecutiveSixes:
+          requireInt(json['maxConsecutiveSixes'], 'maxConsecutiveSixes'),
+      exactFinish: requireBool(json['exactFinish'], 'exactFinish'),
+      version: requireString(json['version'], 'version'),
     );
+    try {
+      config.validate();
+    } on InvalidRulesetConfig catch (e) {
+      throw FormatException('Invalid embedded ruleset: ${e.message}');
+    }
+    return config;
   }
 
   @override

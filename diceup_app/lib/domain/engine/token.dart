@@ -1,4 +1,5 @@
 import 'board.dart';
+import 'json_validation.dart';
 import 'player_colour.dart';
 
 /// One playing piece. Immutable: every transition produces a new
@@ -56,6 +57,9 @@ class Token {
 
   Map<String, Object> toJson() => {'stepsTaken': stepsTaken};
 
+  /// Strict deserialization (M1.1, D-22): [stepsTaken] must be a
+  /// present integer in 0..56 ([Board.stepsToHome]); anything else
+  /// throws [FormatException] — never a silent default.
   factory Token.fromJson({
     required int playerIndex,
     required int index,
@@ -66,7 +70,12 @@ class Token {
       playerIndex: playerIndex,
       index: index,
       colour: colour,
-      stepsTaken: json['stepsTaken'] as int? ?? 0,
+      stepsTaken: requireIntInRange(
+        json['stepsTaken'],
+        'stepsTaken',
+        0,
+        Board.stepsToHome,
+      ),
     );
   }
 

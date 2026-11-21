@@ -1,3 +1,5 @@
+import '../ai/ai_player.dart';
+import 'json_validation.dart';
 import 'player_colour.dart';
 import 'token.dart';
 
@@ -61,20 +63,31 @@ class Player {
         'tokens': tokens.map((t) => t.toJson()).toList(),
       };
 
+  /// Strict deserialization (M1.1, D-22): every field must be present
+  /// with the correct type. An unknown colour or type label throws
+  /// [FormatException] — it is never silently substituted with another
+  /// colour and an unknown type never flips an AI seat to human.
+  /// [tokens] must be a list of exactly four maps, checked before any
+  /// [Player] is constructed, so a bad count throws [FormatException]
+  /// rather than [ArgumentError] from the constructor.
+  ///
+  /// Returns an [AiPlayer] when the serialized type is `ai`. A missing
+  /// difficulty defaults to [AiDifficulty.easy] (the setup default);
+  /// a present-but-unknown difficulty throws [FormatException].
   factory Player.fromJson(int index, Map<String, Object?> json) {
-    final colour = PlayerColour.values.firstWhere(
-      (c) => c.label == json['colour'],
-      orElse: () => PlayerColour.values[index % PlayerColour.values.length],
-    );
-    final type = PlayerType.values.firstWhere(
-      (t) => t.name == json['type'],
-      orElse: () => PlayerType.human,
-    );
-    final tokenJson = (json['tokens'] as List?) ?? [];
+    final name = requireString(json['name'], 'name');
+    final colour =
+        requireEnum(json['colour'], 'colour', PlayerColour.values);
+    final type = requireEnum(json['type'], 'type', PlayerType.values);
+    final rawTokens = requireList(json['tokens'], 'tokens');
+    if (rawTokens.length != 4) {
+      throw FormatException(
+        'Player $index must have exactly 4 tokens '
+        '(got ${rawTokens.length}).',
+      );
+    }
     final tokens = List<Token>.generate(4, (i) {
-      final raw = i < tokenJson.length
-          ? tokenJson[i] as Map<String, Object?>
-          : <String, Object?>{};
+      final raw = requireMap(rawTokens[i], 'tokens[$i]');
       return Token.fromJson(
         playerIndex: index,
         index: i,
@@ -82,13 +95,31 @@ class Player {
         json: raw,
       );
     });
+    if (type == PlayerType.ai) {
+      return AiPlayer(
+        index: index,
+        name: name,
+        colour: colour,
+        difficulty: _aiDifficulty(json),
+        tokens: tokens,
+      );
+    }
     return Player(
       index: index,
-      name: json['name'] as String? ?? 'Player ${index + 1}',
+      name: name,
       colour: colour,
       type: type,
       tokens: tokens,
     );
+  }
+
+  /// Reads an AI difficulty from a serialized player: absent (or null)
+  /// means [AiDifficulty.easy]; a present value must name a known
+  /// difficulty, otherwise [FormatException].
+  static AiDifficulty _aiDifficulty(Map<String, Object?> json) {
+    final raw = json['difficulty'];
+    if (raw == null) return AiDifficulty.easy;
+    return requireEnum(raw, 'difficulty', AiDifficulty.values);
   }
 }
 

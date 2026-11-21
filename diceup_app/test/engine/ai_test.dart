@@ -304,7 +304,33 @@ void main() {
         return jsonEncode(game.snapshot());
       }
 
-      expect(play(), play());
+      // startedAt is a wall-clock timestamp stamped at match start
+      // (M1.1): it is the only non-deterministic part of a snapshot,
+      // so the comparison strips it. What this test verifies is
+      // gameplay determinism, not timestamp equality. Both runs must
+      // still stamp a valid startedAt.
+      Map<String, Object?> withoutStartedAt(String json) {
+        final map = jsonDecode(json) as Map<String, Object?>;
+        map.remove('startedAt');
+        return map;
+      }
+
+      final first = play();
+      final second = play();
+      expect(withoutStartedAt(first), withoutStartedAt(second));
+      expect(
+        DateTime.tryParse(
+          (jsonDecode(first) as Map<String, Object?>)['startedAt'] as String,
+        ),
+        isNotNull,
+      );
+      expect(
+        DateTime.tryParse(
+          (jsonDecode(second) as Map<String, Object?>)['startedAt']
+              as String,
+        ),
+        isNotNull,
+      );
     });
   });
 }

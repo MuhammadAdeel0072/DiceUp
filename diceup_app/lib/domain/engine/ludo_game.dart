@@ -64,7 +64,7 @@ class LudoGame {
     );
     final state = GameState.initial(
       players: players,
-      rulesetVersion: ruleset.version,
+      ruleset: ruleset,
     );
     return LudoGame._(
       state,
