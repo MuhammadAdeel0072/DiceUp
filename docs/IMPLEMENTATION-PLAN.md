@@ -33,7 +33,13 @@ implementation record. Do not overwrite the source documents with
 implementation notes — implementation documentation lives here and in
 code-adjacent comments.
 
-### 1.2 Repository and branch status (verified 21 Nov 2026, ~17:35 PKT)
+### 1.2 Repository and branch status (dated record — status as of 21 Nov 2026, ~22:13 PKT)
+
+This section is a dated historical record. It describes the branch as it
+stood at the time stated above; it is not updated to track the live head,
+so it cannot go stale when a later commit is created. Later commits are
+recorded in the branch history and in the PR #1 description, not by
+rewriting this section.
 
 - Repository: `MuhammadAdeel0072/DiceUp` (public). Default branch `main`.
 - Commits on `main`: `0713edc` "Initial commit" (README only) and
@@ -43,19 +49,23 @@ code-adjacent comments.
   `main` is still `750646d`. The audit baseline is that head — `e11ef1b`,
   six commits above `main`. The M0 documentation/comment commit is
   `52fb52e` (M0 record corrections, 21 Nov 2026), seven commits above
-  `main`. The current branch head is `8c067a87` (§1.2 branch-status and
-  M0.4 corrections, 21 Nov 2026), eight commits above `main`.
+  `main`. The branch head at the time of the previous §1.2 revision was
+  `8c067a87` (§1.2 branch-status and M0.4 corrections, 21 Nov 2026),
+  eight commits above `main`. The subsequent documentation-only
+  correction is `7f158bd` (§1.2 — current head is 8c067a87, eight commits
+  above main, 21 Nov 2026), nine commits above `main`.
 - Pull requests: **draft PR #1 open, unmerged** — "Phase 2–3: design
-  system, app shell, offline engine + AI, playable game screen", head
-  `8c067a87` (§1.2 branch-status and M0.4 corrections, 21 Nov 2026). The
-  head at audit time was `e11ef1b` (unchanged since 21 Nov 2026 13:22
-  UTC). Branch `implementation/foundation-phase-2-3` commits, in order:
-  `9b29d24` (33-file snapshot), `27763d6` (main.dart), `4a09b88` (widget
-  tests), `2127503` (pubspec), `f0f141e` (analysis_options), `e11ef1b`
-  (Anti's `.docx` upload), `52fb52e` (M0 record corrections — docs +
-  comments only), `8c067a87` (§1.2 branch-status and M0.4 corrections —
-  docs only). PR #1 stays open and unmerged until M4 is green;
-  Anti merges it himself (D-19, decided 2026-11-21).
+  system, app shell, offline engine + AI, playable game screen", head at
+  the time of this record: `7f158bd`. The head at audit time was `e11ef1b`
+  (unchanged since 21 Nov 2026 13:22 UTC). Branch
+  `implementation/foundation-phase-2-3` commits, in order: `9b29d24`
+  (33-file snapshot), `27763d6` (main.dart), `4a09b88` (widget tests),
+  `2127503` (pubspec), `f0f141e` (analysis_options), `e11ef1b` (Anti's
+  `.docx` upload), `52fb52e` (M0 record corrections — docs + comments
+  only), `8c067a87` (§1.2 branch-status and M0.4 corrections — docs
+  only), `7f158bd` (§1.2 head correction — docs only). PR #1 stays open
+  and unmerged until M4 is green; Anti merges it himself (D-19, decided
+  2026-11-21).
 - Work is done on dedicated implementation branches (never large unreviewed
   changes on `main`). This plan covers branch
   `implementation/foundation-phase-2-3`. Nothing is merged without the
