@@ -96,10 +96,15 @@ class InMemoryStore {
     }
   }
 
-  /// Derives the cached aggregates from the stored matches — the
-  /// single source of truth for the derivation, used both by
-  /// `recordMatch` (after every insert) and by `recomputeFromHistory`
-  /// (D-24: `matchesWon` counts human-seat wins only).
+  /// Derives the aggregates from the RETAINED matches — valid only
+  /// while the retained history is complete (see [isHistoryComplete]).
+  /// Once pruning (NFR-36) has removed rows, the retained 500 cannot
+  /// reconstruct lifetime totals, so this derivation must never be
+  /// used to maintain the cached row on the write path: it is the
+  /// single source of truth for the derivation, used by
+  /// `recomputeFromHistory` when history is provably complete, and
+  /// for the empty initial state. (D-24: `matchesWon` counts
+  /// human-seat wins only.)
   LocalStatistics computeStatistics() {
     var played = 0;
     var won = 0;
@@ -122,4 +127,61 @@ class InMemoryStore {
       updatedAt: now,
     );
   }
+
+  /// Updates the cached aggregates INCREMENTALLY from the previous
+  /// cached values plus one newly recorded match — the only way the
+  /// write path maintains lifetime totals (D-24, NFR-36). Deriving
+  /// from the retained match list would lose the pruned matches:
+  /// after the 501st record the retained list holds at most 501
+  /// rows, so a derivation would freeze `matchesPlayed` at 501
+  /// while the true lifetime total keeps growing.
+  ///
+  /// `matchesPlayed` + 1 always; `matchesVsAi` or `matchesLocal` + 1
+  /// by mode; `matchesWon` + 1 if and only if the winner is a human
+  /// seat (an AI win does not increment it). `updatedAt` is stamped
+  /// from the store clock.
+  void applyMatchToStatistics(LocalMatch match) {
+    final current = statistics;
+    statistics = LocalStatistics(
+      matchesPlayed: current.matchesPlayed + 1,
+      matchesWon:
+          current.matchesWon + (match.winnerIsHuman ? 1 : 0),
+      matchesVsAi: current.matchesVsAi +
+          (match.mode == LocalMatchMode.vsAi ? 1 : 0),
+      matchesLocal: current.matchesLocal +
+          (match.mode == LocalMatchMode.vsAi ? 0 : 1),
+      updatedAt: now,
+    );
+  }
+
+  /// Whether the retained match history is provably complete, i.e.
+  /// whether `computeStatistics()` may be used to repair the cached
+  /// row. True in exactly two cases:
+  ///
+  /// (a) fewer than [kMaxLocalMatches] rows are retained: pruning
+  /// leaves exactly 500 rows and only `clearHistory` (which resets
+  /// the statistics to zero) can drop the count below 500, so a
+  /// count below 500 means no pruning has happened since the last
+  /// clear — the retained history is the whole history.
+  ///
+  /// (b) the retained count equals the cached `matchesPlayed`: no
+  /// rows have been removed (pruning would leave the retained count
+  /// strictly below the lifetime total, except when exactly 500
+  /// matches were recorded and none pruned — complete either way).
+  ///
+  /// Residual limitation: (b) can be fooled if the cached
+  /// `matchesPlayed` is corrupted to exactly equal the retained
+  /// count while rows were pruned (e.g. true lifetime 700, retained
+  /// 500, cache corrupted 700 → 500) — then a repair would derive
+  /// the retained-window aggregates and present them as lifetime
+  /// totals. (a) has no such hole: it does not depend on the cache.
+  /// The guard also assumes the retained match rows themselves are
+  /// intact; silent loss of committed match rows is outside the
+  /// threat model (M1.5 handles whole-database corruption by
+  /// recreating). When in doubt the guard refuses repair rather than
+  /// destroying data: an incomplete history returns the cached row
+  /// unchanged.
+  bool get isHistoryComplete =>
+      matches.length < kMaxLocalMatches ||
+      matches.length == statistics.matchesPlayed;
 }

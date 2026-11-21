@@ -20,7 +20,11 @@ class InMemoryLocalMatchRepository implements LocalMatchRepository {
     _store.throwIfFailing();
     final stored = match.copyWith(id: _store.takeNextMatchId());
     _store.matches[stored.id!] = stored;
-    _store.statistics = _store.computeStatistics();
+    // Lifetime totals are maintained incrementally from the previous
+    // cached values (see InMemoryStore.applyMatchToStatistics):
+    // deriving them from the retained list here would freeze
+    // matchesPlayed at 501 once pruning starts removing rows.
+    _store.applyMatchToStatistics(stored);
     _prune();
     _store.snapshots.remove(kCurrentMatchKey);
     return stored;

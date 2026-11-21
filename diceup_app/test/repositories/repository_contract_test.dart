@@ -425,6 +425,91 @@ void defineRepositoryContractTests(RepositorySet Function() create) {
       expect(listed.first.id, kMaxLocalMatches + 1);
     });
 
+    test('recordMatch preserves lifetime statistics beyond 500 (D-24, NFR-36)',
+        () async {
+      // The first 200 matches are local-mode human wins; the rest are
+      // vs-AI matches the AI wins. If statistics were derived from
+      // the retained 500, the 200 pruned human wins and local matches
+      // would vanish from the totals — and the lifetime total would
+      // freeze at 501 once pruning starts.
+      final base = DateTime.utc(2026, 1, 1);
+      final localHumanWin = [
+        LocalMatchPlayer(
+          name: 'Player 1',
+          colour: PlayerColour.red,
+          isAi: false,
+        ),
+        LocalMatchPlayer(
+          name: 'Player 2',
+          colour: PlayerColour.green,
+          isAi: false,
+        ),
+      ];
+      for (var i = 0; i < 200; i++) {
+        await repos.matches.recordMatch(
+          testMatch(
+            playedAt: base.add(Duration(minutes: i)),
+            mode: LocalMatchMode.localMultiplayer,
+            winnerIndex: 0,
+            players: localHumanWin,
+          ),
+        );
+      }
+      var stats = await repos.statistics.getStatistics();
+      expect(stats.matchesPlayed, 200);
+      expect(stats.matchesWon, 200);
+      expect(stats.matchesLocal, 200);
+      expect(stats.matchesVsAi, 0);
+
+      // Records 201–501: vs-AI matches the AI wins.
+      for (var i = 200; i < 501; i++) {
+        await repos.matches.recordMatch(
+          testMatch(
+            playedAt: base.add(Duration(minutes: i)),
+            winnerIndex: 1, // the AI seat wins.
+          ),
+        );
+      }
+      // 501 records, 500 retained — the lifetime total is 501.
+      expect(await repos.matches.countMatches(), kMaxLocalMatches);
+      stats = await repos.statistics.getStatistics();
+      expect(stats.matchesPlayed, 501);
+      expect(stats.matchesWon, 200);
+      expect(stats.matchesVsAi, 301);
+      expect(stats.matchesLocal, 200);
+
+      // One more record: deriving from the retained list would freeze
+      // the lifetime total at 501 here.
+      await repos.matches.recordMatch(
+        testMatch(
+          playedAt: base.add(const Duration(minutes: 501)),
+          winnerIndex: 1,
+        ),
+      );
+      stats = await repos.statistics.getStatistics();
+      expect(stats.matchesPlayed, 502);
+      expect(stats.matchesWon, 200);
+
+      // Up to 700 records: the count stays capped, the lifetime
+      // totals stay exact.
+      for (var i = 502; i < 700; i++) {
+        await repos.matches.recordMatch(
+          testMatch(
+            playedAt: base.add(Duration(minutes: i)),
+            winnerIndex: 1,
+          ),
+        );
+      }
+      expect(await repos.matches.countMatches(), kMaxLocalMatches);
+      expect(await repos.matches.getMatch(1), isNull);
+      expect((await repos.matches.listMatches()).first.id, 700);
+      stats = await repos.statistics.getStatistics();
+      expect(stats.matchesPlayed, 700);
+      expect(stats.matchesWon, 200);
+      expect(stats.matchesVsAi, 500);
+      expect(stats.matchesLocal, 200);
+    });
+
     test('clearHistory removes matches and resets statistics', () async {
       await repos.matches.recordMatch(testMatch());
       await repos.matches.recordMatch(
@@ -467,6 +552,64 @@ void defineRepositoryContractTests(RepositorySet Function() create) {
       expect(recomputed.matchesLocal, cached.matchesLocal);
       expect(recomputed.matchesPlayed, 3);
       expect(recomputed.matchesWon, 2);
+    });
+
+    test('recomputeFromHistory derives exactly at exactly 500 matches',
+        () async {
+      final base = DateTime.utc(2026, 1, 1);
+      for (var i = 0; i < kMaxLocalMatches; i++) {
+        await repos.matches.recordMatch(
+          testMatch(playedAt: base.add(Duration(minutes: i))),
+        );
+      }
+      expect(await repos.matches.countMatches(), kMaxLocalMatches);
+      final cached = await repos.statistics.getStatistics();
+      expect(cached.matchesPlayed, kMaxLocalMatches);
+      // Complete via the retained-count-equals-cached-totals check:
+      // nothing was pruned yet, so the derivation is exact.
+      final recomputed = await repos.statistics.recomputeFromHistory();
+      expect(recomputed.matchesPlayed, kMaxLocalMatches);
+      expect(recomputed.matchesWon, cached.matchesWon);
+      expect(recomputed.matchesVsAi, cached.matchesVsAi);
+      expect(recomputed.matchesLocal, cached.matchesLocal);
+    });
+
+    test('recomputeFromHistory keeps lifetime totals after pruning',
+        () async {
+      final base = DateTime.utc(2026, 1, 1);
+      for (var i = 0; i < 700; i++) {
+        await repos.matches.recordMatch(
+          testMatch(
+            playedAt: base.add(Duration(minutes: i)),
+            winnerIndex: i.isEven ? 0 : 1,
+          ),
+        );
+      }
+      final cached = await repos.statistics.getStatistics();
+      expect(cached.matchesPlayed, 700);
+      expect(cached.matchesWon, 350);
+      expect(cached.matchesVsAi, 700);
+      // Deriving from the retained 500 would claim 500 played and
+      // 250 won — the repair must not do that. The cached lifetime
+      // totals are returned unchanged, with no write (so `updatedAt`
+      // is untouched too, which the equality check covers).
+      final recomputed = await repos.statistics.recomputeFromHistory();
+      expect(recomputed, cached);
+      expect(
+        (await repos.statistics.getStatistics()).matchesPlayed,
+        700,
+      );
+    });
+
+    test('recomputeFromHistory derives zeros after clearHistory',
+        () async {
+      await repos.matches.recordMatch(testMatch());
+      await repos.matches.clearHistory();
+      final recomputed = await repos.statistics.recomputeFromHistory();
+      expect(recomputed.matchesPlayed, 0);
+      expect(recomputed.matchesWon, 0);
+      expect(recomputed.matchesVsAi, 0);
+      expect(recomputed.matchesLocal, 0);
     });
   });
 

@@ -93,6 +93,18 @@ void main() {
         isTrue,
       );
     });
+
+    test('a failed recomputeFromHistory leaves the cached row untouched',
+        () async {
+      await repos.matches.recordMatch(testMatch(winnerIndex: 0));
+      final before = await repos.statistics.getStatistics();
+      store.failNextCall();
+      await expectLater(
+        () => repos.statistics.recomputeFromHistory(),
+        throwsA(isA<InMemoryRepositoryFailure>()),
+      );
+      expect(await repos.statistics.getStatistics(), before);
+    });
   });
 
   group('diverged statistics', () {
@@ -117,6 +129,42 @@ void main() {
       expect(
         (await repos.statistics.getStatistics()).matchesPlayed,
         2,
+      );
+    });
+
+    test('recomputeFromHistory does not repair diverged statistics '
+        'after pruning', () async {
+      final base = DateTime.utc(2026, 1, 1);
+      for (var i = 0; i < 700; i++) {
+        await repos.matches.recordMatch(
+          testMatch(playedAt: base.add(Duration(minutes: i))),
+        );
+      }
+      expect(
+        (await repos.statistics.getStatistics()).matchesPlayed,
+        700,
+      );
+      // Diverge the cached row directly, as storage corruption would.
+      store.statistics = LocalStatistics(
+        matchesPlayed: 99,
+        matchesWon: 99,
+        matchesVsAi: 99,
+        matchesLocal: 99,
+        updatedAt: DateTime.utc(2020, 1, 1),
+      );
+      // Exact repair is impossible here: the pruned 200 matches are
+      // gone, so recompute must return the diverged row unchanged
+      // rather than present the retained window (500) as lifetime
+      // totals — and it must not write, so `updatedAt` stays as set.
+      final recomputed = await repos.statistics.recomputeFromHistory();
+      expect(recomputed.matchesPlayed, 99);
+      expect(recomputed.matchesWon, 99);
+      expect(recomputed.matchesVsAi, 99);
+      expect(recomputed.matchesLocal, 99);
+      expect(recomputed.updatedAt, DateTime.utc(2020, 1, 1));
+      expect(
+        (await repos.statistics.getStatistics()).matchesPlayed,
+        99,
       );
     });
   });
