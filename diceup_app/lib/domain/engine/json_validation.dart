@@ -82,3 +82,98 @@ T requireEnum<T extends Enum>(
   }
   throw FormatException('Snapshot field "$field" has unknown value "$raw".');
 }
+
+/// The field [value] must be a string holding a complete ISO-8601
+/// date-time: `YYYY-MM-DDTHH:MM:SS` with optional fractional seconds
+/// (`.\d+`) and an optional zone (`Z` or `±HH:MM`). Returns the parsed
+/// [DateTime]. Throws [FormatException] otherwise.
+///
+/// The shape and every component are checked against the RAW input,
+/// because [DateTime.tryParse] alone is not enough: it normalises
+/// out-of-range components (month 13 rolls into the next year, hour 99
+/// rolls into later days) instead of rejecting them, and it accepts
+/// date-only strings. A naive date-time (no zone) is accepted — the
+/// snapshot writer emits `DateTime.now().toIso8601String()`, which
+/// has no zone suffix. The literal `T` separator and seconds are
+/// required. A leap second (60) is rejected; the writer never emits
+/// one. Once the components check out, the value is parsed with
+/// [DateTime.tryParse], which preserves the instant for offsets.
+DateTime requireIso8601DateTime(Object? value, String field) {
+  final raw = requireString(value, field);
+  final match = _iso8601DateTime.firstMatch(raw);
+  if (match == null) {
+    throw FormatException(
+      'Snapshot field "$field" must be a complete ISO-8601 date-time '
+      '(YYYY-MM-DDTHH:MM:SS with optional fractional seconds and '
+      'optional Z or ±HH:MM zone) (got "$raw").',
+    );
+  }
+  final year = int.parse(match[1]!);
+  final month = int.parse(match[2]!);
+  final day = int.parse(match[3]!);
+  final hour = int.parse(match[4]!);
+  final minute = int.parse(match[5]!);
+  final second = int.parse(match[6]!);
+  if (month < 1 || month > 12) {
+    throw FormatException(
+      'Snapshot field "$field" has an invalid month (got $month).',
+    );
+  }
+  // Day 0 of the next month is the last day of this month, so this is
+  // leap-year aware: Feb 29 is valid only in a leap year.
+  final daysInMonth = DateTime.utc(year, month + 1, 0).day;
+  if (day < 1 || day > daysInMonth) {
+    throw FormatException(
+      'Snapshot field "$field" has an invalid day (got $day).',
+    );
+  }
+  if (hour > 23) {
+    throw FormatException(
+      'Snapshot field "$field" has an invalid hour (got $hour).',
+    );
+  }
+  if (minute > 59) {
+    throw FormatException(
+      'Snapshot field "$field" has an invalid minute (got $minute).',
+    );
+  }
+  if (second > 59) {
+    throw FormatException(
+      'Snapshot field "$field" has an invalid second (got $second).',
+    );
+  }
+  final offsetHour = match[10];
+  if (offsetHour != null) {
+    if (int.parse(offsetHour) > 23) {
+      throw FormatException(
+        'Snapshot field "$field" has an invalid zone offset hour '
+        '(got $offsetHour).',
+      );
+    }
+    if (int.parse(match[11]!) > 59) {
+      throw FormatException(
+        'Snapshot field "$field" has an invalid zone offset minute '
+        '(got ${match[11]}).',
+      );
+    }
+  }
+  // Belt and braces: the shape and components already checked out, so
+  // tryParse must succeed; a null result is still a FormatException.
+  final parsed = DateTime.tryParse(raw);
+  if (parsed == null) {
+    throw FormatException(
+      'Snapshot field "$field" is not a valid date-time (got "$raw").',
+    );
+  }
+  return parsed;
+}
+
+/// Complete ISO-8601 date-time with a literal `T` separator and
+/// mandatory seconds: `YYYY-MM-DDTHH:MM:SS`, optional fractional
+/// seconds, optional `Z` or `±HH:MM` zone. Groups: 1 year, 2 month,
+/// 3 day, 4 hour, 5 minute, 6 second, 7 fractional seconds,
+/// 8 zone, 9 zone sign, 10 zone offset hour, 11 zone offset minute.
+final _iso8601DateTime = RegExp(
+  r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?'
+  r'(Z|([+-])(\d{2}):(\d{2}))?$',
+);

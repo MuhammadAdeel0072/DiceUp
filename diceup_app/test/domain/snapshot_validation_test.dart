@@ -237,6 +237,49 @@ void main() {
       );
     });
 
+    test('startedAt accepts a naive date-time (the snapshot writer format)',
+        () {
+      // GameState.initial stamps DateTime.now(), whose toIso8601String
+      // has no zone suffix — a persisted snapshot therefore carries a
+      // naive timestamp, and the strict check must accept it.
+      final json = playedSnapshot()..['startedAt'] = '2026-11-21T17:30:00';
+      final restored = GameState.fromJson(json);
+      expect(restored.startedAt, DateTime(2026, 11, 21, 17, 30));
+    });
+
+    test('startedAt accepts a plain UTC timestamp and a leap day', () {
+      final utc = playedSnapshot()..['startedAt'] = '2026-11-21T17:30:00Z';
+      expect(
+        GameState.fromJson(utc).startedAt,
+        DateTime.utc(2026, 11, 21, 17, 30),
+      );
+      // Positive control for the leap-year logic: Feb 29 is valid in
+      // a leap year (and rejected in a non-leap year — see the rejects
+      // below).
+      final leap = playedSnapshot()
+        ..['startedAt'] = '2024-02-29T12:00:00Z';
+      expect(
+        GameState.fromJson(leap).startedAt,
+        DateTime.utc(2024, 2, 29, 12),
+      );
+    });
+
+    test('startedAt preserves the instant for timezone offsets', () {
+      // +05:00 means 17:30 local is 12:30 UTC; -05:00 means 22:30 UTC.
+      final plus = playedSnapshot()
+        ..['startedAt'] = '2026-11-21T17:30:00+05:00';
+      expect(
+        GameState.fromJson(plus).startedAt!.microsecondsSinceEpoch,
+        DateTime.utc(2026, 11, 21, 12, 30).microsecondsSinceEpoch,
+      );
+      final minus = playedSnapshot()
+        ..['startedAt'] = '2026-11-21T17:30:00-05:00';
+      expect(
+        GameState.fromJson(minus).startedAt!.microsecondsSinceEpoch,
+        DateTime.utc(2026, 11, 21, 22, 30).microsecondsSinceEpoch,
+      );
+    });
+
     test('consecutiveSixes follows the embedded ruleset limit', () {
       // maxConsecutiveSixes 3 (default): 2 accepted (3 is rejected —
       // see the rejects below).
@@ -422,6 +465,37 @@ void main() {
           j['startedAt'] = '2026/11/21T17:30:00Z',
       'malformed startedAt': (j) => j['startedAt'] = 'not-a-date',
       'startedAt as a number': (j) => j['startedAt'] = 12345,
+      // Strict ISO-8601 date-time (M1.1 review): tryParse alone
+      // normalises these, so the component checks must reject them.
+      'startedAt month 13 day 45 hour 99': (j) =>
+          j['startedAt'] = '2026-13-45T99:99:99Z',
+      'startedAt hour 99': (j) =>
+          j['startedAt'] = '2026-11-21T99:99:99Z',
+      'startedAt month 13': (j) =>
+          j['startedAt'] = '2026-13-21T17:30:00Z',
+      'startedAt month 00': (j) =>
+          j['startedAt'] = '2026-00-21T17:30:00Z',
+      'startedAt Feb 30': (j) =>
+          j['startedAt'] = '2026-02-30T17:30:00Z',
+      'startedAt Feb 29 in a non-leap year': (j) =>
+          j['startedAt'] = '2026-02-29T17:30:00Z',
+      'startedAt April 31': (j) =>
+          j['startedAt'] = '2026-04-31T17:30:00Z',
+      'startedAt hour 24': (j) =>
+          j['startedAt'] = '2026-11-21T24:30:00Z',
+      'startedAt minute 60': (j) =>
+          j['startedAt'] = '2026-11-21T23:60:00Z',
+      'startedAt second 60': (j) =>
+          j['startedAt'] = '2026-11-21T23:59:60Z',
+      'startedAt date-only': (j) => j['startedAt'] = '2026-11-21',
+      'startedAt with space separator': (j) =>
+          j['startedAt'] = '2026-11-21 17:30:00Z',
+      'startedAt offset hour 25': (j) =>
+          j['startedAt'] = '2026-11-21T17:30:00+25:00',
+      'startedAt offset minute 60': (j) =>
+          j['startedAt'] = '2026-11-21T17:30:00+05:60',
+      'startedAt without seconds': (j) =>
+          j['startedAt'] = '2026-11-21T17:30Z',
       'unknown AI difficulty': (j) {
         playerOf(j, 1)['type'] = 'ai';
         playerOf(j, 1)['difficulty'] = 'insane';

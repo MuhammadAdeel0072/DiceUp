@@ -168,9 +168,12 @@ class GameState {
   /// `winnerIndex` set while the phase is not finished, a
   /// missing/out-of-range `winnerIndex` while finished, or a
   /// non-integer `winnerIndex`; a missing, null, non-string, or
-  /// unparseable `startedAt` (persisted snapshots must carry a valid
-  /// ISO-8601 timestamp; validity is `DateTime.tryParse`, no stricter
-  /// shape is demanded); or any wrong-typed field.
+  /// not-a-complete-ISO-8601-date-time `startedAt` (persisted
+  /// snapshots must carry a complete ISO-8601 date-time —
+  /// `YYYY-MM-DDTHH:MM:SS` with optional fractional seconds and an
+  /// optional `Z` or `±HH:MM` zone; date-only strings and
+  /// out-of-range components are rejected — see
+  /// [requireIso8601DateTime]); or any wrong-typed field.
   ///
   /// Unknown top-level keys are ignored (forward compatibility).
   /// No `moveHistory` is read or written (D-23).
@@ -294,30 +297,27 @@ class GameState {
   }
 
   /// `startedAt` is required in a persisted snapshot: a missing key,
-  /// a null, a non-string, or an unparseable string all throw
-  /// [FormatException]. Validity is [DateTime.tryParse] — no stricter
-  /// shape is demanded. Note what that means: tryParse normalises
-  /// out-of-range components (e.g. month 13 rolls into the next year)
-  /// instead of rejecting them, and converts an offset to the same
-  /// UTC instant (re-emitted as `Z`) — both are accepted as valid by
-  /// this check. The [GameState] constructor itself keeps
-  /// `startedAt` nullable so in-memory/test-only states can be built
-  /// without a timestamp; only the persisted-snapshot path is strict.
+  /// a null, a non-string, or a string that is not a complete
+  /// ISO-8601 date-time all throw [FormatException] (see
+  /// [requireIso8601DateTime]). The accepted shape is
+  /// `YYYY-MM-DDTHH:MM:SS` with optional fractional seconds and an
+  /// optional `Z` or `±HH:MM` zone; the literal `T` separator is
+  /// required, seconds are required, and every component is checked
+  /// against its real range — [DateTime.tryParse] alone is not enough
+  /// because it normalises out-of-range components (month 13 rolls
+  /// into the next year) and accepts date-only strings. A naive
+  /// date-time (no zone) is accepted because the snapshot writer
+  /// emits `DateTime.now().toIso8601String()`, which has no zone
+  /// suffix. An offset is converted to the same UTC instant. A leap
+  /// second (60) is rejected — the writer never emits one. The
+  /// [GameState] constructor itself keeps `startedAt` nullable so
+  /// in-memory/test-only states can be built without a timestamp;
+  /// only the persisted-snapshot path is strict.
   static DateTime _startedAt(Map<String, Object?> json) {
     if (!json.containsKey('startedAt')) {
       throw const FormatException('Snapshot startedAt is required.');
     }
-    final raw = json['startedAt'];
-    if (raw is! String) {
-      throw const FormatException(
-        'Snapshot startedAt must be an ISO-8601 string.',
-      );
-    }
-    final parsed = DateTime.tryParse(raw);
-    if (parsed == null) {
-      throw FormatException('Snapshot startedAt "$raw" is not a valid date-time.');
-    }
-    return parsed;
+    return requireIso8601DateTime(json['startedAt'], 'startedAt');
   }
 
   @override
