@@ -10,6 +10,7 @@ import '../screens/mode_selection_screen.dart';
 import '../screens/offline_setup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/splash_screen.dart';
+import '../screens/statistics_screen.dart';
 
 /// DiceUp navigation (Phase 2).
 ///
@@ -25,6 +26,7 @@ abstract final class AppRoutes {
   static const String offlineSetup = '/offline-setup';
   static const String game = '/game';
   static const String history = '/history';
+  static const String statistics = '/statistics';
   static const String settings = '/settings';
 
   /// Route table for a completed startup (M1.6): the splash
@@ -39,6 +41,7 @@ abstract final class AppRoutes {
       offlineSetup: (_) => const OfflineSetupScreen(),
       game: (_) => const GameScreen(),
       history: (_) => const HistoryScreen(),
+      statistics: (_) => const StatisticsScreen(),
       settings: (_) => const SettingsScreen(),
     };
   }

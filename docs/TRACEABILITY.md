@@ -30,7 +30,8 @@ Status values: `not started` | `in progress` | `implemented` |
 | FR-35–39 | 7 | AI | `diceup_app/lib/domain/ai/` | `test/engine/ai_test.dart` | verified (flutter test 50/50; see IMPLEMENTATION-PLAN §7 for the Medium/Hard note) |
 | FR-33, FR-34, FR-40 | 7 | AI | `diceup_app/lib/domain/ai/` | `test/engine/ai_test.dart` | implemented (partial) — FR-40 UI-layer pacing test missing (M-16; D-31 keeps 700–1,199 ms); FR-33/34 over-claimed per H-03. D-01 (2026-11-21): §7.4 criterion amended (hard>easy, medium>=easy); test oracle fix + SDD re-issue pending — see IMPLEMENTATION-PLAN §8. |
 | FR-24–28 | 6.6, 11.4 | Game screen | `lib/presentation/screens/game_screen.dart` | `test/game_screen_test.dart` | implemented (partial) — FR-26 results screen is a dialog today (dedicated screen in M2.5); continue-to-rank variant DEFERRED per D-02, never marked complete. |
-| FR-29–32 | 9.1 | Local persistence | `lib/data/local/` (SQLite) | integration test | not started |
+| FR-29–31 | 9.1 | Local persistence | `lib/data/local/` (SQLite) | integration test | not started |
+| FR-32 | 9.1, 11.4 | Local statistics + settings UI | `statistics_screen.dart`, `settings_screen.dart` | `test/statistics_screen_test.dart` (persisted lifetime totals incl. 700-recorded/500-retained pruning case; AI wins excluded from human wins; per-player breakdown labelled as latest 500; settings persist + survive restart) | verified (flutter test 349/349; M1.7) |
 | NFR-12 | 6.9 | Engine conformance | `test/engine/` 1,000-match simulation | committed suite pending (M4.1); exit criterion is `flutter test` (H-02a — `dart test` unexecutable, exit 65); ad-hoc 100/100 claim WITHDRAWN as evidence (no artifact) | in progress |
 | NFR-23 | 3.2 | Offline availability | manual: airplane-mode run | — | not started (offline by construction; device run pending) |
 

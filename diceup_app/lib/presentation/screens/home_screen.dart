@@ -166,6 +166,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () =>
                     Navigator.of(context).pushNamed(AppRoutes.history),
               ),
+              const SizedBox(height: DiceUpSpacing.md),
+              SecondaryButton(
+                label: 'Statistics',
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.statistics),
+              ),
               const Spacer(),
               const Text(
                 'Offline play works without an account or internet.',

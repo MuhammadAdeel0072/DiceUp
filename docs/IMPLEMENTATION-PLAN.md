@@ -406,3 +406,61 @@ location fact.
 - D-03 note: the D-03 decision record said M0 would re-point records at
   `docs/`; the move has not happened, so M0 records the current truth
   (repo root, `e11ef1b`) and the `docs/` move stays pending Anti.
+
+### M1.7 — DONE (persisted settings + statistics UI, haptics D-32; 2026-11-22)
+
+The last M1 milestone. No schema, repository-interface, engine or AI
+changes; no audio dependency; no new table. Two append-only commits on
+`implementation/foundation-phase-2-3`, parent `596b9e4`:
+
+- `d703bd7f` "feat(app): M1.7 settings persistence + haptics (D-32)" —
+  `lib/presentation/feedback/feedback_service.dart` (new
+  `FeedbackService` abstraction; `HapticFeedbackService` calls
+  `HapticFeedback.lightImpact()`), persisted `settings_screen.dart`
+  (vibration toggle + volume slider 0–100 persist immediately,
+  loading state first — defaults never flashed; sound toggle DISABLED
+  with a Coming Soon note, no audio code; Reset to defaults via
+  `resetToDefaults`, which also clears `last_*`), haptics wired into
+  `GameScreen._applyMove` gated by the persisted `vibration_enabled`
+  setting (startup-loaded value, refreshed from the repository;
+  fire-and-forget, never throwing into the turn loop), FR-08
+  traceability row updated.
+- Statistics commit (SHA in the M1.7 completion report) — new
+  `statistics_screen.dart` (route `/statistics`, Home "Statistics"
+  entry): reads the PERSISTED lifetime statistics row directly, never
+  derives lifetime totals from retained history; per-player breakdown
+  is computed from retained history only and labelled "Per-player wins
+  from your latest 500 matches." (schema-limited presentation, D-24 —
+  no per-player lifetime table exists); players identified by seat
+  index + colour, never display name; AI wins never count as human
+  wins; loading / empty (zeros + honest note) / error-with-retry /
+  unavailable states. FR-32 traceability row added (FR-29–32 row split
+  to FR-29–31; its "not started" status is pre-existing and untouched
+  by this milestone).
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test --coverage` — **349/349 passed** (baseline 332 + 17 new:
+9 settings/haptics in `test/settings_haptics_test.dart`, 8 statistics
+in `test/statistics_screen_test.dart`); measured line coverage **86.2%**
+(1899/2203 lines — reported only; the ≥90% gate is M3.7's).
+`flutter analyze` — **0 errors, 0 warnings, 21 info** (all the
+pre-existing `material.dart` deprecation notice, incl. 4 in new M1.7
+files; baseline was 0/0/18). New tests prove: seeded settings load
+without flashing defaults; toggle/volume persist (fresh-repository
+re-read); reset restores D-25 defaults and clears `last_*`; settings
+survive a real database reopen; a move triggers the feedback fake
+exactly once when enabled and never when disabled; the real service
+sends lightImpact on the platform channel; lifetime totals stay 700
+after 700 records with only 500 rows retained; AI wins never inflate
+human wins; Home → Statistics → back navigation.
+
+Scoping decisions recorded: last-used setup prefill (`last_mode` /
+`last_player_count` / `last_difficulties` into the setup flow) is
+DEFERRED, not forced — it needs an async load + loading state in the
+setup screen, a serialisation format for difficulties (none exists),
+and persistence on match start across three screens; small in no
+single place, so it stays a deferred item rather than blocking the
+milestone. The settings screen loads/saves the three persisted toggles
++ volume and reset; reading/displaying `last_*` there is out of scope.
+Sound remains a named follow-up (D-32): disabled toggle + volume
+storage only, nothing plays.
