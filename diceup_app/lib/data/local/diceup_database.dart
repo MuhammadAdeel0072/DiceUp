@@ -15,9 +15,12 @@ import 'package:sqflite/sqflite.dart';
 /// not at all.
 ///
 /// The database holds no passwords, no tokens and no rules (CON-02,
-/// CI-06). Whole-database corruption is handled in M1.5 (recreate on
-/// unreadable database, NFR-35); this class only opens a healthy
-/// database, or creates a fresh one.
+/// CI-06). Whole-database corruption is handled in M1.5 by
+/// `openDatabaseWithRecovery` in `database_recovery.dart` (recreate
+/// on unreadable database, NFR-35); this class only opens a healthy
+/// database, or creates a fresh one — call [open] directly when the
+/// caller wants a plain open that throws on corruption instead of
+/// recovering.
 ///
 /// ## Single instance
 ///

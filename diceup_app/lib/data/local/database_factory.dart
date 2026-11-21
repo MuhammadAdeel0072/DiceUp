@@ -1,6 +1,7 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import 'database_recovery.dart';
 import 'diceup_database.dart';
 
 /// Opens the app's SQLite database at its platform location and
@@ -25,4 +26,24 @@ Future<DiceUpDatabase> openDiceUpDatabase({
   final database = DiceUpDatabase(factory: dbFactory, path: dbPath);
   await database.open();
   return database;
+}
+
+/// Opens the app's SQLite database at its platform location with
+/// corruption recovery (M1.5, NFR-35) and returns the open handle
+/// plus whether recovery ran.
+///
+/// This is the entry point the startup flow (M1.6) calls: when
+/// [DatabaseOpenResult.recovered] is true, the previous database
+/// was unreadable and was recreated empty, and M1.6 shows
+/// [kDatabaseRecoveryMessage] once. When it is false, the database
+/// opened normally and no message is shown.
+Future<DatabaseOpenResult> openDiceUpDatabaseWithRecovery({
+  DatabaseFactory? factory,
+  String? path,
+}) async {
+  final dbFactory = factory ?? databaseFactory;
+  final dbPath =
+      path ?? p.join(await getDatabasesPath(), DiceUpDatabase.fileName);
+  final database = DiceUpDatabase(factory: dbFactory, path: dbPath);
+  return openDatabaseWithRecovery(database);
 }
