@@ -425,7 +425,7 @@ changes; no audio dependency; no new table. Two append-only commits on
   setting (startup-loaded value, refreshed from the repository;
   fire-and-forget, never throwing into the turn loop), FR-08
   traceability row updated.
-- Statistics commit (SHA in the M1.7 completion report) — new
+- `d25bff20` "feat(app): M1.7 statistics screen + docs" — new
   `statistics_screen.dart` (route `/statistics`, Home "Statistics"
   entry): reads the PERSISTED lifetime statistics row directly, never
   derives lifetime totals from retained history; per-player breakdown
