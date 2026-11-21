@@ -6,7 +6,9 @@ import '../../core/design_system/diceup_colors.dart';
 ///
 /// [value] 1–6 renders the matching pip layout; null renders a blank
 /// face (before the first roll). [rolling] shows a shimmer while the
-/// [AnimationController]-driven roll animation runs on the game screen.
+/// Timer-driven roll animation runs on the game screen (CON-01
+/// outstanding — animations must use AnimationController; the dice
+/// tumble is Timer.periodic today, migrated in M2.7).
 class DiceWidget extends StatelessWidget {
   const DiceWidget({
     super.key,

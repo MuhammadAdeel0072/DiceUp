@@ -7,19 +7,24 @@ import '../../core/design_system/diceup_colors.dart';
 /// Ludo board rendering (SDD §6.2, §11.4; SRS CON-01, FR-23).
 ///
 /// The board is a 15x15 grid drawn with [CustomPainter]. Geometry lives
-/// here — and only here — so the engine never knows about pixels and the
-/// painter never knows about rules.
+/// here — and only here — so the engine never knows about pixels.
+/// (The painter duplicates the engine's rule geometry — safe cells, start
+/// cells, home-path layout — instead of deriving it from [Board] (M-08);
+/// M3.5 derives it from [Board].)
 ///
 /// Coordinate contract (agrees with the engine's [Board] in logical
-/// track-index space):
+/// track-index space — by duplication, not derivation):
 /// * the 52-cell outer track is numbered clockwise from the red start
 ///   cell (track index 0). Start cells are indices 0 (red), 13 (green),
 ///   26 (yellow), 39 (blue). Safe cells are the 4 starts plus the 4 star
-///   cells at indices 8, 21, 34, 47 — the painter draws the stars from
-///   [safeTrackIndices] so a ruleset change moves the markers.
+///   cells at indices 8, 21, 34, 47 (D-15 confirmed) — the painter draws
+///   the stars from [safeTrackIndices], which defaults to the same set
+///   but is a separate copy: no caller passes it, so a ruleset change
+///   does NOT move the markers today (M3.5 derives them from [Board]).
 /// * a token's [BoardToken.stepsTaken] is 0 in the yard, 1..51 on the
-///   outer track (track index = (start + steps - 1) % 52), 52..56 on its
-///   home path, and 56 means home (drawn in the centre).
+///   outer track (track index = (start + steps - 1) % 52), 52..55 on its
+///   home path, and 56 means home (drawn in the centre) (D-20:
+///   51 + 4 + 1 = 56).
 
 /// Token data the board needs. The game screen adapts the engine's
 /// [Token] into this — the painter never imports the engine.

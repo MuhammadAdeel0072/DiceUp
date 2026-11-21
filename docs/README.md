@@ -1,26 +1,22 @@
 # DiceUp docs
 
-## Source documents (not committed here)
+## Source documents (at the repo root)
 
-The SRS and SDD are `.docx` binaries and the GitHub connector used for
-this branch can only push UTF-8 text files, so they are not in this
-folder. Their source copies live in the project workspace:
+The SRS and SDD **are** in the GitHub repository, at the root — Anti added
+them himself (commit `e11ef1b`, 21 Nov 2026 13:22 UTC; the earlier claim
+that they were not in the repo was wrong, M-04):
 
-- **SRS v0.1** (16 Nov 2026, draft) — supplied by the team.
-- **SDD v1.0** (21 Nov 2026) — derived from the SRS; 76 pages, 17
-  sections, 11 UML diagrams, traceability FR-01…FR-82 verified 82/82.
+- **SRS v0.1** (16 Nov 2026, draft) — `DiceUp_SRS_v0.1.docx` at the repo
+  root.
+- **SDD v1.0** (21 Nov 2026) — `DiceUp_Software_Design_Document_v1.0.docx`
+  at the repo root; 76 pages, 17 sections, 11 UML diagrams, traceability
+  FR-01…FR-82 verified 82/82. Approval has not been given (SDD Approvals
+  block) — unapproved baseline.
 
-To add the binaries to the repository, run from a machine with git
-access (e.g. the owner's Windows machine, in the repo root):
-
-```powershell
-git checkout implementation/foundation-phase-2-3
-Copy-Item <path-to>\DiceUp_SRS_v0.1.docx docs\
-Copy-Item <path-to>\DiceUp_Software_Design_Document_v1.0.docx docs\
-git add docs/*.docx
-git commit -m "docs: add SRS v0.1 and SDD v1.0 source documents"
-git push
-```
+D-03 (decided 2026-11-21) moves both files to `docs/` — **pending Anti**
+(web upload or plain git push; files must stay byte-identical, SHA-256
+re-verified after the move). Until the move happens, every location in
+`IMPLEMENTATION-PLAN.md` points at the repo root.
 
 ## Living implementation docs (committed)
 

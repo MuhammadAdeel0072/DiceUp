@@ -8,10 +8,10 @@ import '../navigation/app_routes.dart';
 /// Main menu / home screen (SRS UI-01, FR-01).
 ///
 /// Guests reach every offline feature from here with no account and no
-/// internet. Online entries are present but gated: a guest tapping one is
-/// asked to log in (FR-42) — the online flow lands in Phase 5, so for now
-/// the button explains that and stays disabled rather than pretending
-/// to work.
+/// internet. Online entries are present but not yet functional: the Play
+/// Online button is enabled and shows a "coming in Phase 5" snackbar —
+/// no login prompt yet (the login-prompt dialog is an M2 fix, M-13).
+/// The online flow lands in Phase 5.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 

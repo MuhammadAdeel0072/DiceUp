@@ -4,10 +4,14 @@ import '../../core/design_system/diceup_spacing.dart';
 
 /// Application settings (SRS FR-08, FR-32).
 ///
-/// Sound and vibration preferences work for the session. They are
-/// persisted to SQLite in Phase 3 (local_settings table, SDD §9.1);
-/// until then a restart resets them to on — this is recorded in
-/// docs/IMPLEMENTATION-PLAN.md, not hidden from the user.
+/// Sound and vibration preferences work for the session only — they are
+/// not persisted yet (SQLite `local_settings`, SDD §9.1, lands in M1);
+/// a restart resets them to on. The toggles are placebos today: no sound
+/// or haptics code exists behind them (M-12). The vibration toggle becomes
+/// real in M2.11 (haptics per D-32); the sound toggle is removed or shown
+/// disabled with an honest note until sound lands. Phase 3 is reopened —
+/// see docs/IMPLEMENTATION-PLAN.md §5. The UI itself shows no note yet
+/// (a visible note is an M2 fix, C-12).
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 

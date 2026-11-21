@@ -30,8 +30,10 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
-  # The pure-Dart engine tests (test/engine/) use package:test directly so
-  # they also run with the standalone Dart SDK (`dart test`).
+  # The pure-Dart engine tests (test/engine/) use package:test directly.
+  # They run under `flutter test` only — `dart test` fails (exit 65:
+  # version solving fails on flutter_test from the SDK). See plan §2
+  # H-02a / M-06.
   test: ^1.25.0
 
 # For information on the generic Dart part of this file, see the

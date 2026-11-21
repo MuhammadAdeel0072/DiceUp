@@ -28,7 +28,7 @@ import '../widgets/ludo_board.dart';
 /// Roll, so the engine fixes the value immediately; the tumbling animation
 /// only displays random faces until it settles on the engine's value.
 ///
-/// AI pacing (FR-40): 700–1,200 ms before an AI rolls or moves.
+/// AI pacing (FR-40): 700–1,199 ms before an AI rolls or moves (D-31).
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key, this.initialSetup, this.diceRoller});
 
