@@ -58,6 +58,8 @@ class GameState {
   /// Wall-clock time the match started (M1.1). Used by the resume
   /// store to compute match duration. Null for states built directly
   /// in tests; stamped at match start by [GameState.initial].
+  /// Required in persisted snapshots: [fromJson] rejects a missing
+  /// `startedAt` (see [_startedAt]).
   final DateTime? startedAt;
 
   final TurnPhase phase;
@@ -157,21 +159,21 @@ class GameState {
   /// player count outside 2–4, a non-map player entry, duplicate
   /// colours, or zero human players; an out-of-range
   /// `currentPlayerIndex`; a `lastRoll` outside 0–6; a
-  /// `consecutiveSixes` outside 0–2; a negative `moveCount`; an unknown
-  /// `phase`; a `winnerIndex` set while the phase is not finished, a
+  /// `consecutiveSixes` that the embedded ruleset could not have
+  /// produced (negative, or `>= maxConsecutiveSixes` when the limit
+  /// is enabled — the engine resets the count to 0 when the limit
+  /// fires, so a persisted state never holds it; when the limit is
+  /// disabled (`maxConsecutiveSixes: 0`, D-29) any count `>= 0` is
+  /// legitimate); a negative `moveCount`; an unknown `phase`; a
+  /// `winnerIndex` set while the phase is not finished, a
   /// missing/out-of-range `winnerIndex` while finished, or a
-  /// non-integer `winnerIndex`; a malformed `startedAt`; or any
-  /// wrong-typed field.
+  /// non-integer `winnerIndex`; a missing, null, non-string, or
+  /// unparseable `startedAt` (persisted snapshots must carry a valid
+  /// ISO-8601 timestamp; validity is `DateTime.tryParse`, no stricter
+  /// shape is demanded); or any wrong-typed field.
   ///
   /// Unknown top-level keys are ignored (forward compatibility).
   /// No `moveHistory` is read or written (D-23).
-  ///
-  /// Known limitation (M-11 as written): the `consecutiveSixes` bound
-  /// of 0–2 assumes the default ruleset (`maxConsecutiveSixes: 3`).
-  /// A match played with the limit disabled (`maxConsecutiveSixes: 0`)
-  /// or raised can legitimately reach 3+ consecutive sixes, and such
-  /// a snapshot would be rejected on restore. Revisit when ruleset
-  /// variants are exercised (M3.6 test vectors).
   factory GameState.fromJson(Map<String, Object?> json) {
     final formatVersion = requireInt(json['formatVersion'], 'formatVersion');
     if (formatVersion != 1) {
@@ -217,8 +219,22 @@ class GameState {
     );
     final phase = requireEnum(json['phase'], 'phase', TurnPhase.values);
     final lastRoll = requireIntInRange(json['lastRoll'], 'lastRoll', 0, 6);
+    // Ruleset-aware bound (M1.1 review): the engine resets the count
+    // to 0 when the third-six limit fires (see LudoGame.rollDice), so
+    // a persisted state can never hold a count >= the limit — except
+    // when the limit is disabled (maxConsecutiveSixes: 0, D-29), where
+    // the count grows without bound and any value >= 0 is legitimate.
     final consecutiveSixes =
-        requireIntInRange(json['consecutiveSixes'], 'consecutiveSixes', 0, 2);
+        requireInt(json['consecutiveSixes'], 'consecutiveSixes');
+    if (consecutiveSixes < 0 ||
+        (ruleset.maxConsecutiveSixes > 0 &&
+            consecutiveSixes >= ruleset.maxConsecutiveSixes)) {
+      throw FormatException(
+        'Snapshot consecutiveSixes $consecutiveSixes is impossible '
+        'under ruleset maxConsecutiveSixes '
+        '${ruleset.maxConsecutiveSixes}.',
+      );
+    }
     final moveCount = requireInt(json['moveCount'], 'moveCount');
     if (moveCount < 0) {
       throw const FormatException('Snapshot moveCount must not be negative.');
@@ -277,12 +293,21 @@ class GameState {
     return raw;
   }
 
-  /// `startedAt` is tolerated when missing or null (states built
-  /// directly in tests have none) but a present value must be a valid
-  /// ISO-8601 string.
-  static DateTime? _startedAt(Map<String, Object?> json) {
+  /// `startedAt` is required in a persisted snapshot: a missing key,
+  /// a null, a non-string, or an unparseable string all throw
+  /// [FormatException]. Validity is [DateTime.tryParse] — no stricter
+  /// shape is demanded. Note what that means: tryParse normalises
+  /// out-of-range components (e.g. month 13 rolls into the next year)
+  /// instead of rejecting them, and converts an offset to the same
+  /// UTC instant (re-emitted as `Z`) — both are accepted as valid by
+  /// this check. The [GameState] constructor itself keeps
+  /// `startedAt` nullable so in-memory/test-only states can be built
+  /// without a timestamp; only the persisted-snapshot path is strict.
+  static DateTime _startedAt(Map<String, Object?> json) {
+    if (!json.containsKey('startedAt')) {
+      throw const FormatException('Snapshot startedAt is required.');
+    }
     final raw = json['startedAt'];
-    if (raw == null) return null;
     if (raw is! String) {
       throw const FormatException(
         'Snapshot startedAt must be an ISO-8601 string.',

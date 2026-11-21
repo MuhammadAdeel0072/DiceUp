@@ -67,6 +67,9 @@ Map<String, Object?> finishedSnapshot() {
     ],
     currentPlayerIndex: 0,
     rulesetVersion: '1.0.0',
+    // Fixed timestamp (not DateTime.now()): the finished snapshot is
+    // hand-built, and strict deserialization requires a startedAt.
+    startedAt: DateTime.utc(2026, 11, 21, 12, 0),
     phase: TurnPhase.finished,
     winnerIndex: 0,
   );
@@ -109,6 +112,8 @@ void main() {
           ],
           currentPlayerIndex: 0,
           rulesetVersion: '1.0.0',
+          // Fixed timestamp: strict deserialization requires startedAt.
+          startedAt: DateTime.utc(2026, 11, 21, 12, 0),
         );
         final json =
             jsonDecode(jsonEncode(state.toJson())) as Map<String, Object?>;
@@ -182,11 +187,103 @@ void main() {
       expect(GameState.fromJson(json).startedAt, startedAt);
     });
 
-    test('a missing or null startedAt is tolerated', () {
-      final missing = playedSnapshot()..remove('startedAt');
-      expect(GameState.fromJson(missing).startedAt, isNull);
-      final nulled = playedSnapshot()..['startedAt'] = null;
-      expect(GameState.fromJson(nulled).startedAt, isNull);
+    test('a GameState can be built in memory without startedAt', () {
+      // The constructor keeps startedAt nullable: in-memory/test-only
+      // states need no timestamp. Only the persisted-snapshot path
+      // (fromJson) is strict — see the rejects below.
+      final state = GameState(
+        players: [
+          Player(
+            index: 0,
+            name: 'Red',
+            colour: PlayerColour.red,
+            type: PlayerType.human,
+          ),
+          Player(
+            index: 1,
+            name: 'Green',
+            colour: PlayerColour.green,
+            type: PlayerType.human,
+          ),
+        ],
+        currentPlayerIndex: 0,
+        rulesetVersion: '1.0.0',
+      );
+      expect(state.startedAt, isNull);
+    });
+
+    test('startedAt accepts ISO-8601 with an offset and fractional seconds',
+        () {
+      // tryParse normalises an offset to the same UTC instant, so the
+      // re-emitted string is the UTC rendering, not the input text.
+      // What must survive exactly is the instant.
+      for (final value in [
+        '2026-11-21T17:30:00.000+05:00',
+        '2026-11-21T17:30:00.123456Z',
+      ]) {
+        final json = playedSnapshot()..['startedAt'] = value;
+        final restored = GameState.fromJson(json);
+        expect(
+          restored.startedAt!.microsecondsSinceEpoch,
+          DateTime.parse(value).microsecondsSinceEpoch,
+        );
+      }
+      // The fractional-seconds Z form also re-emits string-identically.
+      final fractional = playedSnapshot()
+        ..['startedAt'] = '2026-11-21T17:30:00.123456Z';
+      expect(
+        GameState.fromJson(fractional).toJson()['startedAt'],
+        '2026-11-21T17:30:00.123456Z',
+      );
+    });
+
+    test('consecutiveSixes follows the embedded ruleset limit', () {
+      // maxConsecutiveSixes 3 (default): 2 accepted (3 is rejected —
+      // see the rejects below).
+      final limited = playedSnapshot()..['consecutiveSixes'] = 2;
+      expect(GameState.fromJson(limited).consecutiveSixes, 2);
+      // maxConsecutiveSixes 2: 1 accepted, 2 rejected.
+      final two = playedSnapshot();
+      rulesetOf(two)['maxConsecutiveSixes'] = 2;
+      two['consecutiveSixes'] = 1;
+      expect(GameState.fromJson(two).consecutiveSixes, 1);
+      two['consecutiveSixes'] = 2;
+      expect(() => GameState.fromJson(two), throwsFormatException);
+      // maxConsecutiveSixes 1: only 0 accepted.
+      final one = playedSnapshot();
+      rulesetOf(one)['maxConsecutiveSixes'] = 1;
+      one['consecutiveSixes'] = 0;
+      expect(GameState.fromJson(one).consecutiveSixes, 0);
+      one['consecutiveSixes'] = 1;
+      expect(() => GameState.fromJson(one), throwsFormatException);
+    });
+
+    test('a disabled third-six limit accepts any consecutiveSixes', () {
+      for (final count in [5, 10]) {
+        final json = playedSnapshot();
+        rulesetOf(json)['maxConsecutiveSixes'] = 0;
+        json['consecutiveSixes'] = count;
+        expect(GameState.fromJson(json).consecutiveSixes, count);
+      }
+    });
+
+    test('four consecutive sixes under a disabled limit round-trip '
+        'through the engine', () {
+      // D-29: maxConsecutiveSixes 0 disables the third-six limit, so
+      // the count is never reset and a legitimate snapshot holds 4.
+      const ruleset = RulesetConfig(maxConsecutiveSixes: 0);
+      final game = freshGame(const [6, 6, 6, 6], ruleset: ruleset);
+      for (var i = 0; i < 3; i++) {
+        game.rollDice();
+        game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
+      }
+      game.rollDice(); // fourth consecutive six
+      expect(game.state.consecutiveSixes, 4);
+      final json =
+          jsonDecode(jsonEncode(game.snapshot())) as Map<String, Object?>;
+      final restored = LudoGame.restore(json, ruleset: ruleset);
+      expect(jsonEncode(restored.snapshot()), jsonEncode(json));
+      expect(restored.state.consecutiveSixes, 4);
     });
 
     test('unknown top-level keys are ignored', () {
@@ -222,6 +319,8 @@ void main() {
         ],
         currentPlayerIndex: 1,
         rulesetVersion: '1.0.0',
+        // Fixed timestamp: strict deserialization requires startedAt.
+        startedAt: DateTime.utc(2026, 11, 21, 12, 0),
         phase: TurnPhase.awaitingMove,
         lastRoll: 6,
       );
@@ -316,6 +415,11 @@ void main() {
           rulesetOf(j)['version'] = '9.9.9',
       'missing rulesetVersion': (j) => j.remove('rulesetVersion'),
       'rulesetVersion as a number': (j) => j['rulesetVersion'] = 1.2,
+      'missing startedAt': (j) => j.remove('startedAt'),
+      'startedAt is null': (j) => j['startedAt'] = null,
+      'startedAt is an empty string': (j) => j['startedAt'] = '',
+      'startedAt with wrong separators': (j) =>
+          j['startedAt'] = '2026/11/21T17:30:00Z',
       'malformed startedAt': (j) => j['startedAt'] = 'not-a-date',
       'startedAt as a number': (j) => j['startedAt'] = 12345,
       'unknown AI difficulty': (j) {

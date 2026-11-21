@@ -15,6 +15,10 @@ import 'package:diceup/domain/engine/token.dart';
 /// 56 = home). Players are red, green, yellow, blue in seat order.
 /// [current] is the active player; [lastRoll] with [phase] lets a
 /// test place the game mid-turn (e.g. awaiting a move after a roll).
+///
+/// The state is stamped with a fixed [startedAt] (not `DateTime.now()`),
+/// so snapshots built from it pass strict deserialization while the
+/// tests stay deterministic.
 GameState stateWith({
   required List<List<int>> tokenSteps,
   int current = 0,
@@ -46,6 +50,7 @@ GameState stateWith({
     players: players,
     currentPlayerIndex: current,
     rulesetVersion: rulesetVersion,
+    startedAt: DateTime.utc(2026, 11, 21, 12, 0),
     phase: phase,
     lastRoll: lastRoll,
   );
