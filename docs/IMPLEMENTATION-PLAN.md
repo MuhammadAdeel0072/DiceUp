@@ -684,6 +684,12 @@ Deliberately left for later (not this milestone):
 
 ### M3.5 — DONE (painter geometry, M-08/D-20; 2026-11-22)
 
+Push landed as `411e04e560f89a2b4ad5e0566485f8d78addc25e` (verified live
+via `list_commits`; remote head `411e04e56`). The first push attempt was
+interrupted by a runtime restart with no confirmed result; the coordinator
+verified the remote head was unchanged (`6e3ad9ec`) and the saved log was
+empty before retrying the identical push.
+
 What was wrong (remediation plan §3.2 M-08, §2 C-15): three
 defects, all in the painter except the pinned constant.
 
@@ -771,6 +777,132 @@ Deliberately left for later (not this milestone):
 - The M3 smooth per-cell token movement + capture-return
   animation (brief §4(C)) are premium work, not this milestone;
   the M2.7 hop is still the movement foundation.
+- No device claims; no iOS/Android build run.
+
+### M3.6 — DONE (shared rule vectors, H-06/D-05; 2026-11-22)
+
+The shared rule vectors (remediation plan §4 M3.6, §3.1 H-06, §6
+verification "Vectors (M3.6)"):
+
+- `docs/ruleset.md` (new): the single language-neutral rule
+  specification (SDD §6.9, NFR-39). SDD Table 6.2 reproduced
+  faithfully (all 14 rows, BR-01…BR-14) + the pinned board geometry
+  (52-cell track; starts red 0 / green 13 / yellow 26 / blue 39;
+  stars 8 / 21 / 34 / 47; safe set {0, 8, 13, 21, 26, 34, 39, 47}
+  per D-15) + the pinned split **51 track + 4 home-path + home =
+  56** (D-20) + the pinned `RulesetConfig` version **`1.0.0`**
+  (BR-14) + five worked examples (release on six; third six;
+  capture vs safe cell; exact finish; home-path entry + win).
+  §5 records every SDD/SRS-vs-engine disagreement explicitly —
+  the engine wins in each case, nothing silently resolved:
+  (1) the "5 home-path cells" wording (SDD §6.2, SRS §7.1) vs the
+  D-20 4-cell split; (2) SDD §6.5 cites BR-25 for winning — no
+  BR-25 exists, winning is BR-11; (3) SDD §6.5 Algorithm 1
+  pseudocode would release a yard token to step 6 — the engine
+  releases to step 1 (BR-04); (4) the §6.2 table is uncaptioned
+  ("Table 6.1" / "Table §6.2" elsewhere) — reproduced here as
+  Table 6.2; (5) SDD §6.4 lists a MOVING phase the engine does
+  not have (animation-only); (6) third-six precedence is
+  engine-defined (checked before legal moves); (7) safe-cell
+  indices are engine-pinned (D-15), the SDD/SRS name none;
+  (8) forfeit (BR-15) has no engine vector — offline forfeit is
+  forfeit-by-exit (SDD §6.3), not an engine transition, so the
+  SDD §6.9 "forfeit" edge case is out of scope for the Dart suite
+  and recorded as such, not a gap.
+- `diceup_app/test/vectors/rules.json` (new): **23 cases** (≥14
+  required), each self-contained — a strict `GameState` snapshot,
+  the full ruleset in one place, a fixed dice sequence, and the
+  expected legal moves + outcome after every replayed roll/move.
+  Cases per rule family: BR-04 release — `release-only-on-six`,
+  `release-on-six`, `release-on-one-variant`; BR-05 movement —
+  `passing-over-never-captures`; BR-06 extra turn —
+  `extra-turn-on-six-disabled`, `extra-turn-on-capture`,
+  `extra-turn-on-capture-disabled`, `extra-turn-on-home`,
+  `extra-turn-on-home-disabled` (one disabled case per trigger);
+  BR-07 third six — `third-consecutive-six`,
+  `third-six-limit-off`, `three-sixes-in-sequence` (six, move,
+  six, move, six across three rolls); BR-08 capture —
+  `capture-on-track`, `multi-token-capture`; BR-09 safe cells —
+  `no-capture-on-safe-start` (track 13), `no-capture-on-safe-star`
+  (track 8); BR-10 home/exact — `exact-finish-overshoot-illegal`,
+  `exact-finish-off-overshoot-lands-home`, `home-path-entry`
+  (step 53 = home-path index 1); BR-11 win —
+  `win-first-to-four-home`; BR-12 stacking —
+  `same-colour-stacking`; BR-13 no legal move —
+  `release-only-on-six`, `no-legal-move-six-extra-roll` (a six
+  with no legal move still grants its extra roll, same player
+  re-rolls); FR-21 — `illegal-move-rejected` (applying a
+  non-legal move throws `ArgumentError`, state byte-identical).
+  No vector contradicts the engine: every expectation was
+  hand-computed from `docs/ruleset.md` §1 step arithmetic and
+  passed first run — no vector was "fixed" to match the engine
+  after the fact.
+- `diceup_app/test/vectors/rules_vectors_test.dart` (new): loads
+  `rules.json`, validates its shape strictly (exact key sets at
+  every level — unknown fields/cases/ops fail loudly via a
+  dedicated `rules.json is a valid vector file` test; the
+  embedded ruleset must deep-equal the case ruleset and the
+  `rulesetVersion`; dice must be 1..6; token/step ranges
+  checked), then replays each case through
+  `LudoGame.fromState` + `rollDice` / `legalMoves` / `applyMove`
+  with a `FixedDiceRoller`, asserting the expected roll, legal
+  moves, `MoveResult` fields, phase/current player after every
+  step, and the final state (tokens, `lastRoll`,
+  `consecutiveSixes`, `lastRollWasThirdSix`,
+  `lastRollHadNoLegalMove`, winner). The runner passes each
+  case's ruleset explicitly to `fromState` — the engine does not
+  infer it from the snapshot (the M3.2/M3.3 follow-up that
+  `fromState` uses the stock ruleset, not the restored state's
+  embedded ruleset, is untouched, as instructed). A meta-test
+  asserts ≥14 cases and coverage of BR-04…BR-13.
+- CI job `vectors` added to the **staged** `.github/workflows/ci.yml`
+  (runs `flutter test test/vectors/rules_vectors_test.dart` on
+  Flutter 3.50.1). The workflow file itself is **not in this
+  milestone's push manifest**: it is still unpushed because the
+  GitHub App lacks Workflows: Read and write (the push 403s —
+  same blocker as M3.4). Until the permission is fixed, the gate
+  is the full local suite via `tool/check.sh`, which includes
+  the vector runner. The `coverage` job stays deferred to M3.7.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local
+only): `test/vectors/rules_vectors_test.dart` — **25/25 passed**
+(23 cases + the ≥14-cases test + the rule-family coverage test).
+`flutter test` — **577/577 passed** (552 baseline + 25 new).
+`flutter analyze` — **0 errors, 0 warnings, 33 info** (all the
+pre-existing `material.dart` deprecation notices; the new test
+file carries none). `dart format --output=none
+--set-exit-if-changed .` — **0 changed** (99 files).
+`tool/check_boundaries.sh` — **12/12, exit 0** (no `lib/` file
+touched). No new dependencies; no engine rule changed; no schema
+changes; no sound.
+
+Negative evidence (both probes in scratch, file regenerated
+afterwards, suite green again): (1) corrupting one expectation
+(`capture-on-track` `toSteps` 26→24) failed exactly that case — 24 passed / 1 failed, no other case
+affected; (2) adding an unknown field (`bogusField`) to a case
+failed the load-validation test with the whole file rejected
+(0 passed / 1 failed) — unknown fields are never silently
+ignored. The mutations were reverted by regenerating
+`rules.json` from the authoring spec and re-verifying the
+restored values (`capture-on-track` 23→26, no stray fields).
+
+Runner bug found during development (fixed, no engine or vector
+change): a local variable named `expect` in the `move` branch
+shadowed the test framework's `expect` across the whole `switch`
+body (Dart switch cases share scope), so the `moveIllegal`
+branch failed to compile — renamed to `moveExpect`.
+
+Deliberately left for later (not this milestone):
+
+- The TypeScript side of the shared vectors (Phase 4, D-05) —
+  the Dart side is the conformance target; the vectors are
+  written language-neutrally for it.
+- The `coverage` CI job (M3.7, gated only after the measured
+  number is ≥90% locally).
+- The SDD §6.2 text amendment ("5 coloured cells" → 4) is an
+  Anti-approved SDD edit, not applied to the `.docx` here — D-20
+  is already recorded in §8 as an approved deviation from
+  SRS §7.1, and `docs/ruleset.md` §5.1 records it again.
 - No device claims; no iOS/Android build run.
 
 ### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
