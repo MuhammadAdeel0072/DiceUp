@@ -90,7 +90,7 @@ void main() {
     test('track has 52 cells, journey is 56 steps', () {
       expect(Board.trackSize, 52);
       expect(Board.stepsToHome, 56);
-      expect(Board.homePathLength, 5);
+      expect(Board.homePathLength, 4);
     });
 
     test('start cells are 13 apart and star cells are 8 past them', () {

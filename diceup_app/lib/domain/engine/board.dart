@@ -15,8 +15,7 @@ enum CellKind {
   /// On the shared outer track; [Cell.index] is the track index 0..51.
   track,
 
-  /// On the owner's home path; [Cell.index] is 0..3 in practice (the type
-  /// allows 0..4, but the engine only ever produces 0..3 — D-20 pins
+  /// On the owner's home path; [Cell.index] is 0..3 (D-20 pins
   /// 51 track + 4 home-path + home = 56).
   homePath,
 
@@ -25,9 +24,9 @@ enum CellKind {
 }
 
 /// A logical board position. The engine never deals in pixels.
-/// (The CustomPainter does NOT ask the [Board] for logical positions
-/// today — the painter duplicates the geometry instead (M-08); SDD §6.2's
-/// claim is aspirational until M3.5 derives it from [Board].)
+/// (The CustomPainter asks the [Board] for logical positions —
+/// start cells, safe cells, home-path length — and maps tokens by
+/// colour (M3.5, M-08); the pixel tables stay in presentation.)
 class Cell {
   const Cell.yard() : kind = CellKind.yard, index = -1;
 
@@ -39,8 +38,8 @@ class Cell {
 
   final CellKind kind;
 
-  /// Track index (0..51) for [CellKind.track], home-path index (0..3 in
-  /// practice; the type allows 0..4) for [CellKind.homePath], -1 otherwise.
+  /// Track index (0..51) for [CellKind.track], home-path index (0..3)
+  /// for [CellKind.homePath], -1 otherwise.
   final int index;
 
   bool get isYard => kind == CellKind.yard;
@@ -76,10 +75,10 @@ class Board {
   static const int stepsToHome = 56;
 
   /// Coloured cells on a home path, excluding the home cell itself.
-  /// (D-20: only 4 are ever occupied — home-path index 4 is drawn by the
-  /// painter but can never hold a token; the 5th cell is removed/redrawn
-  /// in M3.5. The constant itself is untouched in M0 — a test asserts 5.)
-  static const int homePathLength = 5;
+  /// (D-20, implemented in M3.5: 4 — the painter used to draw a 5th
+  /// cell that the engine could never occupy; it is redrawn as part
+  /// of home instead.)
+  static const int homePathLength = 4;
 
   /// Last step still on the outer track; steps 52..55 are the home
   /// path and step 56 is home.

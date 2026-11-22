@@ -682,6 +682,97 @@ Deliberately left for later (not this milestone):
   stash + `../.vscode/` on Anti's Windows machine (D:\DiceUp) are
   likewise not verifiable from this environment; untouched.
 
+### M3.5 — DONE (painter geometry, M-08/D-20; 2026-11-22)
+
+What was wrong (remediation plan §3.2 M-08, §2 C-15): three
+defects, all in the painter except the pinned constant.
+
+- Dead 5th home-path cell: the painter drew 5 home-path cells per
+  seat, but the engine only ever occupies indices 0..3 (steps
+  52..55; step 56 is home). `Cell.homePath(4)` occurred nowhere in
+  `lib/` or `test/` — a drawn cell no token could ever reach.
+- Duplicated geometry: the painter mapped tokens by
+  `seatIndex * 13` and carried its own hardcoded copy of the safe
+  set. The game screen already passed each token's chosen colour
+  into `BoardToken`, but `boardCellForToken` ignored it — a latent
+  FR-14 break once users pick colours (M2.2): a seat-0 token that
+  picked green would still travel red's path.
+- `Board.homePathLength` was 5, pinning the wrong split, and
+  `test/engine/snapshot_test.dart:93` asserted 5.
+
+Property / equivalence tests FIRST (`test/board_geometry_test.dart`,
+13 tests), run against the unfixed painter: **9 passed, 4 failed**
+— the failures are the known failures the fix resolves, recorded
+here, never skipped:
+
+- "each colour has exactly Board.homePathLength home-path cells"
+  (`homePathLength` still 5, 5 drawn cells per seat).
+- "every drawn home-path cell is reachable (no dead cells)": red
+  home-path cell 4 `Point(7, 5)` is never occupied
+  (`boardCellForToken` returns null — step 56 is home).
+- "the last home-path cell leads into home via the approach cell"
+  (the last drawn cell WAS the approach cell, distance 0).
+- "token positions follow the chosen colour, not the seat": seat 0
+  with colour green at step 1 — painter `(6, 1)` (red start),
+  engine `(1, 8)` (green start).
+
+The fix (D-20 already decided: 51 track + 4 home-path + home =
+56; engine as-is):
+
+- `Board.homePathLength` 5 → 4; `snapshot_test.dart:93` updated
+  5 → 4 — corrected to the decided value, not weakened.
+  `homePathLength` never fed the engine's `cellAt` (it uses
+  `lastTrackStep` = 51; the only reader of the constant was the
+  snapshot test), so no engine rule changed. `Cell` docstrings
+  corrected (home-path index 0..3).
+- `_homePaths` is now 4 cells per seat, keyed by `PlayerColour`
+  (a `Map`, not a seat-indexed list). The former 5th cell is
+  redrawn as part of home (`_homeApproachCells`: red `(7, 5)`,
+  green `(5, 7)`, yellow `(7, 9)`, blue `(9, 7)`) in the seat's
+  full colour, so the home column flows into the centre instead of
+  ending one cell short — and it is NOT a token cell:
+  `boardCellForToken` never returns it.
+- Colour-based mapping: `BoardToken.effectiveColour` (chosen
+  colour, seat-order default when null) is the mapping key
+  everywhere — `boardCellForToken` uses
+  `board.startCell(colour)` instead of `seatIndex * 13`, home
+  paths are looked up by colour, yard slots group by colour
+  (the quadrants are fixed colour positions), the start-cell tint
+  comes from `_colourByStartCell`, derived from
+  `Board.startCells` (no second copy of the mapping), and the
+  painter takes a `board` parameter (default `const Board()`)
+  with `safeTrackIndices` defaulting to `Board.safeCells`.
+  New public accessors for the tests: `trackCells`,
+  `homePathCells(colour)`, `homeApproachCell(colour)`.
+- No behaviour change beyond the fix: token shape stays
+  per-seat (matching `PlayerAvatar`), the `currentSeat` marker,
+  hop and pulse are untouched, and `game_screen.dart` needed no
+  change — it already passed `colour` into every `BoardToken`,
+  so default colour assignments render byte-identically.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local
+only): `test/board_geometry_test.dart` — **13/13 passed**,
+including the 4 previously-failing tests. `flutter test` —
+**552/552 passed** (539 baseline + 13 new). `flutter analyze` —
+**0 errors, 0 warnings, 33 info** (all the pre-existing
+`material.dart` deprecation notices; the new test file carries
+none). `dart format --output=none --set-exit-if-changed .` —
+**0 changed** (98 files). `tool/check_boundaries.sh` —
+**12/12, exit 0** (the painter's new `board.dart` import is
+presentation → domain, allowed). No new dependencies; no rule
+changes; no schema changes; no sound.
+
+Deliberately left for later (not this milestone):
+
+- The SDD §6.2 text amendment ("four home paths of 5 coloured
+  cells each" → 4) is an Anti-approved SDD edit, not applied to
+  the `.docx` here — D-20 is already recorded in §8 as an
+  approved deviation from SRS §7.1.
+- The M3 smooth per-cell token movement + capture-return
+  animation (brief §4(C)) are premium work, not this milestone;
+  the M2.7 hop is still the movement foundation.
+- No device claims; no iOS/Android build run.
+
 ### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
 
 The theme-token half of H-10 (remediation plan §4 M2.3, §6.2

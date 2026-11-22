@@ -4,32 +4,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
+import '../../domain/engine/board.dart';
 import '../../domain/engine/player_colour.dart';
 
 /// Ludo board rendering (SDD §6.2, §11.4; SRS CON-01, FR-23).
 ///
 /// The board is a 15x15 grid drawn with [CustomPainter]. Geometry lives
 /// here — and only here — so the engine never knows about pixels.
-/// (The painter duplicates the engine's rule geometry — safe cells, start
-/// cells, home-path layout — instead of deriving it from [Board] (M-08);
-/// M3.5 derives it from [Board].)
+/// The painter derives its logical geometry from the engine's [Board]
+/// (M3.5, M-08): safe cells and start cells come from [Board], and
+/// tokens are mapped by their chosen colour, not by `seatIndex * 13`
+/// — so a colour swap (M2.2) moves the token's whole journey (yard,
+/// start cell, home path). The pixel tables ([_trackCells],
+/// [_homePaths], [_yardSlots]) stay in presentation as the pixel
+/// mapping, guarded by the geometry tests in
+/// `test/board_geometry_test.dart`.
 ///
 /// Coordinate contract (agrees with the engine's [Board] in logical
-/// track-index space — by duplication, not derivation):
+/// track-index space — by derivation from [Board]):
 /// * the 52-cell outer track is numbered clockwise from the red start
 ///   cell (track index 0). Start cells are indices 0 (red), 13 (green),
 ///   26 (yellow), 39 (blue). Safe cells are the 4 starts plus the 4 star
 ///   cells at indices 8, 21, 34, 47 (D-15 confirmed) — the painter draws
-///   the stars from [safeTrackIndices], which defaults to the same set
-///   but is a separate copy: no caller passes it, so a ruleset change
-///   does NOT move the markers today (M3.5 derives them from [Board]).
+///   the stars from [safeTrackIndices], which defaults to
+///   [Board.safeCells] (M3.5 derives them from [Board]).
 /// * a token's [BoardToken.stepsTaken] is 0 in the yard, 1..51 on the
 ///   outer track (track index = (start + steps - 1) % 52), 52..55 on its
 ///   home path, and 56 means home (drawn in the centre) (D-20:
 ///   51 + 4 + 1 = 56).
 
 /// Token data the board needs. The game screen adapts the engine's
-/// [Token] into this — the painter never imports the engine.
+/// [Token] into this. The painter imports only [Board] (pure geometry
+/// constants); it never imports the engine's [Token] or game state.
 class BoardToken {
   const BoardToken({
     required this.id,
@@ -49,6 +55,13 @@ class BoardToken {
   /// before. Deliberately excluded from equality: it is display
   /// data, and [boardTokenCenter] locates tokens by id/seat/steps.
   final PlayerColour? colour;
+
+  /// The colour this token travels as: its chosen colour, or the
+  /// seat-order default when none was chosen (M3.5). All board
+  /// mapping keys off this, never off [seatIndex] — so a token whose
+  /// seat picked green travels green's path even from seat 0.
+  PlayerColour get effectiveColour =>
+      colour ?? PlayerColour.values[seatIndex % PlayerColour.values.length];
 
   // Value equality: [boardTokenCenter] locates a token among its peers
   // with List.indexOf, which needs this (an earlier version silently
@@ -120,39 +133,81 @@ const List<math.Point<int>> _trackCells = [
   math.Point(6, 0),
 ];
 
-/// Home-path cells per seat (red, green, yellow, blue), in travel order.
-const List<List<math.Point<int>>> _homePaths = [
-  [
+/// Public read-only view of the painter's track table (M3.5): the
+/// geometry tests pin the table's properties (52 unique cells, closed
+/// loop) through this, so the painter's pixel mapping stays testable
+/// without exposing the private table itself.
+List<math.Point<int>> get trackCells => _trackCells;
+
+/// Home-path cells drawn for [colour], in travel order (M3.5).
+/// Keyed by colour, not seat: a token that picked green travels
+/// green's path whatever seat it sits on.
+List<math.Point<int>> homePathCells(PlayerColour colour) => _homePaths[colour]!;
+
+/// The cell just past the end of [colour]'s home path, between the
+/// last home-path cell and the centre home (M3.5). The former 5th
+/// home-path cell (D-20), redrawn as part of home — it is not a
+/// token cell and [boardCellForToken] never returns it.
+math.Point<int> homeApproachCell(PlayerColour colour) =>
+    _homeApproachCells[colour]!;
+
+/// Home-path cells per colour, in travel order (M3.5, D-20).
+/// Exactly [Board.homePathLength] (4) per colour: the 5th cell the
+/// painter used to draw is gone — it was never occupied by the engine
+/// (steps 52..55 are indices 0..3, step 56 is home). That cell is
+/// redrawn as part of home instead (see [_homeApproachCells]).
+const Map<PlayerColour, List<math.Point<int>>> _homePaths = {
+  PlayerColour.red: [
     math.Point(7, 1),
     math.Point(7, 2),
     math.Point(7, 3),
     math.Point(7, 4),
-    math.Point(7, 5),
   ],
-  [
+  PlayerColour.green: [
     math.Point(1, 7),
     math.Point(2, 7),
     math.Point(3, 7),
     math.Point(4, 7),
-    math.Point(5, 7),
   ],
-  [
+  PlayerColour.yellow: [
     math.Point(7, 13),
     math.Point(7, 12),
     math.Point(7, 11),
     math.Point(7, 10),
-    math.Point(7, 9),
   ],
-  [
+  PlayerColour.blue: [
     math.Point(13, 7),
     math.Point(12, 7),
     math.Point(11, 7),
     math.Point(10, 7),
-    math.Point(9, 7),
   ],
-];
+};
 
-/// Yard token slots per seat (2x2 inside each yard).
+/// The former 5th home-path cell per colour (M3.5, D-20): the cell
+/// between the last home-path cell and the centre home. It is drawn
+/// in the seat's full colour as part of home — the home column flows
+/// into the centre instead of ending one cell short — and it is NOT
+/// a token cell: no token can ever occupy it.
+const Map<PlayerColour, math.Point<int>> _homeApproachCells = {
+  PlayerColour.red: math.Point(7, 5),
+  PlayerColour.green: math.Point(5, 7),
+  PlayerColour.yellow: math.Point(7, 9),
+  PlayerColour.blue: math.Point(9, 7),
+};
+
+/// Track index → colour for the four start cells, derived from
+/// [Board.startCells] (M3.5) so a start-cell change moves the tint
+/// with it — no second copy of the mapping lives here.
+final Map<int, PlayerColour> _colourByStartCell = {
+  for (final entry in Board.startCells.entries) entry.value: entry.key,
+};
+
+/// Yard token slots per colour position (2x2 inside each yard),
+/// indexed by [PlayerColour.index] (M3.5): the quadrants are fixed
+/// colour positions — red top-left, green top-right, yellow
+/// bottom-right, blue bottom-left — so a token yards with its
+/// colour, not its seat. This coincides with seat order only for
+/// the default colour assignment.
 const List<List<math.Point<double>>> _yardSlots = [
   [
     math.Point(1.5, 1.5),
@@ -184,20 +239,25 @@ const List<List<math.Point<double>>> _yardSlots = [
 /// same grouping math as [LudoBoardPainter] (yard slots, home cluster,
 /// stacked tokens share a cell). The game screen uses this for tap
 /// hit-testing; the painter never handles input itself.
+/// Yard slots group by the token's colour (M3.5), not its seat.
 Offset boardTokenCenter(
   BoardToken token,
   Size size,
-  List<BoardToken> allTokens,
-) {
+  List<BoardToken> allTokens, [
+  Board board = const Board(),
+]) {
   final cell = size.width / 15;
-  final cellPos = boardCellForToken(token);
+  final cellPos = boardCellForToken(token, board);
   if (token.stepsTaken == 0) {
-    // Yard: slot index among this seat's yard tokens, in list order.
+    // Yard: slot index among this colour's yard tokens, in list order.
     final yardTokens = allTokens
-        .where((t) => t.seatIndex == token.seatIndex && t.stepsTaken == 0)
+        .where(
+          (t) =>
+              t.effectiveColour == token.effectiveColour && t.stepsTaken == 0,
+        )
         .toList();
     final slotIndex = yardTokens.indexOf(token);
-    final slot = _yardSlots[token.seatIndex][slotIndex % 4];
+    final slot = _yardSlots[token.effectiveColour.index][slotIndex % 4];
     return Offset((slot.y + 0.5) * cell, (slot.x + 0.5) * cell);
   }
   if (token.stepsTaken == 56) {
@@ -214,7 +274,7 @@ Offset boardTokenCenter(
         (t) =>
             t.stepsTaken > 0 &&
             t.stepsTaken < 56 &&
-            boardCellForToken(t) == cellPos,
+            boardCellForToken(t, board) == cellPos,
       )
       .toList();
   if (sharing.length == 1) return centre;
@@ -222,16 +282,24 @@ Offset boardTokenCenter(
   return centre + Offset((i - (sharing.length - 1) / 2) * cell * 0.4, 0);
 }
 
-/// Grid cell of a token, or null when the token is home (centre).
-math.Point<double>? boardCellForToken(BoardToken token) {
-  final start = token.seatIndex * 13;
+/// Grid cell of a token, or null when the token is in the yard or home.
+/// Maps by the token's colour (M3.5), mirroring the engine's
+/// [Board.cellAt] exactly: track index = (start + steps - 1) % 52,
+/// home-path index = steps - 52 for steps 52..55, home at 56.
+math.Point<double>? boardCellForToken(
+  BoardToken token, [
+  Board board = const Board(),
+]) {
+  final colour = token.effectiveColour;
   if (token.stepsTaken <= 0) return null; // yard — handled by _yardSlots
-  if (token.stepsTaken <= 51) {
-    final cell = _trackCells[(start + token.stepsTaken - 1) % 52];
+  if (token.stepsTaken <= Board.lastTrackStep) {
+    final cell =
+        _trackCells[(board.startCell(colour) + token.stepsTaken - 1) %
+            Board.trackSize];
     return math.Point(cell.x.toDouble(), cell.y.toDouble());
   }
-  if (token.stepsTaken < 56) {
-    final cell = _homePaths[token.seatIndex][token.stepsTaken - 52];
+  if (token.stepsTaken <= Board.lastTrackStep + Board.homePathLength) {
+    final cell = _homePaths[colour]![token.stepsTaken - 52];
     return math.Point(cell.x.toDouble(), cell.y.toDouble());
   }
   return null; // home — centre
@@ -242,7 +310,8 @@ class LudoBoardPainter extends CustomPainter {
     required this.tokens,
     required this.legalTokenIds,
     required this.currentSeat,
-    this.safeTrackIndices = const {0, 8, 13, 21, 26, 34, 39, 47},
+    this.board = const Board(),
+    this.safeTrackIndices = Board.safeCells,
     // Legal-move pulse (M2.7, CON-01): 0..1, driven by the game
     // screen's 1,200 ms pulse controller — one cycle per legal-move
     // appearance — the legal ring's radius grows and its alpha fades
@@ -265,6 +334,10 @@ class LudoBoardPainter extends CustomPainter {
   final List<BoardToken> tokens;
   final Set<String> legalTokenIds;
   final int currentSeat;
+
+  /// The engine board this painter derives its logical geometry from
+  /// (M3.5, M-08): start cells, safe cells and the home-path length.
+  final Board board;
   final Set<int> safeTrackIndices;
   final double pulse;
   final String? hopTokenId;
@@ -296,13 +369,17 @@ class LudoBoardPainter extends CustomPainter {
     for (var i = 0; i < 52; i++) {
       _drawCell(canvas, _trackCells[i], cell, gridPaint, boardPaint, i);
     }
-    for (var seat = 0; seat < 4; seat++) {
-      for (final cellPos in _homePaths[seat]) {
-        boardPaint.color = DiceUpColors.playerColor(seat)
+    for (final colour in PlayerColour.values) {
+      for (final cellPos in _homePaths[colour]!) {
+        boardPaint.color = DiceUpColors.forColour(colour)
             .withValues(alpha: 0.55);
         canvas.drawRect(_cellRect(cellPos, cell), boardPaint);
         canvas.drawRect(_cellRect(cellPos, cell), gridPaint);
       }
+      // The former 5th home-path cell (D-20): part of home, in the
+      // seat's full colour — never a token cell.
+      boardPaint.color = DiceUpColors.forColour(colour);
+      canvas.drawRect(_cellRect(_homeApproachCells[colour]!, cell), boardPaint);
     }
 
     // Centre home: four triangles, one per seat.
@@ -311,17 +388,19 @@ class LudoBoardPainter extends CustomPainter {
     // Tokens, grouped by cell so stacked tokens share visibly.
     final byCell = <String, List<BoardToken>>{};
     for (final token in tokens) {
-      final cellPos = boardCellForToken(token);
+      final cellPos = boardCellForToken(token, board);
       final key = cellPos == null
-          ? (token.stepsTaken == 0 ? 'yard-${token.seatIndex}' : 'home')
+          ? (token.stepsTaken == 0
+                ? 'yard-${token.effectiveColour.index}'
+                : 'home')
           : '${cellPos.x},${cellPos.y}';
       (byCell[key] ??= []).add(token);
     }
     byCell.forEach((key, group) {
       if (key.startsWith('yard-')) {
-        final seat = int.parse(key.split('-').last);
+        final colourIndex = int.parse(key.split('-').last);
         for (var i = 0; i < group.length; i++) {
-          final slot = _yardSlots[seat][i % 4];
+          final slot = _yardSlots[colourIndex][i % 4];
           _drawToken(
             canvas,
             _centreFor(
@@ -416,9 +495,11 @@ class LudoBoardPainter extends CustomPainter {
       canvas.drawRect(rect, fillPaint);
     }
     canvas.drawRect(rect, gridPaint);
-    // Start cells get their seat colour.
-    if (trackIndex % 13 == 0) {
-      fillPaint.color = DiceUpColors.playerColor(trackIndex ~/ 13)
+    // Start cells get their seat colour, looked up from [Board]
+    // (M3.5) — never `trackIndex ~/ 13`.
+    final startColour = _colourByStartCell[trackIndex];
+    if (startColour != null) {
+      fillPaint.color = DiceUpColors.forColour(startColour)
           .withValues(alpha: 0.35);
       canvas.drawRect(rect, fillPaint);
       canvas.drawRect(rect, gridPaint);
@@ -462,8 +543,10 @@ class LudoBoardPainter extends CustomPainter {
 
   void _drawToken(Canvas canvas, Offset centre, double cell, BoardToken token) {
     // The token dot takes the player's *chosen* colour (M2.2); the
-    // board geometry itself (yards, start cells, home paths) stays
-    // seat-based — the layout is fixed by seat, only the tokens move.
+    // board geometry itself (yards, start cells, home paths) is
+    // keyed by colour too (M3.5) — the quadrants are fixed colour
+    // positions, and a token's yard, start cell and home path all
+    // follow its colour.
     final color = token.colour == null
         ? DiceUpColors.playerColor(token.seatIndex)
         : DiceUpColors.forColour(token.colour!);
@@ -537,6 +620,7 @@ class LudoBoardPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant LudoBoardPainter oldDelegate) {
     return oldDelegate.currentSeat != currentSeat ||
+        oldDelegate.board != board ||
         oldDelegate.pulse != pulse ||
         oldDelegate.hopTokenId != hopTokenId ||
         oldDelegate.hopCenter != hopCenter ||
