@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
+import '../../core/design_system/diceup_shadows.dart';
 import '../../l10n/app_strings.dart';
 
 /// A dice face drawn with widgets — no image asset, no emoji.
@@ -46,6 +47,7 @@ class DiceWidget extends StatelessWidget {
     this.rolling = false,
     this.enabled = true,
     this.onTap,
+    this.showRollableBorder = false,
   });
 
   final int? value;
@@ -60,6 +62,18 @@ class DiceWidget extends StatelessWidget {
   /// Tap handler (the screen's roll-or-feedback handler, M2.8).
   /// Null renders a plain, untappable dice.
   final VoidCallback? onTap;
+
+  /// Rollable affordance (M3 premium, research §2.4.4): when a
+  /// roll is available the dice carries a teal border, so the dice
+  /// has a visible "your turn" state that does not depend on
+  /// reading the banner. It is a steady border, not an oscillating
+  /// one: an oscillating border needs a continuously repeating
+  /// ticker, and a running ticker makes `pumpAndSettle` (which the
+  /// game-screen suite uses throughout) never terminate — the same
+  /// reason the legal-move pulse is one-shot (see game_screen).
+  /// A slow repeating border is the named revisit if the harness
+  /// ever moves off `pumpAndSettle`.
+  final bool showRollableBorder;
 
   static const _pipLayouts = <int, List<Alignment>>{
     1: [Alignment.center],
@@ -103,14 +117,11 @@ class DiceWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(size * 0.18),
-          border: Border.all(color: DiceUpColors.border, width: 1.5),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x1A000000),
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            ),
-          ],
+          border: Border.all(
+            color: showRollableBorder ? DiceUpColors.teal : DiceUpColors.border,
+            width: showRollableBorder ? 2.0 : 1.5,
+          ),
+          boxShadow: DiceUpShadows.raised,
         ),
         child: Stack(
           children: pips

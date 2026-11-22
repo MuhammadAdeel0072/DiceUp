@@ -279,7 +279,23 @@ Offset boardTokenCenter(
       .toList();
   if (sharing.length == 1) return centre;
   final i = sharing.indexOf(token);
-  return centre + Offset((i - (sharing.length - 1) / 2) * cell * 0.4, 0);
+  return centre + stackOffset(i, sharing.length, cell);
+}
+
+/// Offset of one token among [count] sharing a cell (M3 premium,
+/// research §2.2.5 — flutter_ludo fan-out). Two tokens keep the
+/// existing horizontal fan; 3+ fan into a tiny 2x2 cluster inside
+/// the cell, so no token is pushed outside it. Beyond 4 tokens the
+/// slots repeat (overlap rather than leave the cell) — 5+ tokens on
+/// one cell needs a capture to have failed, which the engine
+/// forbids on non-safe cells, and safe cells cap at 4 same-colour
+/// tokens plus visitors in practice.
+Offset stackOffset(int index, int count, double cell) {
+  if (count <= 1) return Offset.zero;
+  if (count == 2) return Offset((index - 0.5) * cell * 0.4, 0);
+  final dx = (index % 2 == 0 ? -1 : 1) * cell * 0.22;
+  final dy = (index < 2 ? -1 : 1) * cell * 0.22;
+  return Offset(dx, dy);
 }
 
 /// Grid cell of a token, or null when the token is in the yard or home.
@@ -319,16 +335,38 @@ class LudoBoardPainter extends CustomPainter {
     // static ring M2.3 drew, so existing call sites and tests keep
     // working.
     this.pulse = 0.0,
-    // Token-hop override (M2.7): while a hop is in flight the
-    // screen animates one token's *rendered* centre between its
-    // pre-move and post-move cells and passes it here. The engine
-    // state is already final — this only moves the drawing, never
-    // the game. Both null means "draw every token at its computed
-    // centre". The M3 upgrade (brief §4(C)) sequences a multi-cell
-    // move one cell at a time; this hop interpolates straight from
-    // the old cell to the new one in ≤250 ms.
+    // Token-hop override (M2.7, re-driven per cell in M3): while a
+    // step sequence is in flight the screen animates one token's
+    // *rendered* centre between two adjacent cells and passes it
+    // here, one segment per step. The engine state is already final
+    // — this only moves the drawing, never the game. Both null
+    // means "draw every token at its computed centre". [hopScale]
+    // is the per-step lift (1.0 at rest, ~1.12 mid-step).
     this.hopTokenId,
     this.hopCenter,
+    this.hopScale = 1.0,
+    // Capture-return override (M3 premium, research §2.3): while a
+    // capture animation is in flight the captured token is drawn
+    // at [captureCenter] — an arc from its cell to its yard slot —
+    // at [captureScale] and [captureOpacity] (lift → shrink/fade →
+    // arc → pop-in). The engine state is already final (the token
+    // is in the yard); this only animates the return.
+    this.captureTokenId,
+    this.captureCenter,
+    this.captureScale = 1.0,
+    this.captureOpacity = 1.0,
+    // Last-moved highlight (M3 premium, research §2.2.6): after a
+    // move settles, a thin teal ring is drawn under the moved
+    // token at [lastMovedOpacity] (1.0 → 0.0 over ~1.5 s), so
+    // "where did it just go" is answerable after a fast AI move.
+    // Null id (or 0.0 opacity) draws no ring.
+    this.lastMovedTokenId,
+    this.lastMovedOpacity = 0.0,
+    // Illegal-tap shake (M3 premium, research §2.5.4): a tapped
+    // token that cannot move shakes by [shakeOffset] (±1.5 dp,
+    // two oscillations over ~150 ms). Null id draws no shake.
+    this.shakeTokenId,
+    this.shakeOffset = Offset.zero,
   });
 
   final List<BoardToken> tokens;
@@ -342,6 +380,15 @@ class LudoBoardPainter extends CustomPainter {
   final double pulse;
   final String? hopTokenId;
   final Offset? hopCenter;
+  final double hopScale;
+  final String? captureTokenId;
+  final Offset? captureCenter;
+  final double captureScale;
+  final double captureOpacity;
+  final String? lastMovedTokenId;
+  final double lastMovedOpacity;
+  final String? shakeTokenId;
+  final Offset shakeOffset;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -409,6 +456,8 @@ class LudoBoardPainter extends CustomPainter {
             ),
             cell,
             group[i],
+            scale: _scaleFor(group[i]),
+            opacity: _opacityFor(group[i]),
           );
         }
       } else if (key == 'home') {
@@ -425,6 +474,8 @@ class LudoBoardPainter extends CustomPainter {
             ),
             cell,
             group[i],
+            scale: _scaleFor(group[i]),
+            opacity: _opacityFor(group[i]),
           );
         }
       } else {
@@ -434,29 +485,53 @@ class LudoBoardPainter extends CustomPainter {
           (double.parse(parts[0]) + 0.5) * cell,
         );
         for (var i = 0; i < group.length; i++) {
-          final offset = group.length == 1
-              ? Offset.zero
-              : Offset((i - (group.length - 1) / 2) * cell * 0.4, 0);
+          final offset = stackOffset(i, group.length, cell);
           _drawToken(
             canvas,
             _centreFor(group[i], centre + offset),
             cell,
             group[i],
+            scale: _scaleFor(group[i]),
+            opacity: _opacityFor(group[i]),
           );
         }
       }
     });
   }
 
-  /// The centre a token is drawn at: the hop override when this is
-  /// the hopping token and a hop is in flight, else the computed
-  /// centre. The override is rendering-only — the token's engine
-  /// position (and the hit-test geometry in [boardTokenCenter])
-  /// already sit at the destination cell.
+  /// The centre a token is drawn at: the step override when this is
+  /// the moving token and a step is in flight, the capture override
+  /// when this is the captured token, the shake offset when this is
+  /// the illegally tapped token, else the computed centre. The
+  /// overrides are rendering-only — the token's engine position
+  /// (and the hit-test geometry in [boardTokenCenter]) already sit
+  /// at the destination cell.
   Offset _centreFor(BoardToken token, Offset computed) {
     final hop = hopCenter;
     if (hop != null && token.id == hopTokenId) return hop;
+    final capture = captureCenter;
+    if (capture != null && token.id == captureTokenId) return capture;
+    if (token.id == shakeTokenId) return computed + shakeOffset;
     return computed;
+  }
+
+  /// The draw scale for a token: the per-step lift for the moving
+  /// token, the shrink/pop for the captured token, 1.0 otherwise.
+  double _scaleFor(BoardToken token) {
+    if (token.id == hopTokenId && hopCenter != null) return hopScale;
+    if (token.id == captureTokenId && captureCenter != null) {
+      return captureScale;
+    }
+    return 1.0;
+  }
+
+  /// The draw opacity for a token: the fade for the captured token,
+  /// 1.0 otherwise.
+  double _opacityFor(BoardToken token) {
+    if (token.id == captureTokenId && captureCenter != null) {
+      return captureOpacity;
+    }
+    return 1.0;
   }
 
   Rect _yardRect(int seat, double cell) {
@@ -541,7 +616,14 @@ class LudoBoardPainter extends CustomPainter {
     }
   }
 
-  void _drawToken(Canvas canvas, Offset centre, double cell, BoardToken token) {
+  void _drawToken(
+    Canvas canvas,
+    Offset centre,
+    double cell,
+    BoardToken token, {
+    double scale = 1.0,
+    double opacity = 1.0,
+  }) {
     // The token dot takes the player's *chosen* colour (M2.2); the
     // board geometry itself (yards, start cells, home paths) is
     // keyed by colour too (M3.5) — the quadrants are fixed colour
@@ -550,7 +632,7 @@ class LudoBoardPainter extends CustomPainter {
     final color = token.colour == null
         ? DiceUpColors.playerColor(token.seatIndex)
         : DiceUpColors.forColour(token.colour!);
-    final radius = cell * 0.36;
+    final radius = cell * 0.36 * scale;
     // Legal-move highlight: amber ring + slight lift (FR-17). The
     // ring pulses with [pulse] (M2.7): its radius grows and its
     // alpha fades as the pulse rises; at pulse 0 it is the static
@@ -565,11 +647,29 @@ class LudoBoardPainter extends CustomPainter {
           ..strokeWidth = 3,
       );
     }
+    // Last-moved highlight (M3 premium, §2.2.6): a thin teal ring
+    // under the moved token, fading with [lastMovedOpacity]. It is
+    // drawn for the token the screen names, never for a token that
+    // is currently stepping or being captured (those carry their
+    // own overrides).
+    if (token.id == lastMovedTokenId &&
+        lastMovedOpacity > 0.0 &&
+        token.id != hopTokenId &&
+        token.id != captureTokenId) {
+      canvas.drawCircle(
+        centre,
+        radius + 3,
+        Paint()
+          ..color = DiceUpColors.teal.withValues(alpha: lastMovedOpacity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+    }
     // Token body. Shape differs per seat so players are distinguishable
     // by more than colour (NFR-08): circle, square, diamond, triangle.
-    final fill = Paint()..color = color;
+    final fill = Paint()..color = color.withValues(alpha: opacity);
     final edge = Paint()
-      ..color = Colors.white
+      ..color = Colors.white.withValues(alpha: opacity)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     switch (token.seatIndex % 4) {
@@ -603,7 +703,7 @@ class LudoBoardPainter extends CustomPainter {
       canvas.drawCircle(
         centre,
         radius * 0.45,
-        Paint()..color = Colors.white.withValues(alpha: 0.85),
+        Paint()..color = Colors.white.withValues(alpha: 0.85 * opacity),
       );
     }
   }
@@ -624,6 +724,15 @@ class LudoBoardPainter extends CustomPainter {
         oldDelegate.pulse != pulse ||
         oldDelegate.hopTokenId != hopTokenId ||
         oldDelegate.hopCenter != hopCenter ||
+        oldDelegate.hopScale != hopScale ||
+        oldDelegate.captureTokenId != captureTokenId ||
+        oldDelegate.captureCenter != captureCenter ||
+        oldDelegate.captureScale != captureScale ||
+        oldDelegate.captureOpacity != captureOpacity ||
+        oldDelegate.lastMovedTokenId != lastMovedTokenId ||
+        oldDelegate.lastMovedOpacity != lastMovedOpacity ||
+        oldDelegate.shakeTokenId != shakeTokenId ||
+        oldDelegate.shakeOffset != shakeOffset ||
         !listEquals(oldDelegate.tokens, tokens) ||
         !setEquals(oldDelegate.legalTokenIds, legalTokenIds) ||
         !setEquals(oldDelegate.safeTrackIndices, safeTrackIndices);

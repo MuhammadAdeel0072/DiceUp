@@ -39,6 +39,9 @@ abstract final class AppRoutes {
   /// receives the ready [StartupResult] so it only shows the brand
   /// moment, and the game route reads its arguments itself (see
   /// [resumedStateOf] — a [GameState] argument resumes a match).
+  /// The results route is deliberately absent here: it is built by
+  /// [onGenerateRoute] (M3 premium, §2.7.2) so its entrance can
+  /// fade/slide in over ~300 ms.
   static Map<String, WidgetBuilder> routesFor({StartupResult? startup}) {
     return {
       splash: (_) => SplashScreen(startup: startup),
@@ -46,11 +49,41 @@ abstract final class AppRoutes {
       modeSelection: (_) => const ModeSelectionScreen(),
       offlineSetup: (_) => const OfflineSetupScreen(),
       game: (_) => const GameScreen(),
-      results: (_) => const ResultsScreen(),
       history: (_) => const HistoryScreen(),
       statistics: (_) => const StatisticsScreen(),
       settings: (_) => const SettingsScreen(),
     };
+  }
+
+  /// Route factory for the results route only (M3 premium, §2.7.2):
+  /// the game → results navigation fades in and slides up slightly
+  /// over ~300 ms (`Curves.easeOutCubic`), and the reverse (Play
+  /// Again / Main Menu leaving results) is shorter (~200 ms).
+  /// Returns null for every other route — those come from
+  /// [routesFor]. The route's [RouteSettings] (including the
+  /// [MatchResult] arguments) pass through untouched, so the screen
+  /// still reads them via [matchResultOf].
+  static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    if (settings.name != results) return null;
+    return PageRouteBuilder<void>(
+      settings: settings,
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (_, _, _) => const ResultsScreen(),
+      transitionsBuilder: (_, animation, _, child) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position:
+              Tween<Offset>(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+          child: child,
+        ),
+      ),
+    );
   }
 
   /// The offline game screen receives its [GameSetup] via route arguments.
@@ -174,6 +207,7 @@ class MatchResultPlayer {
     required this.name,
     required this.colour,
     required this.isAi,
+    this.tokensHome = 0,
   });
 
   /// Seat index (0–3); the shape follows the seat (D-27).
@@ -188,6 +222,13 @@ class MatchResultPlayer {
 
   /// True for an AI seat (shown as "(AI)" next to the name).
   final bool isAi;
+
+  /// Tokens this player has brought home (0–4) at match end (M3
+  /// premium, §2.6/Q8): display data derived from the final state
+  /// by the game screen — no schema change. Defaults to 0 so
+  /// older call sites (tests building a result by hand) keep
+  /// compiling and render "Home 0/4" only when the screen shows it.
+  final int tokensHome;
 }
 
 /// A finished offline match, as the results screen shows it (M2.5,

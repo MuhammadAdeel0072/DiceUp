@@ -461,6 +461,15 @@
   "@resultsEmpty": {
     "description": "Empty state when the results route opens without a match result."
   },
+  "@resultsPlayerHome": {
+    "description": "Tokens-home count next to a player on the results screen (M3 premium, §2.6/Q8).",
+    "placeholders": {
+      "home": {
+        "example": "3",
+        "type": "int"
+      }
+    }
+  },
   "@resultsPlayAgain": {
     "description": "Results button: a fresh match with the same settings."
   },
@@ -833,6 +842,7 @@
   "playersCountOther": "{count} players",
   "resultsEmpty": "No match result to show.",
   "resultsPlayAgain": "Play Again",
+  "resultsPlayerHome": "Home {home}/4",
   "resultsRecordFailed": "This match finished, but it couldn't be saved to your history.",
   "resultsTitle": "Results",
   "resultsWinnerBadge": "Winner",

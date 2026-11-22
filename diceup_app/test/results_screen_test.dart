@@ -290,6 +290,58 @@ void main() {
       );
     });
 
+    testWidgets('premium results (Q5/Q8): winner\'s mark, Home n/4 '
+        'counts, one-shot confetti on entry', (tester) async {
+      final store = InMemoryStore();
+      final deps = fakeDeps(store);
+      final base = sampleResult();
+      final result = MatchResult(
+        winnerSeat: base.winnerSeat,
+        winnerName: base.winnerName,
+        winnerColour: base.winnerColour,
+        players: const [
+          MatchResultPlayer(
+            seat: 0,
+            name: 'Adeel',
+            colour: PlayerColour.red,
+            isAi: false,
+            tokensHome: 4,
+          ),
+          MatchResultPlayer(
+            seat: 1,
+            name: 'Robo',
+            colour: PlayerColour.green,
+            isAi: true,
+            tokensHome: 1,
+          ),
+        ],
+        duration: base.duration,
+        moveCount: base.moveCount,
+        finishedAt: base.finishedAt,
+        setup: base.setup,
+      );
+      await pumpRoutesApp(tester, deps, ResultsScreen(result: result));
+
+      // Winner's mark: the enlarged per-seat shape marker in a teal
+      // ring around the winner's avatar (Q5 — no crown).
+      expect(find.byKey(const ValueKey('winner-shape-marker')), findsOneWidget);
+      // Each player's tokens-home count next to their name (Q8).
+      expect(find.text('Home 4/4'), findsOneWidget);
+      expect(find.text('Home 1/4'), findsOneWidget);
+      // One-shot hand-drawn confetti fires once on entry: the
+      // overlay stays mounted after its finite burst, painting
+      // nothing once the pieces have fallen.
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is CustomPaint &&
+              widget.painter != null &&
+              widget.painter.runtimeType.toString() == '_ConfettiPainter',
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('record failure shows the notice, success does not', (
       tester,
     ) async {
@@ -629,13 +681,37 @@ void main() {
       // timers. The cycling dice include 1s so tokens can finish
       // exactly (all-6s would strand tokens at 51–55 under exact
       // finish and the match could never end).
+      //
+      // The loop exits when the match is finished — either the
+      // provider still reports it, or the results screen is already
+      // showing. The second exit matters (M3 premium): the game
+      // screen navigates to results the moment the finished match's
+      // record is decided, and the `autoDispose` provider is then
+      // disposed (Riverpod schedules the disposal on the next
+      // microtask after the screen unmounts). A fresh read after
+      // that yields a controller with no game — `isFinished` false
+      // and `state` throwing — so the loop must not read the
+      // provider's state once results is showing. The per-cell step
+      // sequences (up to ~600 ms) plus the capture return (~600 ms)
+      // keep frames scheduled across the gap between a human move
+      // and the AI timer firing, so `pumpAndSettle` no longer
+      // returns in that gap and the AI's reply — including a
+      // match-ending win — can complete inside the human branch's
+      // `pumpAndSettle`, with navigation + disposal following
+      // before the next loop read. The pre-M3 hop (≤250 ms) ended
+      // before the AI timer fired, so the loop always observed the
+      // win from the AI branch instead. The results screen is
+      // itself proof the match finished: navigation only happens
+      // for a finished match.
       var steps = 0;
       while (!container.read(offlineGameControllerProvider).isFinished &&
+          find.byType(ResultsScreen).evaluate().isEmpty &&
           steps < 800) {
         steps++;
         await tester.pump();
         final controller = container.read(offlineGameControllerProvider);
         if (controller.isFinished) break;
+        if (find.byType(ResultsScreen).evaluate().isNotEmpty) break;
         if (controller.rolling) {
           await tester.pump(const Duration(milliseconds: 600));
           continue;
@@ -683,9 +759,15 @@ void main() {
         }
         await tester.pumpAndSettle();
       }
-      final controller = container.read(offlineGameControllerProvider);
+      // Completion: either the provider still reports the finished
+      // match, or the results screen is showing (navigation only
+      // happens for a finished match, and the provider may already
+      // be disposed after that navigation — see the loop comment).
+      final finished =
+          container.read(offlineGameControllerProvider).isFinished ||
+          find.byType(ResultsScreen).evaluate().isNotEmpty;
       expect(
-        controller.isFinished,
+        finished,
         isTrue,
         reason: 'scripted match did not finish in $steps steps',
       );

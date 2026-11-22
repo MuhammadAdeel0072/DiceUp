@@ -15,20 +15,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'test_providers.dart';
 
 /// M2.7 (CON-01, H-05): AnimationController-driven dice tumble,
-/// token hop, legal-move pulse, RepaintBoundary, content-based
-/// repaint, pause/dispose interaction — plus the M-16 UI pacing
-/// test (FR-40, D-31).
+/// token step sequence, legal-move pulse, RepaintBoundary,
+/// content-based repaint, pause/dispose interaction — plus the M-16
+/// UI pacing test (FR-40, D-31).
 ///
 /// The dice tumble is ~540 ms and ends on the engine-decided value;
-/// the hop interpolates one token's rendered centre from its old
-/// cell to its new one in ≤250 ms (engine state already final — the
-/// animation never changes the game); the legal ring plays one
-/// 1,200 ms pulse cycle each time legal moves newly appear (not a
-/// continuous repeat — a running ticker would make
-/// `pumpAndSettle` never terminate; see the game screen's
-/// [_pulseController] note). The M3 upgrade (brief §4(C)) sequences a
-/// multi-cell move one cell at a time; this hop crosses straight
-/// from the old cell to the new one.
+/// the step sequence (M3 premium, brief §4, Q1) moves one token one
+/// cell at a time — ~110 ms per cell, total clamped to 250–600 ms
+/// (engine state already final — the animation never changes the
+/// game); the legal ring plays one 1,200 ms pulse cycle each time
+/// legal moves newly appear (not a continuous repeat — a running
+/// ticker would make `pumpAndSettle` never terminate; see the game
+/// screen's [_pulseController] note). The M2.7 straight hop is
+/// superseded: a multi-cell move now visibly occupies each
+/// intermediate cell in turn instead of crossing straight from the
+/// old cell to the new one. Pause freezes a sequence in place and
+/// resumes it from where it paused (Q2, D-10); it no longer
+/// cancels it.
 ///
 /// The AI timeout fallback (UC-03 E1, M-16) is an accepted risk,
 /// NOT implemented here — see the plan's M2.7 record.
@@ -133,10 +136,12 @@ void main() {
   }
 
   /// Opens the pause menu with bounded pumps, never
-  /// `pumpAndSettle`: while a roll is tumbling the turn banner
-  /// shows a `CircularProgressIndicator` (an infinite animation),
-  /// so settling would time out — and the dialog's entrance is a
-  /// finite ~150 ms transition, covered by the 300 ms pump.
+  /// `pumpAndSettle`: the dialog's entrance is a finite ~150 ms
+  /// transition, covered by the 300 ms pump, and bounded pumps
+  /// keep pause-flow tests deterministic while animations are in
+  /// flight. (M2.7 noted the turn banner's spinner here; the
+  /// spinner was removed in M3 — the AI-thinking indicator is now
+  /// the three-dot pulse in the player's chip.)
   Future<void> openPauseMenu(WidgetTester tester) async {
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
@@ -225,29 +230,30 @@ void main() {
     });
   });
 
-  group('token hop (M2.7)', () {
-    testWidgets('hop interpolates from the old cell to the new one '
-        'in ≤250 ms and ends at the engine position', (tester) async {
+  group('token step sequence (M3, brief §4)', () {
+    testWidgets('step sequence interpolates from the old cell to the '
+        'new one in ≤600 ms and ends at the engine position', (tester) async {
       final controller = await pumpGame(tester, dice: const [6]);
       await roll(tester);
       expect(controller.displayedRoll, 6);
       expect(controller.legalMoves, hasLength(4));
 
       // Release the first yard token: yard slot 0 (64, 64) to the
-      // red start cell (48, 208) on the 480 board.
+      // red start cell (48, 208) on the 480 board. A one-cell move
+      // is a single segment: total = clamp(1 x 110, 250, 600) ms.
       const fromCentre = Offset(64, 64);
       const toCentre = Offset(48, 208);
       await tapBoardAt(tester, fromCentre);
       expect(controller.state.moveCount, 1);
       expect(controller.state.players[0].tokens[0].stepsTaken, 1);
 
-      // The hop starts at the old cell.
+      // The sequence starts at the old cell.
       var painter = boardPainter(tester);
       expect(painter.hopTokenId, '0:0');
       expect(painter.hopCenter, fromCentre);
 
-      // Mid-hop the rendered centre is strictly between the cells
-      // — the token is drawn mid-flight, never teleported.
+      // Mid-sequence the rendered centre is strictly between the
+      // cells — the token is drawn mid-flight, never teleported.
       await tester.pump(const Duration(milliseconds: 125));
       painter = boardPainter(tester);
       final mid = painter.hopCenter!;
@@ -256,12 +262,12 @@ void main() {
       expect(mid.dy, greaterThan(64));
       expect(mid.dy, lessThan(208));
       // The animation never changes the game: the engine state is
-      // identical before and after the hop frames.
+      // identical before and after the sequence frames.
       expect(controller.state.moveCount, 1);
       expect(controller.state.players[0].tokens[0].stepsTaken, 1);
 
-      // By 250 ms the hop is done: no override, the token sits at
-      // its engine position, and input unlocks (a six: roll again).
+      // By 250 ms the sequence is done: no override, the token sits
+      // at its engine position, and input unlocks (a six: roll again).
       await tester.pump(const Duration(milliseconds: 200));
       painter = boardPainter(tester);
       expect(painter.hopTokenId, isNull);
@@ -281,8 +287,8 @@ void main() {
       expect(find.text('Roll dice'), findsOneWidget);
     });
 
-    testWidgets('no hop on restart: a fresh match starts with every '
-        'token in the yard', (tester) async {
+    testWidgets('no step sequence on restart: a fresh match starts '
+        'with every token in the yard', (tester) async {
       final controller = await pumpGame(tester, dice: const [6]);
       await roll(tester);
       await tapBoardAt(tester, const Offset(64, 64));
@@ -311,25 +317,56 @@ void main() {
       );
     });
 
-    testWidgets('pause mid-hop cancels the hop; resume does not '
-        'restart it', (tester) async {
-      final controller = await pumpGame(tester, dice: const [6]);
+    testWidgets('pause mid-sequence freezes it; resume continues it '
+        'to the engine position (Q2, D-10)', (tester) async {
+      // Dice script: 6 (release), 6 (advance 6 cells). A six-step
+      // move sequences at ~110 ms/cell, total clamped to 600 ms,
+      // so the sequence is still running when the pause lands.
+      final controller = await pumpGame(tester, dice: const [6, 6]);
       await roll(tester);
       await tapBoardAt(tester, const Offset(64, 64));
+      expect(controller.state.players[0].tokens[0].stepsTaken, 1);
+      await roll(tester);
+      expect(controller.displayedRoll, 6);
+      await tapToken(
+        tester,
+        const BoardToken(
+          id: '0:0',
+          seatIndex: 0,
+          stepsTaken: 1,
+          colour: PlayerColour.red,
+        ),
+        tokensAt(const [1, 0, 0, 0], const [0, 0, 0, 0]),
+      );
       expect(boardPainter(tester).hopTokenId, '0:0');
 
+      // Pause freezes the sequence in place (M2.7 cancelled it
+      // here; Q2 supersedes that): the token stays mid-flight,
+      // and its rendered centre does not move while paused.
       await openPauseMenu(tester);
       expect(controller.isPaused, isTrue);
-      // The hop is cancelled: the token is drawn at its engine
-      // position (steps 1), not mid-flight.
-      expect(boardPainter(tester).hopTokenId, isNull);
-      expect(boardPainter(tester).hopCenter, isNull);
-      expect(controller.state.players[0].tokens[0].stepsTaken, 1);
+      expect(boardPainter(tester).hopTokenId, '0:0');
+      final frozen = boardPainter(tester).hopCenter;
+      expect(frozen, isNotNull);
+      await tester.pump(const Duration(seconds: 5));
+      expect(boardPainter(tester).hopTokenId, '0:0');
+      expect(boardPainter(tester).hopCenter, frozen);
+      expect(controller.state.players[0].tokens[0].stepsTaken, 7);
 
+      // Resume continues the sequence from where it froze: it
+      // completes at the engine position and input unlocks.
       await tester.tap(find.text('Resume'));
       await tester.pumpAndSettle();
       expect(controller.isPaused, isFalse);
       expect(boardPainter(tester).hopTokenId, isNull);
+      expect(
+        boardTokenCenter(
+          const BoardToken(id: '0:0', seatIndex: 0, stepsTaken: 7),
+          boardSize,
+          boardPainter(tester).tokens,
+        ),
+        const Offset(208, 144),
+      );
       expect(find.text('Roll dice'), findsOneWidget);
     });
   });

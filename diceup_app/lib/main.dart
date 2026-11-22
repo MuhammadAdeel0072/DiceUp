@@ -135,6 +135,10 @@ class _DiceUpAppState extends State<DiceUpApp> {
           theme: DiceUpTheme.light(),
           initialRoute: AppRoutes.splash,
           routes: AppRoutes.routesFor(startup: startup),
+          // M3 premium (§2.7.2): the results route's fade/slide
+          // entrance lives in AppRoutes.onGenerateRoute (the
+          // results entry is deliberately absent from routesFor).
+          onGenerateRoute: AppRoutes.onGenerateRoute,
         ),
       ),
     );

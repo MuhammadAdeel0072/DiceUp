@@ -9,6 +9,7 @@ import 'engine/game_state.dart';
 import 'engine/ludo_game.dart';
 import 'engine/move.dart';
 import 'engine/player.dart';
+import 'engine/player_colour.dart';
 import 'repositories/local_match_repository.dart';
 import 'repositories/settings_repository.dart';
 import 'repositories/snapshot_repository.dart';
@@ -595,6 +596,24 @@ class OfflineGameController {
 
   String _rollStatus() {
     final state = _game!.state;
+    // AI narration (M3 premium, research §2.5/Q10): an AI roll is
+    // named by colour + "(AI)" with the value rolled, so the player
+    // can follow fast AI turns at 700–1,199 ms (D-31). Human rolls
+    // keep the exact pre-M3 wording.
+    if (state.currentPlayer.isAi) {
+      final rolled =
+          '${_actorName(state.currentPlayer)} rolled ${state.lastRoll}';
+      if (state.lastRollWasThirdSix) {
+        return '$rolled. Third six in a row — the roll is not played, '
+            'turn passes.';
+      }
+      if (state.lastRollHadNoLegalMove) {
+        return state.lastRoll == 6
+            ? '$rolled. No legal move — but a six earns another roll.'
+            : '$rolled. No legal move — turn passes.';
+      }
+      return '$rolled, choose a token to move.';
+    }
     if (state.lastRollWasThirdSix) {
       return 'Third six in a row — the roll is not played, turn passes.';
     }
@@ -659,6 +678,24 @@ class OfflineGameController {
 
   String _moveStatus(MoveResult result) {
     final game = _game!;
+    // AI narration (M3 premium, research §2.5/Q10): an AI move is
+    // named by colour + "(AI)" with what it did. Human moves keep
+    // the exact pre-M3 wording.
+    final mover = game.state.players[result.move.playerIndex];
+    if (mover.isAi) {
+      final actor = _actorName(mover);
+      if (result.captured.isNotEmpty) {
+        return '$actor captured ${result.captured.length} token(s) and '
+            'sent them home.';
+      } else if (result.reachedHome) {
+        return '$actor brought a token home and rolls again.';
+      } else if (result.extraTurn) {
+        return '$actor rolled a six and rolls again.';
+      } else {
+        return '$actor moved a token. '
+            '${_actorName(game.currentPlayer)}, roll the dice.';
+      }
+    }
     if (result.captured.isNotEmpty) {
       return 'Captured! ${result.captured.length} token(s) sent home.';
     } else if (result.reachedHome) {
@@ -669,6 +706,25 @@ class OfflineGameController {
       return '${game.currentPlayer.name}, roll the dice.';
     }
   }
+
+  /// Display name of [player] in status text (M3 premium, Q10):
+  /// AI seats are named by their colour + "(AI)" — the colour is
+  /// the seat's identity on the board, and the name a setup screen
+  /// gave an AI seat ("Player 2") says nothing about who acted.
+  /// Humans keep their chosen name. Hardcoded English, like every
+  /// other controller status string (M3.10 exclusion: the domain
+  /// cannot import generated Flutter code; localising status needs
+  /// the deferred status-key refactor, not this milestone).
+  String _actorName(Player player) =>
+      player.isAi ? '${_colourWord(player.colour)} (AI)' : player.name;
+
+  /// Capitalised English colour word for [_actorName].
+  String _colourWord(PlayerColour colour) => switch (colour) {
+    PlayerColour.red => 'Red',
+    PlayerColour.green => 'Green',
+    PlayerColour.yellow => 'Yellow',
+    PlayerColour.blue => 'Blue',
+  };
 
   /// One light haptic per completed move (M1.7, D-32), through the
   /// [onMoveApplied] callback the view wires to its [FeedbackService]

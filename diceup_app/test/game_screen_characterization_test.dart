@@ -189,28 +189,28 @@ void main() {
     // The AI's roll (6) settles: it has a token to move.
     await pumpUntil(
       tester,
-      find.textContaining('Player 2, choose a token to move'),
+      find.textContaining('Green (AI) rolled 6, choose a token to move'),
       findsOneWidget,
     );
 
     // The AI releases a token: a six means it rolls again.
     await pumpUntil(
       tester,
-      find.textContaining('Six! Player 2 rolls again'),
+      find.textContaining('Green (AI) rolled a six and rolls again'),
       findsOneWidget,
     );
 
     // The AI rolls again (3) and it settles...
     await pumpUntil(
       tester,
-      find.textContaining('Player 2, choose a token to move'),
+      find.textContaining('Green (AI) rolled 3, choose a token to move'),
       findsOneWidget,
     );
 
     // ...and moves, passing the turn back to Player 1.
     await pumpUntil(
       tester,
-      find.textContaining('Player 1, roll the dice'),
+      find.textContaining('Green (AI) moved a token. Player 1, roll the dice'),
       findsOneWidget,
     );
     expect(find.text('Roll dice'), findsOneWidget);

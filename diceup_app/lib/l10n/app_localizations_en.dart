@@ -390,6 +390,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resultsPlayAgain => 'Play Again';
 
   @override
+  String resultsPlayerHome(int home) {
+    return 'Home $home/4';
+  }
+
+  @override
   String get resultsRecordFailed =>
       'This match finished, but it couldn\'t be saved to your history.';
 

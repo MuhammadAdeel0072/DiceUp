@@ -760,6 +760,12 @@ abstract class AppLocalizations {
   /// **'Play Again'**
   String get resultsPlayAgain;
 
+  /// Tokens-home count next to a player on the results screen (M3 premium, §2.6/Q8).
+  ///
+  /// In en, this message translates to:
+  /// **'Home {home}/4'**
+  String resultsPlayerHome(int home);
+
   /// Notice on the results screen when the completed match could not be recorded. Same text as the presentation constant kMatchRecordFailedMessage, which stays the single source the tests assert against.
   ///
   /// In en, this message translates to:

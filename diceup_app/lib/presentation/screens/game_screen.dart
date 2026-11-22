@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_shadows.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../domain/engine/game_state.dart';
 import '../../domain/engine/player.dart';
@@ -91,8 +92,8 @@ MatchSetup _matchSetupOf(GameSetup setup) => MatchSetup(
 /// tumbling animation only displays faces until it settles on
 /// the engine's value.
 ///
-/// Animations (M2.7, CON-01): this state is the
-/// [TickerProviderStateMixin] host for three [AnimationController]s.
+/// Animations (M2.7 foundation, M3 premium §4): this state is the
+/// [TickerProviderStateMixin] host for six [AnimationController]s.
 /// The dice tumble runs ~540 ms and cycles the displayed face from
 /// the controller's value while the engine's decided value is
 /// pending; it ends on the engine value, never a random one. The
@@ -100,16 +101,31 @@ MatchSetup _matchSetupOf(GameSetup setup) => MatchSetup(
 /// authority — the domain layer cannot own a Ticker, and the M2.6
 /// pause/settle semantics plus the fake-timer controller tests
 /// depend on it — so the two run the same 540 ms and settle
-/// together; the timer is no longer what the user *sees*. A move
-/// hops its token's rendered centre from the old cell to the new
-/// one in ≤250 ms (engine state already final — the hop animates
-/// rendering only); the M3 upgrade sequences a multi-cell move one
-/// cell at a time, this hop interpolates straight across. Legal
-/// tokens pulse once per legal-move appearance via a 1,200 ms
+/// together; the timer is no longer what the user *sees*. The
+/// tumble is finished in M3: a ~120 ms wind-up dip, a shake while
+/// cycling, and one damped settle wobble, all inside the 540 ms
+/// budget; a rollable teal border marks the dice while a roll is
+/// available. A move steps its token one cell at a time (~110 ms
+/// per cell, ~250 ms minimum, ~600 ms cap — Q1), each step a small
+/// hop with a lift, corners turning naturally because the path
+/// follows cells; a capture is sequenced after the mover settles
+/// (lift → shrink/fade → arc to the yard → pop-in, ~600 ms) and
+/// the mover settles slightly larger on a capturing move. The
+/// moved token then carries a fading teal ring (~1.5 s, §2.2.6).
+/// Legal tokens pulse once per legal-move appearance via a 1,200 ms
 /// controller feeding [pulse] into the painter (not a continuous
-/// repeat — see [_pulseController]). All three freeze on pause and
-/// are disposed with the screen; input is locked while the tumble
-/// or a hop is in flight.
+/// repeat — see [_pulseController]); the same one-shot pulse drives
+/// the three-dot AI-thinking indicator in the current player's chip
+/// (Q10 — the banner spinner is gone). An illegal tap shakes the
+/// tapped token (or the dice) for ~150 ms. All six freeze on pause
+/// and resume from where they froze (Q2 — pause is a freeze, D-10;
+/// the M2.7 hop used to cancel on pause, superseded here), and are
+/// disposed with the screen; input is locked while the tumble or a
+/// move/capture sequence is in flight. With reduced motion
+/// ([MediaQuery.disableAnimations] or [MediaQuery.reduceMotion])
+/// every sequence collapses to an instant settle: the engine state
+/// is already final, so nothing breaks. The engine decides, the
+/// animation performs — an animation can never change the game.
 ///
 /// AI pacing (FR-40): 700–1,199 ms before an AI rolls or moves (D-31).
 ///
@@ -193,14 +209,37 @@ class _GameScreenState extends ConsumerState<GameScreen>
   /// ends.
   OfflineGameController? _controller;
 
-  /// The dice tumble (M2.7): ~540 ms, started when the controller
-  /// reports a roll in flight, driving the displayed face from its
-  /// value ([_tumbleFace]) until the engine value settles.
+  /// The dice tumble (M2.7, finished in M3): ~540 ms, started when
+  /// the controller reports a roll in flight, driving the displayed
+  /// face from its value ([_tumbleFace]) until the engine value
+  /// settles. The same controller drives the wind-up, shake and
+  /// settle wobble (see [_diceMotion]).
   late final AnimationController _diceTumbleController;
 
-  /// The token hop (M2.7): ≤250 ms, interpolating one token's
-  /// rendered centre from [_hopFrom] to [_hopTo].
-  late final AnimationController _hopController;
+  /// The per-cell move sequence (M3 premium, §2.2/Q1): ONE
+  /// controller for the whole sequence, whose value maps onto the
+  /// step polyline ([_stepCenter]/[_stepScale] derive the segment
+  /// and the within-segment progress from it). A per-segment
+  /// restart was tried first and dropped: when a controller
+  /// completes its ticker stops, so `forward(from: 0.0)` from the
+  /// status listener only ticks on the NEXT frame — each segment
+  /// boundary slipped a frame (a 6-step move read one segment
+  /// behind at every 100 ms boundary in tests). The whole sequence
+  /// is ~110 ms per cell, ~250 ms minimum, ~600 ms cap.
+  late final AnimationController _stepController;
+
+  /// The capture return (M3 premium, §2.3/Q6): ~600 ms, lift →
+  /// shrink/fade → arc to the yard → pop-in, sequenced after the
+  /// mover's steps finish.
+  late final AnimationController _captureController;
+
+  /// The last-moved ring fade (M3 premium, §2.2.6): ~1,500 ms,
+  /// 1.0 → 0.0 opacity after a move settles.
+  late final AnimationController _lastMovedController;
+
+  /// The illegal-tap shake (M3 premium, §2.5.4): ~150 ms, two
+  /// oscillations of ±1.5 dp on the tapped token or the dice.
+  late final AnimationController _shakeController;
 
   /// The legal-move pulse (M2.7): a 1,200 ms controller that plays
   /// one pulse cycle each time legal moves newly appear (a roll
@@ -214,24 +253,83 @@ class _GameScreenState extends ConsumerState<GameScreen>
   /// test unmodified). The painter still receives a changing pulse
   /// (0→1→0 over the cycle) and the ring radius/alpha oscillate;
   /// a continuous pulse is a named M3 revisit if the harness ever
-  /// moves off `pumpAndSettle`.
+  /// moves off `pumpAndSettle`. The same one-shot cycle drives the
+  /// AI-thinking dots (M3, Q10): while an AI turn is pending the
+  /// pulse is (re)started, so the dots animate for the ~700–1,199 ms
+  /// the AI takes to act.
   late final AnimationController _pulseController;
 
-  /// The board's per-frame animation source: the pulse and hop
+  /// The board's per-frame animation source: all five board
   /// controllers merged, so one [AnimatedBuilder] rebuilds the
-  /// [CustomPaint] on either tick.
+  /// [CustomPaint] on any tick. The dice has its own merged source
+  /// ([_diceAnimation]) so a tumble tick never rebuilds the board
+  /// (M3.8, NFR-02).
   late final Listenable _boardAnimation;
 
-  /// The token currently hopping ([BoardToken.id]), or null when no
-  /// hop is in flight. The hop's endpoints are board centres in the
-  /// current board size, captured when the move was detected.
-  String? _hopTokenId;
-  Offset? _hopFrom;
-  Offset? _hopTo;
+  /// The dice's per-frame animation source: tumble + shake only.
+  late final Listenable _diceAnimation;
+
+  /// The token currently stepping ([BoardToken.id]), or null when no
+  /// step sequence is in flight. [_stepPath] is the full path of
+  /// rendered centres — the pre-move cell, then one centre per
+  /// intermediate step, ending at the post-move cell. The segment
+  /// in flight is derived from [_stepController]'s value
+  /// ([_stepSegmentIndex]/[_stepSegmentFraction]), never stored:
+  /// storing it per segment cost a frame per restart (see the
+  /// [_stepController] doc). [_stepIsCapture] marks a capturing
+  /// move, whose final step settles slightly larger.
+  String? _stepTokenId;
+  List<Offset> _stepPath = const [];
+  bool _stepIsCapture = false;
+  Duration _stepTotalDuration = const Duration(milliseconds: 110);
+
+  /// The mover's id for the last-moved ring: [_stepTokenId] is
+  /// cleared when the steps settle (before a capture runs), so the
+  /// ring id is carried here until [_finishSequence] consumes it.
+  String? _sequenceMoverId;
+
+  /// The capture in flight, if any: the captured token's id and the
+  /// arc endpoints (its pre-move cell centre and its yard-slot
+  /// centre), captured when the move was detected. [_captureActive]
+  /// is true from the mover's settle until the pop-in finishes;
+  /// [_captureArcHeight] is the arc's peak lift in dp.
+  bool _captureActive = false;
+  String? _captureTokenId;
+  Offset? _captureFromCentre;
+  Offset? _captureToCentre;
+  double _captureArcHeight = 0.0;
+  BoardToken? _captureFromToken;
+  BoardToken? _captureToToken;
+
+  /// A move or capture sequence is in flight (steps and/or capture),
+  /// including while frozen by pause. This — not any single
+  /// controller's `isAnimating` — is the input lock: a controller
+  /// stopped by pause reports `isAnimating == false` while its
+  /// sequence is still unfinished.
+  bool _sequenceActive = false;
+
+  /// The id of the token whose move just settled, for the
+  /// last-moved ring, or null when no ring is shown. Set when a
+  /// sequence finishes (or immediately, with reduced motion) and
+  /// cleared when the ring fades out or the next sequence starts.
+  String? _lastMovedTokenId;
+
+  /// The illegally tapped token's id while its shake runs, or null.
+  String? _shakeTokenId;
+
+  /// The dice is shaking (an illegal dice tap) while true.
+  bool _shakeDice = false;
+
+  /// The dice face shown while a roll is tumbling under reduced
+  /// motion: the last settled face, frozen — the tumble is skipped,
+  /// so no face cycles. Updated on every controller notification
+  /// while not rolling.
+  int? _preRollFace;
 
   /// The tokens and move count the last build rendered — the
-  /// pre-change baseline for hop detection (see [_maybeStartHop]).
-  /// Updated at the end of every build; null until the first build.
+  /// pre-change baseline for move detection (see
+  /// [_maybeStartSequence]). Updated at the end of every build;
+  /// null until the first build.
   List<BoardToken>? _prevTokens;
   int? _prevMoveCount;
 
@@ -259,15 +357,40 @@ class _GameScreenState extends ConsumerState<GameScreen>
       vsync: this,
       duration: const Duration(milliseconds: 540),
     );
-    _hopController = AnimationController(
+    _stepController =
+        AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 110),
+          )
+          ..addStatusListener(_onStepStatus)
+          ..addListener(_onStepValue);
+    _captureController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
-    )..addStatusListener(_onHopStatus);
+      duration: const Duration(milliseconds: 600),
+    )..addStatusListener(_onCaptureStatus);
+    _lastMovedController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..addStatusListener(_onLastMovedStatus);
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    )..addStatusListener(_onShakeStatus);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..addStatusListener(_onPulseStatus);
-    _boardAnimation = Listenable.merge([_pulseController, _hopController]);
+    _boardAnimation = Listenable.merge([
+      _pulseController,
+      _stepController,
+      _captureController,
+      _lastMovedController,
+      _shakeController,
+    ]);
+    _diceAnimation = Listenable.merge([
+      _diceTumbleController,
+      _shakeController,
+    ]);
   }
 
   @override
@@ -285,9 +408,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // A new controller means a new match: no animation may act on
     // the old match's state (M3.2 timer-cancellation discipline,
     // applied to animations too).
-    _cancelHop();
+    _cancelSequence();
     _diceTumbleController.reset();
     _pulseController.stop();
+    _preRollFace = null;
     _prevTokens = null;
     _prevMoveCount = null;
     // Start the match before subscribing: the start notification
@@ -311,37 +435,45 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void dispose() {
     _controller?.removeListener(_onControllerChanged);
     _diceTumbleController.dispose();
-    _hopController.dispose();
+    _stepController.dispose();
+    _captureController.dispose();
+    _lastMovedController.dispose();
+    _shakeController.dispose();
     _pulseController.dispose();
     super.dispose();
   }
 
   /// The controller changed (a roll settled, a move applied, a
   /// completion record decided, an AI step ran): detect a move to
-  /// hop, sync the animations to the new state, rebuild, and
+  /// animate, sync the animations to the new state, rebuild, and
   /// navigate to the results screen once the finished match's
   /// record is decided.
   void _onControllerChanged() {
     if (!mounted) return;
     final controller = _controller;
     if (controller != null) {
-      _maybeStartHop(controller);
+      if (!controller.rolling) _preRollFace = controller.displayedRoll;
+      _maybeStartSequence(controller);
       _syncAnimationState(controller);
     }
     setState(() {});
     _maybeShowResults();
   }
 
-  /// Starts a token hop when exactly one move was just applied
-  /// (M2.7): the move count rose by exactly one since the last
-  /// build, and one token's progress increased. Start, restore and
-  /// restart reset (or jump) the count, so they never hop; a
-  /// capture's returning token snaps to the yard — its smooth
-  /// return is the M3 capture animation, not this hop. The moved
-  /// token's rendered centre interpolates from its pre-move cell
-  /// ([_prevTokens]) to its post-move cell; the engine state is
-  /// already final, so the hop can never change the game.
-  void _maybeStartHop(OfflineGameController controller) {
+  /// Starts a per-cell step sequence (and, after it, a capture
+  /// return) when exactly one move was just applied (M3 premium,
+  /// §2.2/Q1, §2.3/Q6): the move count rose by exactly one since
+  /// the last build, and one token's progress increased. Start,
+  /// restore and restart reset (or jump) the count, so they never
+  /// animate; a capture is detected by diff, not by engine data —
+  /// a token that was on the board and is now in the yard, other
+  /// than the mover, was captured by this move. The engine state is
+  /// already final, so the sequence can never change the game.
+  ///
+  /// With reduced motion the sequence is skipped entirely: the
+  /// token is already at its engine position, and only the
+  /// last-moved ring is set (static, no fade).
+  void _maybeStartSequence(OfflineGameController controller) {
     final prevCount = _prevMoveCount;
     final newCount = controller.state.moveCount;
     if (prevCount == null || newCount != prevCount + 1) return;
@@ -361,28 +493,187 @@ class _GameScreenState extends ConsumerState<GameScreen>
       }
     }
     if (from == null || to == null) return;
+    BoardToken? capturedFrom;
+    BoardToken? capturedTo;
+    for (final token in tokens) {
+      final old = prevById[token.id];
+      if (old != null &&
+          old.stepsTaken > 0 &&
+          token.stepsTaken == 0 &&
+          token.id != to.id) {
+        capturedFrom = old;
+        capturedTo = token;
+        break;
+      }
+    }
+    // A sequence already in flight (a move landing while the
+    // previous sequence still renders) is finished instantly and
+    // replaced, not overlapped: the old token snaps to its engine
+    // position, which is where it already is.
+    _finishSequenceInstantly();
     final side = _boardSide(context);
     final size = Size(side, side);
-    final hopFrom = boardTokenCenter(from, size, prevTokens);
-    final hopTo = boardTokenCenter(to, size, tokens);
-    if (hopFrom == hopTo) return;
-    // A hop already in flight (a move landing while the previous
-    // hop still renders) is replaced, not overlapped: the old hop
-    // snaps to its destination, which is the engine position.
-    _hopTokenId = to.id;
-    _hopFrom = hopFrom;
-    _hopTo = hopTo;
-    _hopController.forward(from: 0.0);
+    // The path: the pre-move centre, then one centre per
+    // intermediate step, ending at the post-move cell. Corners turn
+    // naturally because the path follows cells. Each intermediate
+    // centre is computed with the moving token at that step, so
+    // stacking offsets match the painter's.
+    final path = <Offset>[boardTokenCenter(from, size, prevTokens)];
+    for (var step = from.stepsTaken + 1; step <= to.stepsTaken; step++) {
+      final probe = BoardToken(
+        id: to.id,
+        seatIndex: to.seatIndex,
+        stepsTaken: step,
+        colour: to.colour,
+      );
+      final atStep = [
+        for (final token in tokens) token.id == to.id ? probe : token,
+      ];
+      path.add(boardTokenCenter(probe, size, atStep));
+    }
+    if (capturedFrom != null && capturedTo != null) {
+      _captureFromCentre = boardTokenCenter(capturedFrom, size, prevTokens);
+      _captureToCentre = boardTokenCenter(capturedTo, size, tokens);
+      _captureArcHeight = side / 15 * 1.5;
+    }
+    _captureFromToken = capturedFrom;
+    _captureToToken = capturedTo;
+    if (_reducedMotion(context)) {
+      _lastMovedController.stop();
+      _lastMovedTokenId = to.id;
+      return;
+    }
+    _stepTokenId = to.id;
+    _sequenceMoverId = to.id;
+    _stepPath = path;
+    _stepIsCapture = capturedFrom != null;
+    _sequenceActive = true;
+    _lastMovedTokenId = null;
+    // ~110 ms per cell, ~250 ms minimum, ~600 ms cap (Q1). The
+    // controller runs the whole sequence at once; the segment
+    // boundaries fall at value = segment / steps, so a segment
+    // boundary is hit exactly at its pump time.
+    final steps = to.stepsTaken - from.stepsTaken;
+    final totalMs = (steps * 110).clamp(250, 600);
+    _stepTotalDuration = Duration(milliseconds: totalMs);
+    _stepController.duration = _stepTotalDuration;
+    _stepController.forward(from: 0.0);
   }
 
-  /// A hop finished: the token is drawn at its engine position
-  /// from here on (the painter's computed centre is the same
-  /// point), and input unlocks.
-  void _onHopStatus(AnimationStatus status) {
+  /// The step phase finished: the token reached the end of the
+  /// polyline — start the capture return if this move captured,
+  /// else finish the sequence. Guarded on [_stepTokenId]: the
+  /// value listener ([_onStepValue]) and the status listener
+  /// ([_onStepStatus]) can both observe the same finish, and the
+  /// second must be a no-op, never a second capture start.
+  void _finishStepPhase() {
+    if (_stepTokenId == null) return;
+    _stepTokenId = null;
+    if (_captureFromToken != null && _captureToToken != null) {
+      _startCapture();
+      return;
+    }
+    _finishSequence();
+  }
+
+  /// The step controller's value reached the end of the polyline
+  /// (M3 premium, §2.2): finish the step phase now. The
+  /// `completed` status alone is NOT enough — an
+  /// [AnimationController] reports it only once elapsed strictly
+  /// exceeds the duration (its simulation's `isDone` is
+  /// `time > duration`), so a sequence pumped to exactly its total
+  /// sits at value 1.0 with no status event until the next frame
+  /// advances past it. The rendered position IS the destination
+  /// at value 1.0, so the finish belongs here; the late `completed`
+  /// status is then a no-op via [_finishStepPhase]'s guard.
+  void _onStepValue() {
+    if (_stepController.value >= 1.0) _finishStepPhase();
+  }
+
+  /// The step sequence finished (the single controller reached
+  /// 1.0): start the capture return if this move captured, else
+  /// finish the sequence. A controller stopped by pause never
+  /// reports completed, so a frozen sequence resumes on
+  /// [_syncAnimationState]'s `forward()`, not from a spurious
+  /// completion. Usually a no-op — [_onStepValue] already finished
+  /// the phase at value 1.0 — except when the clock jumps past the
+  /// total between frames (long pumps, real-time frames).
+  void _onStepStatus(AnimationStatus status) {
     if (status != AnimationStatus.completed) return;
-    _hopTokenId = null;
-    _hopFrom = null;
-    _hopTo = null;
+    _finishStepPhase();
+  }
+
+  /// Starts the capture return (M3 premium, §2.3): ~150 ms beat is
+  /// inherent — the capture only starts once the mover's steps have
+  /// settled, so the eye registers cause → effect.
+  void _startCapture() {
+    _captureActive = true;
+    _captureTokenId = _captureToToken!.id;
+    _captureController.duration = const Duration(milliseconds: 600);
+    _captureController.forward(from: 0.0);
+    if (mounted) setState(() {});
+  }
+
+  /// The capture return finished: the captured token is drawn at
+  /// its yard slot from here on (the painter's computed centre is
+  /// the same point), and the sequence finishes.
+  void _onCaptureStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    _captureActive = false;
+    _captureTokenId = null;
+    _finishSequence();
+  }
+
+  /// A sequence finished: the mover carries the last-moved ring
+  /// (fading over ~1.5 s) and input unlocks.
+  void _finishSequence() {
+    _sequenceActive = false;
+    _stepTokenId = null;
+    _captureActive = false;
+    _captureTokenId = null;
+    _captureFromToken = null;
+    _captureToToken = null;
+    // The mover id is carried in [_sequenceMoverId]: [_stepTokenId]
+    // is already null by the time a capture finishes, so the ring
+    // id cannot be read from it here.
+    _lastMovedTokenId = _sequenceMoverId;
+    _sequenceMoverId = null;
+    if (_lastMovedTokenId != null && !_reducedMotion(context)) {
+      _lastMovedController.forward(from: 0.0);
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Finishes a sequence in flight instantly, leaving every token
+  /// drawn at its engine position. Used when a new move replaces a
+  /// running sequence; the last-moved ring is not set here — the
+  /// replacing sequence sets it when it finishes.
+  void _finishSequenceInstantly() {
+    if (!_sequenceActive) return;
+    _stepController.stop();
+    _captureController.stop();
+    _sequenceActive = false;
+    _stepTokenId = null;
+    _captureActive = false;
+    _captureTokenId = null;
+    _captureFromToken = null;
+    _captureToToken = null;
+    _sequenceMoverId = null;
+  }
+
+  /// The last-moved ring faded out: the ring is gone until the next
+  /// move settles.
+  void _onLastMovedStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    _lastMovedTokenId = null;
+    if (mounted) setState(() {});
+  }
+
+  /// The illegal-tap shake finished: the shake clears.
+  void _onShakeStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    _shakeTokenId = null;
+    _shakeDice = false;
     if (mounted) setState(() {});
   }
 
@@ -395,37 +686,70 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (status == AnimationStatus.completed) _pulseController.reset();
   }
 
-  /// Cancels a hop in flight, leaving the token drawn at its
-  /// engine position. Used on pause (the hop's destination is
-  /// already the final state) and on controller swaps.
-  void _cancelHop() {
-    if (_hopTokenId == null) return;
-    _hopTokenId = null;
-    _hopFrom = null;
-    _hopTo = null;
-    _hopController.stop();
+  /// Cancels any sequence in flight, leaving every token drawn at
+  /// its engine position. Used on controller swaps (a new match
+  /// must never animate the old match's state).
+  void _cancelSequence() {
+    _finishSequenceInstantly();
+    _lastMovedController.stop();
+    _lastMovedTokenId = null;
+    _shakeController.stop();
+    _shakeTokenId = null;
+    _shakeDice = false;
   }
 
-  /// Syncs the three animation controllers to the controller's
-  /// state after every notification (M2.7). The tumble runs while
-  /// a roll is in flight and resets when it settles; the pulse
-  /// runs only while legal moves exist; on pause everything stops
-  /// where it is — the tumble's engine value is kept in the
-  /// controller and settles on resume, the hop's destination is
-  /// already the engine position, so freezing is just stopping.
+  /// Syncs the animation controllers to the controller's state
+  /// after every notification (M2.7, M3 premium). Pause is a freeze
+  /// (D-10, Q2): every controller stops where it is — the tumble's
+  /// engine value is kept in the controller and settles on resume,
+  /// and a step/capture sequence resumes from the stopped value
+  /// instead of snapping to its destination (the M2.7 hop used to
+  /// cancel on pause; that behaviour is superseded here). Resume
+  /// re-runs each in-flight controller from its current value.
   void _syncAnimationState(OfflineGameController controller) {
     if (controller.isPaused) {
       _diceTumbleController.stop();
       _pulseController.stop();
-      _cancelHop();
+      _stepController.stop();
+      _captureController.stop();
+      _lastMovedController.stop();
+      _shakeController.stop();
       return;
     }
+    final reduced = _reducedMotion(context);
     if (controller.rolling) {
-      if (!_diceTumbleController.isAnimating) {
-        _diceTumbleController.forward(from: 0.0);
+      // Reduced motion: no wind-up, tumble or shake — the dice
+      // face stays frozen at the pre-roll value (see [_diceFace])
+      // until the roll settles on the engine value.
+      if (!reduced && !_diceTumbleController.isAnimating) {
+        if (_diceTumbleController.value > 0.0 &&
+            _diceTumbleController.value < 1.0) {
+          // Resuming a tumble frozen by pause: continue from the
+          // stopped value, not from the start.
+          _diceTumbleController.forward();
+        } else {
+          _diceTumbleController.forward(from: 0.0);
+        }
       }
     } else {
       _diceTumbleController.reset();
+    }
+    // Resume a step/capture sequence frozen by pause, from the
+    // stopped value. `forward()` without `from:` continues where
+    // the controller stopped; the step/capture status listeners
+    // advance the sequence from there.
+    if (_sequenceActive) {
+      if (_captureActive) {
+        if (!_captureController.isAnimating) _captureController.forward();
+      } else if (_stepTokenId != null) {
+        if (!_stepController.isAnimating) _stepController.forward();
+      }
+    }
+    if (_lastMovedTokenId != null &&
+        !reduced &&
+        !_lastMovedController.isAnimating &&
+        _lastMovedController.value < 1.0) {
+      _lastMovedController.forward();
     }
     // Stopping the pulse when nothing is legal also stops the
     // board repainting every frame while the match waits for a roll.
@@ -433,8 +757,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // [_pulseController]): while it runs, no new cycle starts; once
     // it completes and resets, the next notification restarts it —
     // and no notification arrives while a human simply thinks, so
-    // the ring rests static between turns.
-    if (controller.legalMoves.isNotEmpty && !controller.isFinished) {
+    // the ring rests static between turns. The same one-shot cycle
+    // is the AI-thinking indicator (Q10): while an AI turn is
+    // pending the pulse runs, driving the three dots in the
+    // current player's chip.
+    if ((controller.legalMoves.isNotEmpty && !controller.isFinished) ||
+        _isAiThinking(controller)) {
       if (!_pulseController.isAnimating) {
         _pulseController.forward(from: 0.0);
       }
@@ -443,10 +771,45 @@ class _GameScreenState extends ConsumerState<GameScreen>
     }
   }
 
+  /// True while an AI turn is pending action (M3 premium, Q10):
+  /// the current player is AI, the match is neither rolling,
+  /// paused nor finished. The AI pacing timer (700–1,199 ms,
+  /// D-31) is running in this window, so the three-dot pulse in
+  /// the player's chip is the proof the game has not stalled.
+  bool _isAiThinking(OfflineGameController controller) {
+    if (controller.isFinished || controller.isPaused || controller.rolling) {
+      return false;
+    }
+    return controller.state.currentPlayer.isAi &&
+        controller.state.phase != TurnPhase.finished;
+  }
+
+  /// Reduced motion (M3 premium, research §2.7.1/R22): either the
+  /// Android "Remove animations" flag ([MediaQuery.disableAnimations])
+  /// or iOS Reduce Motion ([MediaQuery.reduceMotion]) collapses
+  /// every sequence to an instant settle. Both flags are checked —
+  /// they are independent settings on the two platforms.
+  bool _reducedMotion(BuildContext context) =>
+      MediaQuery.disableAnimationsOf(context) ||
+      MediaQuery.of(context).reduceMotion;
+
   /// The dice face shown mid-tumble (M2.7): the tumble value cycles
   /// 1..6 as the 540 ms controller runs. Only read while rolling —
   /// once the roll settles the screen shows the engine value.
   int get _tumbleFace => ((_diceTumbleController.value * 6).floor() % 6) + 1;
+
+  /// The dice face to render (M3 premium, §2.7.1): while rolling
+  /// the tumble face cycles, except under reduced motion, where the
+  /// face stays frozen at the pre-roll value until the roll settles
+  /// on the engine value. Once settled, always the engine value.
+  int? get _diceFace {
+    final controller = _controller;
+    if (controller == null) return null;
+    if (controller.rolling) {
+      return _reducedMotion(context) ? _preRollFace : _tumbleFace;
+    }
+    return controller.displayedRoll;
+  }
 
   /// The legal-move pulse (M2.7): a smooth 0..1..0 oscillation
   /// over each 1,200 ms repeat, or 0 when the pulse is stopped.
@@ -455,18 +818,140 @@ class _GameScreenState extends ConsumerState<GameScreen>
     return (math.sin(_pulseController.value * 2 * math.pi) + 1) / 2;
   }
 
-  /// The hopping token's rendered centre right now (M2.7): the
-  /// eased interpolation between its pre-move and post-move cells,
-  /// or null when no hop is in flight.
-  Offset? get _hopCenter {
-    final from = _hopFrom;
-    final to = _hopTo;
-    if (_hopTokenId == null || from == null || to == null) return null;
+  /// The step polyline position right now (M3 premium, §2.2):
+  /// [_stepController]'s value (0..1 over the whole sequence)
+  /// scaled by the segment count. At a segment boundary the
+  /// fraction is exactly 0, so the token sits exactly on the cell.
+  double get _stepSegmentFloat =>
+      _stepController.value * (_stepPath.length - 1);
+
+  /// The segment in flight: the polyline position's whole part,
+  /// clamped so value 1.0 still names the last segment.
+  int get _stepSegmentIndex =>
+      _stepSegmentFloat.floor().clamp(0, _stepPath.length - 2);
+
+  /// Progress within the segment in flight, 0..1.
+  double get _stepSegmentFraction =>
+      (_stepSegmentFloat - _stepSegmentIndex).clamp(0.0, 1.0);
+
+  /// The stepping token's rendered centre right now (M3 premium,
+  /// §2.2): the eased interpolation between the current segment's
+  /// cells, or null when no step is in flight.
+  Offset? get _stepCenter {
+    if (_stepTokenId == null || _stepPath.length < 2) return null;
+    final from = _stepPath[_stepSegmentIndex];
+    final to = _stepPath[_stepSegmentIndex + 1];
     return Offset.lerp(
       from,
       to,
-      Curves.easeOut.transform(_hopController.value),
+      Curves.easeOutCubic.transform(_stepSegmentFraction),
     )!;
+  }
+
+  /// The stepping token's lift right now (M3 premium, §2.2.3): a
+  /// small hop per step — scale 1.0 at each cell, peaking mid-step
+  /// (~1.12, or ~1.18 on the final step of a capturing move).
+  double get _stepScale {
+    if (_stepTokenId == null) return 1.0;
+    final isFinalStep = _stepSegmentIndex == _stepPath.length - 2;
+    final peak = _stepIsCapture && isFinalStep ? 0.18 : 0.12;
+    return 1.0 + peak * math.sin(_stepSegmentFraction * math.pi);
+  }
+
+  /// The captured token's rendered centre right now (M3 premium,
+  /// §2.3): a gentle arc from its cell to its yard slot — the
+  /// horizontal travel eases in-out over the first 80% of the
+  /// ~600 ms, with a sinusoidal lift peaking mid-arc — or null
+  /// when no capture is in flight.
+  Offset? get _captureCenter {
+    if (!_captureActive) return null;
+    final from = _captureFromCentre;
+    final to = _captureToCentre;
+    if (from == null || to == null) return null;
+    final p = _captureController.value;
+    final travel = Curves.easeInOut.transform((p / 0.8).clamp(0.0, 1.0));
+    final lift = math.sin(travel * math.pi) * _captureArcHeight;
+    return Offset.lerp(from, to, travel)! + Offset(0, -lift);
+  }
+
+  /// The captured token's scale right now (M3 premium, §2.3): 1.0 →
+  /// 0.7 while it lifts and travels, then a pop-in (0.7 → 1.08 →
+  /// 1.0) over the last quarter.
+  double get _captureScale {
+    if (!_captureActive) return 1.0;
+    final p = _captureController.value;
+    if (p < 0.75) return 1.0 - 0.3 * (p / 0.75);
+    final q = (p - 0.75) / 0.25;
+    if (q < 0.5) return 0.7 + 0.38 * Curves.easeOut.transform(q / 0.5);
+    return 1.08 - 0.08 * Curves.easeInOut.transform((q - 0.5) / 0.5);
+  }
+
+  /// The captured token's opacity right now (M3 premium, §2.3):
+  /// 1.0 → 0.4 while it lifts and travels, back to 1.0 as it pops
+  /// into its yard slot.
+  double get _captureOpacity {
+    if (!_captureActive) return 1.0;
+    final p = _captureController.value;
+    if (p < 0.6) return 1.0 - 0.6 * (p / 0.6);
+    if (p < 0.85) return 0.4 + 0.6 * ((p - 0.6) / 0.25);
+    return 1.0;
+  }
+
+  /// The last-moved ring's opacity right now (M3 premium, §2.2.6):
+  /// 1.0 → 0.0 over the ~1.5 s fade, or a steady 1.0 under reduced
+  /// motion (the ring is information, not motion, so it stays).
+  double get _lastMovedOpacity {
+    if (_lastMovedTokenId == null) return 0.0;
+    if (_reducedMotion(context)) return 1.0;
+    return 1.0 - _lastMovedController.value;
+  }
+
+  /// The illegal-tap shake offset right now (M3 premium, §2.5.4):
+  /// ±1.5 dp, two oscillations over the ~150 ms shake. Zero at
+  /// rest (the sine is 0 at both ends of the controller).
+  Offset get _shakeOffset =>
+      Offset(math.sin(_shakeController.value * 4 * math.pi) * 1.5, 0);
+
+  /// The dice's wind-up / tumble / settle motion right now (M3
+  /// premium, §2.4), as scale, rotation and translation of the
+  /// [DiceWidget] — all inside the 540 ms tumble budget. Wind-up
+  /// (first ~22%): a quick anticipatory dip (scale → 0.92, ~−6°).
+  /// Tumble (to 85%): rotation jitter ±8° and translate jitter
+  /// ±2 dp, damped toward rest, deterministic in the controller
+  /// value so the same pump sequence always renders the same
+  /// frames. Settle (last 15%): one damped wobble, scale 1.06 →
+  /// 1.0 — deliberately not a bounce (R12). At rest, identity.
+  ({double scale, double rotation, Offset translate}) _diceMotion() {
+    final v = _diceTumbleController.value;
+    if (v == 0.0) {
+      return (scale: 1.0, rotation: 0.0, translate: Offset.zero);
+    }
+    if (v < 0.22) {
+      final q = Curves.easeIn.transform(v / 0.22);
+      return (
+        scale: 1.0 - 0.08 * q,
+        rotation: -0.105 * q,
+        translate: Offset.zero,
+      );
+    }
+    if (v < 0.85) {
+      final q = (v - 0.22) / 0.63;
+      final damp = 1.0 - q * 0.6;
+      return (
+        scale: 0.92 + 0.08 * q,
+        rotation: math.sin(v * 28.0) * 0.14 * damp,
+        translate: Offset(
+          math.sin(v * 47.0) * 2.0 * damp,
+          math.cos(v * 39.0) * 2.0 * damp,
+        ),
+      );
+    }
+    final q = (v - 0.85) / 0.15;
+    return (
+      scale: 1.0 + 0.06 * (1.0 - q) * math.cos(q * math.pi * 2.0),
+      rotation: 0.0,
+      translate: Offset.zero,
+    );
   }
 
   /// Navigates to the results screen once, when the match is finished
@@ -516,6 +1001,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
               name: player.name,
               colour: player.colour,
               isAi: player.isAi,
+              tokensHome: player.tokensHome,
             ),
         ],
         duration: duration,
@@ -545,7 +1031,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // the feedback path below only runs when no legal move was
     // taken.
     if (!controller.rolling &&
-        !_hopController.isAnimating &&
+        !_sequenceActive &&
         controller.state.phase == TurnPhase.awaitingMove &&
         !controller.state.currentPlayer.isAi) {
       for (final move in controller.legalMoves) {
@@ -581,8 +1067,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // the AI's turn, or one tapped mid-tumble — gets the SnackBar
     // + status update and changes nothing. Taps on empty board
     // area stay silent: the plan requires feedback for token taps
-    // only.
-    if (_tokenAt(details.localPosition, boardSide, tokens) != null) {
+    // only. M3 premium (§2.5.4) adds a visual echo: the tapped
+    // token shakes ~150 ms (two ±1.5 dp oscillations).
+    final tappedToken = _tokenAt(details.localPosition, boardSide, tokens);
+    if (tappedToken != null) {
+      _shakeTokenId = tappedToken.id;
+      _shakeController.forward(from: 0.0);
       _showIllegalTapFeedback(stringsOf(context).gameIllegalTokenMove);
     }
   }
@@ -614,13 +1104,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   /// Tapping the dice rolls exactly as the Roll button does (M2.8,
   /// FR-21 / UC-01 step 4): the same guards — human turn, awaiting
-  /// a roll, not rolling, not paused, no hop in flight — and the
+  /// a roll, not rolling, not paused, no sequence in flight — and the
   /// controller's own guards are the second line of defence, so a
   /// tap racing the tumble start (a rapid double-tap, or a dice tap
   /// right after the button) is ignored, never queued, and rolls
   /// exactly once. A tap that cannot roll gets the same brief
   /// feedback as an illegal board tap, with the reason named, and
-  /// the game state is untouched. Finished / paused taps are
+  /// the game state is untouched. M3 premium (§2.5.4) adds a visual
+  /// echo: the dice shakes ~150 ms. Finished / paused taps are
   /// silent: the results screen (finished) and the pause dialog
   /// (paused) already own the screen, so no feedback path exists.
   void _onDiceTap() {
@@ -630,21 +1121,30 @@ class _GameScreenState extends ConsumerState<GameScreen>
     }
     final l10n = stringsOf(context);
     final state = controller.state;
+    // Shakes the dice for any tap that cannot roll (below): a
+    // visual echo on the thing that was tapped, never a state
+    // change. Declared here so every feedback branch shares it.
+    void shakeDice(String message) {
+      _shakeDice = true;
+      _shakeController.forward(from: 0.0);
+      _showIllegalTapFeedback(message);
+    }
+
     if (!state.currentPlayer.isHuman) {
-      _showIllegalTapFeedback(l10n.gameDiceNotYourTurn);
+      shakeDice(l10n.gameDiceNotYourTurn);
       return;
     }
     if (controller.rolling) {
-      _showIllegalTapFeedback(l10n.gameDiceWaitSettle);
+      shakeDice(l10n.gameDiceWaitSettle);
       return;
     }
-    if (_hopController.isAnimating) {
-      _showIllegalTapFeedback(l10n.gameDiceWaitMove);
+    if (_sequenceActive) {
+      shakeDice(l10n.gameDiceWaitMove);
       return;
     }
     if (state.phase != TurnPhase.awaitingRoll) {
       // Already rolled: the next action is a token move, not a roll.
-      _showIllegalTapFeedback(l10n.gameDiceChooseToken);
+      shakeDice(l10n.gameDiceChooseToken);
       return;
     }
     controller.rollDice();
@@ -817,16 +1317,18 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final state = controller.state;
     final current = state.currentPlayer;
     final l10n = stringsOf(context);
-    // Input stays locked while a hop renders (M2.7): the engine
-    // state is already final, but a second move landing on top of
-    // the hop would overlap two animations. The hop is ≤250 ms.
-    final hopInFlight = _hopController.isAnimating;
+    // Input stays locked while a move/capture sequence renders
+    // (M3 premium): the engine state is already final, but a second
+    // move landing on top of the sequence would overlap two
+    // animations. A sequence is at most ~600 ms of steps plus a
+    // ~600 ms capture return.
+    final sequenceInFlight = _sequenceActive;
     final isHumanTurn =
         current.isHuman &&
         state.phase != TurnPhase.finished &&
         !controller.rolling &&
         !controller.isPaused &&
-        !hopInFlight;
+        !sequenceInFlight;
     // A roll is available exactly when the Roll button is enabled
     // (M2.8): the dice shares this condition, so the two affordances
     // can never disagree about whether a tap rolls.
@@ -900,7 +1402,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 _TurnBanner(
                   player: current,
                   status: controller.status,
-                  rolling: controller.rolling,
                   compact: isShortScreen,
                 ),
                 SizedBox(
@@ -912,31 +1413,50 @@ class _GameScreenState extends ConsumerState<GameScreen>
                     child: GestureDetector(
                       onTapDown: (details) => _onBoardTap(details, boardSide),
                       // The board repaints on its own (M2.7): the
-                      // pulse and hop animate inside the
-                      // [RepaintBoundary], so a pulse tick repaints
-                      // the board and nothing else. The painted board
-                      // itself contributes no semantics nodes
-                      // (CustomPaint draws, it does not label) — the
-                      // Semantics wrapper above is the board's only
-                      // node, so nothing decorative leaks through.
+                      // pulse, steps, capture, ring fade and shake
+                      // animate inside the [RepaintBoundary], so a
+                      // tick repaints the board and nothing else.
+                      // The painted board itself contributes no
+                      // semantics nodes (CustomPaint draws, it does
+                      // not label) — the Semantics wrapper above is
+                      // the board's only node, so nothing decorative
+                      // leaks through. The board carries the raised
+                      // shadow token (M3 premium, §2.7.4).
                       child: RepaintBoundary(
-                        child: SizedBox(
-                          width: boardSide,
-                          height: boardSide,
-                          child: AnimatedBuilder(
-                            animation: _boardAnimation,
-                            builder: (context, _) => CustomPaint(
-                              painter: LudoBoardPainter(
-                                tokens: _boardTokens(),
-                                legalTokenIds: controller.legalMoves
-                                    .map(
-                                      (m) => '${m.playerIndex}:${m.tokenIndex}',
-                                    )
-                                    .toSet(),
-                                currentSeat: state.currentPlayerIndex,
-                                pulse: _pulseValue,
-                                hopTokenId: _hopTokenId,
-                                hopCenter: _hopCenter,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            boxShadow: DiceUpShadows.raised,
+                          ),
+                          child: SizedBox(
+                            width: boardSide,
+                            height: boardSide,
+                            child: AnimatedBuilder(
+                              animation: _boardAnimation,
+                              builder: (context, _) => CustomPaint(
+                                painter: LudoBoardPainter(
+                                  tokens: _boardTokens(),
+                                  legalTokenIds: controller.legalMoves
+                                      .map(
+                                        (m) =>
+                                            '${m.playerIndex}:${m.tokenIndex}',
+                                      )
+                                      .toSet(),
+                                  currentSeat: state.currentPlayerIndex,
+                                  pulse: _pulseValue,
+                                  hopTokenId: _stepTokenId,
+                                  hopCenter: _stepCenter,
+                                  hopScale: _stepScale,
+                                  captureTokenId: _captureActive
+                                      ? _captureTokenId
+                                      : null,
+                                  captureCenter: _captureCenter,
+                                  captureScale: _captureScale,
+                                  captureOpacity: _captureOpacity,
+                                  lastMovedTokenId: _lastMovedTokenId,
+                                  lastMovedOpacity: _lastMovedOpacity,
+                                  shakeTokenId: _shakeTokenId,
+                                  shakeOffset: _shakeOffset,
+                                ),
                               ),
                             ),
                           ),
@@ -951,26 +1471,50 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // The tumble face comes from the animation
-                    // controller while rolling (M2.7); once the
-                    // roll settles the dice shows the engine value.
-                    // The dice is tappable (M2.8): tapping it rolls
-                    // exactly as the Roll button does, under the
-                    // same guards — and a tap that cannot roll gets
-                    // brief feedback instead of silence.
+                    // The dice face comes from the tumble while
+                    // rolling (M2.7) — or stays frozen at the
+                    // pre-roll face under reduced motion (M3, §2.7.1);
+                    // once the roll settles the dice shows the engine
+                    // value. The dice is tappable (M2.8): tapping it
+                    // rolls exactly as the Roll button does, under
+                    // the same guards — and a tap that cannot roll
+                    // gets brief feedback instead of silence. The
+                    // wind-up / shake / settle motion (M3, §2.4)
+                    // and the illegal-tap shake (M3, §2.5.4) are
+                    // transforms around the dice widget itself, so
+                    // the widget is untouched.
                     AnimatedBuilder(
-                      animation: _diceTumbleController,
-                      builder: (context, _) => DiceWidget(
-                        value: controller.rolling
-                            ? _tumbleFace
-                            : controller.displayedRoll,
-                        // Short screens (M2.12): 56 dp dice, still
-                        // above the 48 dp control minimum.
-                        size: isShortScreen ? 56 : 64,
-                        rolling: controller.rolling,
-                        enabled: canRoll,
-                        onTap: _onDiceTap,
-                      ),
+                      animation: _diceAnimation,
+                      builder: (context, _) {
+                        final reduced = _reducedMotion(context);
+                        final motion = reduced
+                            ? (
+                                scale: 1.0,
+                                rotation: 0.0,
+                                translate: Offset.zero,
+                              )
+                            : _diceMotion();
+                        final shake = _shakeDice ? _shakeOffset : Offset.zero;
+                        return Transform.translate(
+                          offset: motion.translate + shake,
+                          child: Transform.rotate(
+                            angle: motion.rotation,
+                            child: Transform.scale(
+                              scale: motion.scale,
+                              child: DiceWidget(
+                                value: _diceFace,
+                                // Short screens (M2.12): 56 dp dice, still
+                                // above the 48 dp control minimum.
+                                size: isShortScreen ? 56 : 64,
+                                rolling: controller.rolling && !reduced,
+                                enabled: canRoll,
+                                onTap: _onDiceTap,
+                                showRollableBorder: canRoll,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: DiceUpSpacing.lg),
                     PrimaryButton(
@@ -991,6 +1535,15 @@ class _GameScreenState extends ConsumerState<GameScreen>
                       _PlayerChip(
                         player: player,
                         isCurrent: player.index == state.currentPlayerIndex,
+                        // AI thinking (M3 premium, Q10): the
+                        // three-dot pulse in the current AI
+                        // player's chip is the primary "the game
+                        // has not stalled" indicator — the banner
+                        // spinner is gone.
+                        thinking:
+                            player.index == state.currentPlayerIndex &&
+                            _isAiThinking(controller),
+                        thinkingPulse: _pulseValue,
                       ),
                   ],
                 ),
@@ -1021,13 +1574,11 @@ class _TurnBanner extends StatelessWidget {
   const _TurnBanner({
     required this.player,
     required this.status,
-    required this.rolling,
     this.compact = false,
   });
 
   final Player player;
   final String status;
-  final bool rolling;
 
   /// Short-screen form (M2.12, NFR-09): tighter card padding and
   /// a smaller avatar, so the status wraps to two lines instead of
@@ -1045,6 +1596,12 @@ class _TurnBanner extends StatelessWidget {
     // illegal-tap feedback channel, so it must never be hidden),
     // and the avatar contributes its own name + shape + colour
     // node (see [PlayerAvatar]).
+    //
+    // No spinner lives here anymore (M3 premium, Q10): the
+    // three-dot pulse in the current player's chip is the primary
+    // AI-thinking indicator, and the status line narrates AI
+    // actions ("Green (AI) rolled 4, …"). A spinner that outlives
+    // its turn reads as a bug; the dots stop the moment the AI acts.
     final l10n = stringsOf(context);
     return Semantics(
       label: l10n.gameTurnBanner(player.name),
@@ -1078,12 +1635,6 @@ class _TurnBanner extends StatelessWidget {
                 ],
               ),
             ),
-            if (rolling)
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
           ],
         ),
       ),
@@ -1092,10 +1643,23 @@ class _TurnBanner extends StatelessWidget {
 }
 
 class _PlayerChip extends StatelessWidget {
-  const _PlayerChip({required this.player, required this.isCurrent});
+  const _PlayerChip({
+    required this.player,
+    required this.isCurrent,
+    this.thinking = false,
+    this.thinkingPulse = 0.0,
+  });
 
   final Player player;
   final bool isCurrent;
+
+  /// The AI-thinking indicator (M3 premium, Q10): while this
+  /// (current, AI) player's turn is pending, three dots pulse in
+  /// the chip. [thinkingPulse] is the 0..1 one-shot pulse value
+  /// (0 when the pulse is stopped — the dots then sit static, still
+  /// visible, so the indicator never vanishes mid-thought).
+  final bool thinking;
+  final double thinkingPulse;
 
   @override
   Widget build(BuildContext context) {
@@ -1135,8 +1699,49 @@ class _PlayerChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (thinking) ...[
+            const SizedBox(width: DiceUpSpacing.xs),
+            // Decorative only: the status line already narrates the
+            // AI's action, and the turn banner already names the
+            // player — the dots add no semantics node.
+            ExcludeSemantics(child: _ThinkingDots(pulse: thinkingPulse)),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Three-dot "thinking" pulse (M3 premium, §2.5.2/Q10): three 4 dp
+/// teal dots whose opacities chase each other around the 0..1
+/// [pulse] cycle. Static (pulse 0) they sit at staggered opacities,
+/// so the indicator reads even between cycles.
+class _ThinkingDots extends StatelessWidget {
+  const _ThinkingDots({required this.pulse});
+
+  final double pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 2),
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: DiceUpColors.teal.withValues(
+                alpha:
+                    0.4 +
+                    0.6 * (0.5 + 0.5 * math.sin((pulse + i / 3) * 2 * math.pi)),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

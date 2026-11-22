@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:diceup/l10n/app_localizations.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_shadows.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
@@ -44,6 +47,16 @@ const String kMatchRecordFailedMessage =
 /// lifetime statistics live here (M1.7 owns those) and no ranking or
 /// placement features exist.
 ///
+/// M3 premium (§2.6, Q5/Q8): the winner gets DiceUp's own winner's
+/// mark — an enlarged per-seat shape marker in a teal ring around
+/// the avatar (no crown: Ludo King's crown is its brand) — the
+/// entrance is staggered (headline, then avatar scaling in with an
+/// `outBack` overshoot, then the cards), each player's tokens-home
+/// count ("Home n/4") is shown next to their name, and a short
+/// one-shot hand-drawn confetti burst falls once on entry. All of
+/// it collapses under reduced motion (§2.7.1): the entrance jumps
+/// to its end state and the confetti never fires.
+///
 /// The screen takes its data as a frozen [MatchResult] (constructor
 /// parameter in tests, route arguments in production — see
 /// [AppRoutes.matchResultOf]). It never reads the game controller:
@@ -52,7 +65,7 @@ const String kMatchRecordFailedMessage =
 /// (exactly-once, M1.6). A route opened without a result shows an
 /// honest empty state with a Main Menu button, never an invented
 /// result.
-class ResultsScreen extends StatelessWidget {
+class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key, this.result});
 
   /// The finished match to show. When null, the route arguments
@@ -60,9 +73,55 @@ class ResultsScreen extends StatelessWidget {
   final MatchResult? result;
 
   @override
+  State<ResultsScreen> createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen>
+    with TickerProviderStateMixin {
+  /// The entrance choreography (M3 premium, §2.6.1): ~500 ms,
+  /// headline → avatar → cards, staggered via [Interval]s in
+  /// [build]. Finite, so `pumpAndSettle` terminates.
+  late final AnimationController _entranceController;
+  bool _entranceStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    // Reduced motion (§2.7.1): the entrance jumps to its end state
+    // instead of animating in.
+    if (MediaQuery.disableAnimationsOf(context) ||
+        MediaQuery.of(context).reduceMotion) {
+      _entranceController.value = 1.0;
+    } else {
+      _entranceController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _entranceController.dispose();
+    super.dispose();
+  }
+
+  bool _reducedMotion(BuildContext context) =>
+      MediaQuery.disableAnimationsOf(context) ||
+      MediaQuery.of(context).reduceMotion;
+
+  @override
   Widget build(BuildContext context) {
     final l10n = stringsOf(context);
-    final result = this.result ?? AppRoutes.matchResultOf(context);
+    final result = widget.result ?? AppRoutes.matchResultOf(context);
     if (result == null) {
       assert(() {
         debugPrint(
@@ -91,101 +150,124 @@ class ResultsScreen extends StatelessWidget {
         ),
       );
     }
+    final reduced = _reducedMotion(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.resultsTitle)),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: DiceUpSpacing.screenPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.resultsWinnerWins(result.winnerName),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              Center(
-                child: PlayerAvatar(
-                  name: result.winnerName,
-                  seatIndex: result.winnerSeat,
-                  colour: result.winnerColour,
-                  radius: 36,
-                ),
-              ),
-              const SizedBox(height: DiceUpSpacing.lg),
-              DiceUpCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _InfoRow(
-                      label: l10n.labelMode,
-                      value: result.isVsAi
-                          ? l10n.modeShortVsAi
-                          : l10n.modeLocal,
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: DiceUpSpacing.screenPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _Entrance(
+                    controller: _entranceController,
+                    interval: const Interval(0.0, 0.6),
+                    slideUp: true,
+                    child: Text(
+                      l10n.resultsWinnerWins(result.winnerName),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                    _InfoRow(
-                      label: l10n.labelPlayers,
-                      value: result.players.length == 1
-                          ? l10n.playersCountOne
-                          : l10n.playersCountOther(result.players.length),
-                    ),
-                    _InfoRow(
-                      label: l10n.labelDuration,
-                      value: _formatDuration(result.duration),
-                    ),
-                    _InfoRow(
-                      label: l10n.labelMoves,
-                      value: '${result.moveCount}',
-                    ),
-                    _InfoRow(
-                      label: l10n.labelFinished,
-                      value: _formatDate(result.finishedAt, l10n),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              DiceUpCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final player in result.players) ...[
-                      _PlayerRow(
-                        player: player,
-                        isWinner: player.seat == result.winnerSeat,
-                      ),
-                      if (player != result.players.last)
-                        const SizedBox(height: DiceUpSpacing.sm),
-                    ],
-                  ],
-                ),
-              ),
-              if (result.completionFailed) ...[
-                const SizedBox(height: DiceUpSpacing.md),
-                DiceUpCard(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.warning_amber_rounded),
-                      const SizedBox(width: DiceUpSpacing.sm),
-                      Expanded(child: Text(l10n.resultsRecordFailed)),
-                    ],
                   ),
-                ),
-              ],
-              const SizedBox(height: DiceUpSpacing.lg),
-              PrimaryButton(
-                label: l10n.resultsPlayAgain,
-                onPressed: () => _playAgain(context, result.setup),
+                  const SizedBox(height: DiceUpSpacing.md),
+                  Center(
+                    child: _WinnerAvatar(
+                      result: result,
+                      entrance: _entranceController,
+                    ),
+                  ),
+                  const SizedBox(height: DiceUpSpacing.lg),
+                  _Entrance(
+                    controller: _entranceController,
+                    interval: const Interval(0.4, 1.0),
+                    child: DiceUpCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _InfoRow(
+                            label: l10n.labelMode,
+                            value: result.isVsAi
+                                ? l10n.modeShortVsAi
+                                : l10n.modeLocal,
+                          ),
+                          _InfoRow(
+                            label: l10n.labelPlayers,
+                            value: result.players.length == 1
+                                ? l10n.playersCountOne
+                                : l10n.playersCountOther(result.players.length),
+                          ),
+                          _InfoRow(
+                            label: l10n.labelDuration,
+                            value: _formatDuration(result.duration),
+                          ),
+                          _InfoRow(
+                            label: l10n.labelMoves,
+                            value: '${result.moveCount}',
+                          ),
+                          _InfoRow(
+                            label: l10n.labelFinished,
+                            value: _formatDate(result.finishedAt, l10n),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: DiceUpSpacing.md),
+                  _Entrance(
+                    controller: _entranceController,
+                    interval: const Interval(0.4, 1.0),
+                    child: DiceUpCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final player in result.players) ...[
+                            _PlayerRow(
+                              player: player,
+                              isWinner: player.seat == result.winnerSeat,
+                            ),
+                            if (player != result.players.last)
+                              const SizedBox(height: DiceUpSpacing.sm),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (result.completionFailed) ...[
+                    const SizedBox(height: DiceUpSpacing.md),
+                    DiceUpCard(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.warning_amber_rounded),
+                          const SizedBox(width: DiceUpSpacing.sm),
+                          Expanded(child: Text(l10n.resultsRecordFailed)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: DiceUpSpacing.lg),
+                  PrimaryButton(
+                    label: l10n.resultsPlayAgain,
+                    onPressed: () => _playAgain(context, result.setup),
+                  ),
+                  const SizedBox(height: DiceUpSpacing.sm),
+                  SecondaryButton(
+                    label: l10n.mainMenu,
+                    onPressed: () => _goHome(context),
+                  ),
+                ],
               ),
-              const SizedBox(height: DiceUpSpacing.sm),
-              SecondaryButton(
-                label: l10n.mainMenu,
-                onPressed: () => _goHome(context),
+            ),
+            // One-shot hand-drawn confetti (M3 premium, §2.6.3/Q5):
+            // ~1.2 s, fires once on entry, never loops, no package.
+            // Skipped entirely under reduced motion (§2.7.1).
+            if (!reduced)
+              const Positioned.fill(
+                child: IgnorePointer(child: _ConfettiOverlay()),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -249,6 +331,241 @@ class ResultsScreen extends StatelessWidget {
   }
 }
 
+/// One slice of the entrance choreography (M3 premium, §2.6.1):
+/// fades [child] in over [interval] of the parent controller, with
+/// an optional 12 dp rise. Reading the controller value directly
+/// (rather than a [Tween]) keeps the stagger explicit and the
+/// reduced-motion jump (value 1.0) correct.
+class _Entrance extends StatelessWidget {
+  const _Entrance({
+    required this.controller,
+    required this.interval,
+    required this.child,
+    this.slideUp = false,
+  });
+
+  final AnimationController controller;
+  final Interval interval;
+  final Widget child;
+  final bool slideUp;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final t = interval.transform(controller.value);
+        return Opacity(
+          opacity: t,
+          child: slideUp
+              ? Transform.translate(
+                  offset: Offset(0, 12 * (1 - t)),
+                  child: child,
+                )
+              : child,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+/// DiceUp's winner's mark (M3 premium, §2.6.2/Q5): the winner's
+/// avatar in a teal ring, with the per-seat shape marker enlarged
+/// (30 dp, vs the avatar's own 27 dp badge) overlapping the ring's
+/// lower-right edge. No crown — Ludo King's crown is its brand;
+/// the shape system (D-27) is DiceUp's own mark. The whole mark
+/// scales in from 0.8 → 1.0 with an `outBack` overshoot over the
+/// entrance controller's 0.15–0.75 slice.
+class _WinnerAvatar extends StatelessWidget {
+  const _WinnerAvatar({required this.result, required this.entrance});
+
+  final MatchResult result;
+
+  /// The results screen's entrance controller: the avatar scales
+  /// in over its 0.15–0.75 slice.
+  final AnimationController entrance;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: entrance,
+      builder: (context, child) {
+        final t = const Interval(
+          0.15,
+          0.75,
+          curve: Curves.easeOutBack,
+        ).transform(entrance.value);
+        return Transform.scale(scale: 0.8 + 0.2 * t, child: child);
+      },
+      child: SizedBox(
+        width: 96,
+        height: 96,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: DiceUpColors.teal, width: 3),
+                boxShadow: DiceUpShadows.lifted,
+              ),
+            ),
+            PlayerAvatar(
+              name: result.winnerName,
+              seatIndex: result.winnerSeat,
+              colour: result.winnerColour,
+              radius: 36,
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: PlayerShapeMarker(
+                key: const ValueKey('winner-shape-marker'),
+                shape: PlayerShape.forSeat(result.winnerSeat),
+                color: DiceUpColors.forColour(result.winnerColour),
+                size: 30,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One-shot hand-drawn confetti (M3 premium, §2.6.3/Q5): ~36 small
+/// navy/teal/amber/player-colour rectangles falling from the top of
+/// the results screen over ~1.2 s, drawn by a [CustomPainter] — no
+/// `confetti` / Lottie package (§3). Deterministic (seeded random),
+/// so the same entry always renders the same burst. Fires once on
+/// entry, never loops; the controller is finite, so `pumpAndSettle`
+/// terminates.
+class _ConfettiOverlay extends StatefulWidget {
+  const _ConfettiOverlay();
+
+  @override
+  State<_ConfettiOverlay> createState() => _ConfettiOverlayState();
+}
+
+class _ConfettiOverlayState extends State<_ConfettiOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final List<_ConfettiPiece> _pieces;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..forward();
+    final random = math.Random(20261122);
+    _pieces = List.generate(36, (_) => _ConfettiPiece.random(random));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) =>
+          CustomPaint(painter: _ConfettiPainter(_pieces, _controller.value)),
+    );
+  }
+}
+
+/// One confetti piece: a fixed horizontal slot, a start delay and a
+/// fall length (fractions of the 1.2 s burst), a size, a colour, a
+/// spin and a sway phase. All fixed at construction (seeded random),
+/// so the burst is deterministic.
+class _ConfettiPiece {
+  _ConfettiPiece({
+    required this.x,
+    required this.delay,
+    required this.fall,
+    required this.size,
+    required this.color,
+    required this.spin,
+    required this.phase,
+  });
+
+  factory _ConfettiPiece.random(math.Random random) {
+    const colors = [
+      DiceUpColors.navy,
+      DiceUpColors.teal,
+      DiceUpColors.amber,
+      Color(0xFFE5484D),
+      Color(0xFF2FA866),
+      Color(0xFFF5B301),
+      Color(0xFF2F6FED),
+    ];
+    return _ConfettiPiece(
+      x: random.nextDouble(),
+      delay: random.nextDouble() * 0.25,
+      fall: 0.6 + random.nextDouble() * 0.35,
+      size: 5 + random.nextDouble() * 4,
+      color: colors[random.nextInt(colors.length)],
+      spin: (random.nextDouble() - 0.5) * 12,
+      phase: random.nextDouble() * 2 * math.pi,
+    );
+  }
+
+  final double x;
+  final double delay;
+  final double fall;
+  final double size;
+  final Color color;
+  final double spin;
+  final double phase;
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter(this.pieces, this.progress);
+
+  final List<_ConfettiPiece> pieces;
+
+  /// 0.0 → 1.0 over the ~1.2 s burst.
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final piece in pieces) {
+      final local = ((progress - piece.delay) / piece.fall).clamp(0.0, 1.0);
+      if (local <= 0.0) continue;
+      final y = -12 + local * (size.height + 24);
+      final x =
+          piece.x * size.width +
+          math.sin(local * math.pi * 2 + piece.phase) * 8;
+      final opacity = local > 0.8 ? (1.0 - local) / 0.2 : 1.0;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(piece.phase + local * piece.spin);
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: piece.size,
+          height: piece.size * 0.6,
+        ),
+        Paint()..color = piece.color.withValues(alpha: opacity),
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.pieces != pieces;
+}
+
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.label, required this.value});
 
@@ -303,12 +620,23 @@ class _PlayerRow extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),
-        if (isWinner)
+        // Tokens-home count (M3 premium, §2.6.4/Q8): the only
+        // record on the results screen of how close the losers
+        // were — the game screen's chips already show it, and the
+        // game screen derives it from the final state.
+        Text(
+          l10n.resultsPlayerHome(player.tokensHome),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: DiceUpColors.textSecondary),
+        ),
+        if (isWinner) ...[
+          const SizedBox(width: DiceUpSpacing.sm),
           Text(
             l10n.resultsWinnerBadge,
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: DiceUpColors.teal),
           ),
+        ],
       ],
     );
   }

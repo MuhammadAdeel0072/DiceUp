@@ -288,16 +288,19 @@ void main() {
       settleRoll();
       expect(controller.displayedRoll, 6);
       expect(controller.legalMoves, hasLength(4));
-      expect(controller.status, 'Player 2, choose a token to move.');
+      expect(controller.status, 'Green (AI) rolled 6, choose a token to move.');
       await fireAiStep();
-      expect(controller.status, 'Six! Player 2 rolls again.');
+      expect(controller.status, 'Green (AI) rolled a six and rolls again.');
       expect(controller.state.currentPlayerIndex, 1);
       timers.fireOneShots();
       settleRoll();
       expect(controller.displayedRoll, 3);
       expect(controller.legalMoves, hasLength(1));
       await fireAiStep();
-      expect(controller.status, 'Player 1, roll the dice.');
+      expect(
+        controller.status,
+        'Green (AI) moved a token. Player 1, roll the dice.',
+      );
       expect(controller.state.currentPlayerIndex, 0);
 
       // Every AI delay scheduled so far is in the 700–1,199 ms band,

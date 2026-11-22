@@ -905,6 +905,148 @@ Deliberately left for later (not this milestone):
   SRS §7.1, and `docs/ruleset.md` §5.1 records it again.
 - No device claims; no iOS/Android build run.
 
+### M3.7 — DONE (coverage gate, NFR-26; 2026-11-22)
+
+Coverage to ≥90% over the rule logic (remediation plan §4 M3.7, §6.1
+exit criteria, §6.2 NFR-26; M-09). Measured first, then tested the
+gaps — no production code changed, no threshold weakened, no test
+edited to force green. The CI `coverage` job is still NOT added to
+`.github/workflows/ci.yml` — workflow files are blocked (Workflows
+403); the local `flutter test --coverage` measurement below is the
+gate until the permission is fixed.
+
+Starting coverage (measured before any new test, `flutter test
+--coverage`, full suite 591/591 green): **89.9% over
+`lib/domain/engine/` + `lib/domain/ai/` (523/582 lines)** — just
+below the gate, with four files below the 80% floor. Whole-app
+coverage at the same point was 93.7% (3644/3890).
+
+| file | LF | LH | % | uncovered lines |
+| --- | --- | --- | --- | --- |
+| `lib/domain/ai/ai_player.dart` | 97 | 96 | 99.0% | 60 |
+| `lib/domain/engine/board.dart` | 27 | 20 | 74.1% | 45–46, 52–53, 55–56, 119 |
+| `lib/domain/engine/dice_roller.dart` | 17 | 15 | 88.2% | 33, 54 |
+| `lib/domain/engine/game_state.dart` | 92 | 92 | 100.0% | — |
+| `lib/domain/engine/json_validation.dart` | 62 | 60 | 96.8% | 160–161 |
+| `lib/domain/engine/ludo_game.dart` | 131 | 124 | 94.7% | 148, 341–343, 345–346, 348 |
+| `lib/domain/engine/move.dart` | 25 | 14 | 56.0% | 15–16, 18–19, 31, 39–40, 83–86 |
+| `lib/domain/engine/player.dart` | 43 | 39 | 90.7% | 28, 56, 150–151 |
+| `lib/domain/engine/player_colour.dart` | 1 | 1 | 100.0% | — |
+| `lib/domain/engine/ruleset_config.dart` | 55 | 43 | 78.2% | 130–139, 147–148 |
+| `lib/domain/engine/token.dart` | 32 | 19 | 59.4% | 31–32, 55, 85, 87–91, 93–94, 96, 98 |
+
+What the gaps were (every uncovered line mapped to its code before
+any test was written): value-object boilerplate (`Token`/`Move`/
+`TokenRef`/`Cell`/`RulesetConfig` `==`/`hashCode`/`toString`,
+`Move.tokenRef`, `MoveResult.toString`, `Cell.isYard`/`isHome`,
+`Token.isInHomePath`, `Token`/`Player`/`AiPlayer.copyWith` no-arg
+fallbacks, `InvalidMatchConfig`/`InvalidRulesetConfig.toString`);
+`Board.cellAt` throw on steps > 56 and `isSafe` on home-path/home
+cells; `FixedDiceRoller` empty-list and exhaustion throws; the
+`LudoGame` invalid-dice guard and the whole of `nextTurn()` (FR-19,
+never called by any test); `Player` 3-token constructor guard.
+
+What was done (73 new tests, all asserting behaviour):
+
+- `test/engine/ruleset_config_test.dart` (new, 15 tests): SDD
+  defaults, `releaseRolls` for all four flag combinations, all
+  three `validate()` throws with exact messages, `toJson` field
+  set, `fromJson` round-trip + missing/wrong-typed field rejects +
+  invalid embedded ruleset wrapped as `FormatException`, `==` /
+  `hashCode` / Set collapse, one-field-at-a-time inequality,
+  `InvalidRulesetConfig.toString`.
+- `test/engine/value_objects_test.dart` (new, 34 tests): `Cell`
+  constructors / `isYard` / `isHome` / equality / `toString`;
+  `Board.cellAt` throw + negative-steps yard + every home-path step
+  + `isSafe` on home-path/home/track/yard + all four start cells;
+  `Token` position predicates at the 0/51/52/56 boundaries, `cell`,
+  `canMove` (yard release, exact-finish boundary, non-exact home
+  token), `copyWith` no-arg + steps, `sentToYard`, JSON round-trip,
+  equality, `toString`; `Move`/`TokenRef` conversion, equality,
+  `toString`; `MoveResult` defaults, winning-move and home-move
+  exact strings via real `applyMove` results; `Player` 3-token
+  guard, `tokensHome`/`hasWon`, `copyWith` no-arg + tokens,
+  `toJson`; `AiPlayer.copyWith` no-arg + difficulty/tokens;
+  `InvalidMatchConfig.toString`.
+- `test/engine/variants_test.dart` (new, 20 tests): invalid dice
+  values 7 and 0 rejected with `StateError` and the state unchanged
+  (via a test-only constant roller); `FixedDiceRoller` empty list,
+  exhaustion, cycling; `nextTurn` happy path (clockwise, wrap,
+  sixes-count reset, play continues), both `StateError` guards
+  (roll outstanding, finished); non-exact-finish overshoot lands
+  home from the track and from the home path; the three
+  extra-turn switches off (`extraTurnOnSix` / `extraTurnOnCapture` /
+  `extraTurnOnHome` — capture/home still reported, turn passes);
+  release-on-1-only (a 6 offers no move but keeps the roll);
+  `maxConsecutiveSixes` 1, 2 and 0.
+- `test/engine/ai_test.dart` (+4 tests, "Hard scoring weights"):
+  `scoreMove` pins the documented SDD §7.3 weights with a full
+  jitter of slack on each side — finish 100 + safe 15, capture 60
+  over a release, danger −40 against a safe landing, leaving a
+  teammate exposed −10 against the same move alone.
+
+No dead code was removed. `nextTurn`, `Move.tokenRef`,
+`Token.isInHomePath` and `Cell.isYard`/`isHome` have no production
+callers (verified by whole-app grep), but they are public engine
+API implementing documented rules, so they are pinned by tests
+rather than deleted — removing public API is out of scope for a
+coverage task. One line pair stays uncovered by design:
+`json_validation.dart:160–161`, the belt-and-braces `tryParse ==
+null` throw in `requireIso8601DateTime` — the regex + component
+checks guarantee `tryParse` succeeds for any input that reaches
+it, so the guard is genuinely unreachable; it protects the
+invariant and is kept, not counted as covered.
+
+One test expectation was wrong, not the engine: the first
+`maxConsecutiveSixes: 1` test assumed the second six would be the
+unplayed one, but the engine forfeits the six that *reaches* the
+limit — with a limit of 1 that is already the first six (the same
+rule as the default-3 third six, confirmed by the snapshot tests'
+`consecutiveSixes` bounds). The test was corrected to pin the
+actual behaviour; no engine code was touched.
+
+Final coverage (`flutter test --coverage`, full suite green):
+**99.7% over `lib/domain/engine/` + `lib/domain/ai/` (580/582
+lines)** — gate ≥90% passed, per-file floor 80% passed. Whole-app
+coverage 95.1% (3701/3890).
+
+| file | LF | LH | % | uncovered lines |
+| --- | --- | --- | --- | --- |
+| `lib/domain/ai/ai_player.dart` | 97 | 97 | 100.0% | — |
+| `lib/domain/engine/board.dart` | 27 | 27 | 100.0% | — |
+| `lib/domain/engine/dice_roller.dart` | 17 | 17 | 100.0% | — |
+| `lib/domain/engine/game_state.dart` | 92 | 92 | 100.0% | — |
+| `lib/domain/engine/json_validation.dart` | 62 | 60 | 96.8% | 160–161 (unreachable guard, see above) |
+| `lib/domain/engine/ludo_game.dart` | 131 | 131 | 100.0% | — |
+| `lib/domain/engine/move.dart` | 25 | 25 | 100.0% | — |
+| `lib/domain/engine/player.dart` | 43 | 43 | 100.0% | — |
+| `lib/domain/engine/player_colour.dart` | 1 | 1 | 100.0% | — |
+| `lib/domain/engine/ruleset_config.dart` | 55 | 55 | 100.0% | — |
+| `lib/domain/engine/token.dart` | 32 | 32 | 100.0% | — |
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **664/664 passed** (baseline 591/591 + 73 new,
+0 failed, 0 skipped); `flutter test --coverage` — **580/582 =
+99.7%** scoped (see table), whole app 3701/3890 = 95.1%;
+`flutter analyze` — **0 errors, 0 warnings, 37 info** (the
+coordinator's baseline; all 37 are the pre-existing `material.dart`
+deprecation notices — the new files initially added 4 warnings +
+1 info, all fixed before verification: an unused import, three
+const-duplicate set literals, one unrelated-type equality);
+`dart format --output=none --set-exit-if-changed .` — **0 changed**
+(107 files); `tool/check.sh` — **exit 0 end to end** (pub get,
+format, analyze `--no-fatal-infos`, test 664/664, boundaries 12/12,
+strings 3/3). No pre-existing test failed; no test was weakened,
+deleted or reworded. Environment note: every flutter invocation
+ran with `TMPDIR` on the big volume and a hard `timeout` (300
+targeted / 900 full-suite), per the M3.7 brief.
+
+Outstanding: the CI `coverage` job (blocked on the Workflows
+permission, same wall as the `vectors`/`strings` jobs — the gate
+is measured locally until it is fixed); `nextTurn` has no
+production callers (public FR-19 API, retained + tested — a
+decision to remove it, if ever wanted, belongs to Anti).
+
 ### M3.8 — DONE (NFR-04 per-call + NFR-02 repaint, M-09; 2026-11-22)
 
 **NFR-04 per-call test + NFR-02 repaint fix (M-09).**
@@ -1086,6 +1228,219 @@ Outstanding: the CI `strings` job (blocked on the Workflows
 permission, same wall as the `vectors`/`coverage` jobs); the
 status-key refactor for the controller status strings (needs a
 decision — it changes the controller API and its tests).
+
+### Premium animation (§4) — DONE (per-cell steps, capture, dice, feedback, results, all-screens; 2026-11-22)
+
+Brief §4 premium work (research `docs/UI-RESEARCH.md` §2–§3,
+coordinator decisions on Q1–Q10 at the end of that file). All
+seven items, in priority order, with the decisions applied as
+specified. No new packages, no sound (D-32), no engine rule change
+— the engine state stays final-first throughout; only the
+presentation of already-decided state changed.
+
+1. **Per-cell token movement (§2.2, Q1 — ~110 ms/cell, cap
+   ~600 ms).** The M2.7 straight hop is replaced by a step sequence
+   in `game_screen.dart`: the token walks each intermediate cell in
+   `boardCellForToken` order (corners turn naturally), one small
+   hop per step (scale 1.0 → ~1.12, `outBack`-lite settle), input
+   locked for the whole sequence. One controller drives the whole
+   sequence; its value maps onto the step polyline
+   (`_stepSegmentIndex` / `_stepSegmentFraction`), so a segment
+   boundary is hit exactly at its pump time. Last-moved ring (§2.2.6):
+   a ~1.5 s fading teal ring under the moved token after it
+   settles (static under reduced motion).
+2. **Capture animation (§2.3, Q6 — arc as proposed).** Sequenced
+   after the mover settles (~150 ms cause→effect beat is inherent):
+   lift → shrink/fade → arc to the yard → pop-in (~600 ms,
+   `outBack` overshoot 1.08 → 1.0), driven by a second painter
+   override (`captureTokenId`/`captureCenter`/`captureScale`/
+   `captureOpacity`). The mover settles slightly larger on a
+   capturing move (mid-step lift peaks ~1.18, not ~1.12). One
+   haptic per capture as a whole (the move's single light haptic,
+   D-32); the status line names the event.
+3. **Dice polish (§2.4).** Wind-up (~120–180 ms anticipatory dip,
+   scale → 0.92, ~−6° rotation) folded into the existing ~540 ms
+   budget, tumble with a physical shake (rotation ±8°, translate
+   ±2 dp), damped settle wobble (scale 1.06 → 1.0, no bounce), and
+   a steady teal rollable border while `canRoll` (deliberately
+   steady, not oscillating — an oscillating border needs a
+   continuously repeating ticker, which makes `pumpAndSettle`
+   never terminate; a slow repeating border is the named revisit
+   if the harness ever moves off `pumpAndSettle`). Engine value
+   fixed before the animation, input locked, semantics unchanged.
+4. **Feedback (§2.5, Q10).** Three-dot thinking pulse in the
+   current player's chip (replaces the banner spinner as the
+   primary AI-thinking indicator), driven by the one-shot 1,200 ms
+   pulse controller — the dots stop the moment the AI acts. The
+   status line narrates AI actions (`OfflineGameController.status`:
+   "Green (AI) rolled 6, choose a token to move", "…rolled a six
+   and rolls again", "…moved a token. Player 1, roll the dice")
+   and the no-legal-move pass ("No legal move — turn passes").
+   Illegal-tap shake: ~150 ms, ±1.5 dp on the tapped token or
+   dice (existing SnackBar + status line unchanged, still no
+   haptic for illegal taps).
+5. **Results (§2.6, Q5, Q8).** Winner's mark (Q5): an enlarged
+   per-seat shape marker in a teal ring around the winner's avatar
+   (no crown — Ludo King's crown is its brand), entrance
+   staggered headline → avatar (`outBack` scale-in) → cards
+   (~500 ms, finite). One-shot hand-drawn confetti (Q5): ~36
+   seeded rectangles over ~1.2 s from a tiny `CustomPainter`, no
+   package, fires once on entry, never loops. "Home n/4" counts
+   (Q8): `MatchResultPlayer.tokensHome` (small model addition,
+   display data from the final state, no schema change) shown next
+   to each player's name. Play Again / Main Menu unchanged (D-02,
+   D-30).
+6. **All-screens polish (§2.7).** Game → results navigation via
+   `PageRouteBuilder` fade + slight slide, 300 ms in / 200 ms out
+   (M3 durations). Shadow tokens formalised in the design system
+   (`DiceUpShadows.raised` for board/dice, `lifted` for a token
+   mid-hop). OS reduced-motion flags honoured everywhere (Q7 — NO
+   new in-app setting): both `MediaQuery.disableAnimations` and
+   `MediaQuery.reduceMotion` collapse steps/capture/dice to an
+   instant settle, freeze the dice face at its pre-roll value,
+   skip confetti, and jump the results entrance to its end state.
+7. **Pause (Q2 + D-10).** Step/capture sequences FREEZE on pause
+   and RESUME from where they paused — superseding the old
+   hop-cancel on pause. The input lock is the sequence flag
+   (`_sequenceActive`), not any controller's `isAnimating`, so a
+   controller stopped by pause does not read as "finished".
+
+**The stall and the replacement fix (2026-11-22 ~20:41 PKT).**
+The first premium worker was closed after its
+`flutter test test/premium_animation_test.dart
+test/animation_test.dart test/ludo_board_test.dart` run hung 53+
+minutes (summary stuck at +1 −7, flutter_tester at 134% CPU).
+The hung processes were killed; the tree was clean. The
+replacement worker's diagnosis, from the hung run's log
+(`/tmp/premium2.log`, 531 lines) and the code:
+
+- **Root cause 1 — infinite self-nesting widget tree, not a slow
+  test.** `pumpGame` in `test/premium_animation_test.dart`
+  reassigned its `screen` variable to a `Builder` whose builder
+  closure captured that same variable (`child: screen`), so the
+  `MediaQuery`'s child was the wrapper itself. Every
+  reduced-motion pump built a ~54,000-deep tree and threw
+  `StackOverflowError` while building that `MediaQuery`
+  (test line 103); rendering the 54k-frame trace is what consumed
+  the 53 minutes. Fixed by capturing the `GameScreen` in its own
+  `final` before the wrapper is built (`child: gameScreen`). No
+  other test helper has the pattern (grep for `child: screen` —
+  none). The "Roll dice" finder failure in the reduced-motion dice
+  test was a consequence: the screen never mounted, so the control
+  was absent — the widget was not wrong.
+- **Root cause 2 — the step sequence lagged one segment at every
+  boundary.** Two framework behaviours, both in the old
+  per-segment-restart driver: (a) when an `AnimationController`
+  completes its ticker stops, so `forward(from: 0.0)` from the
+  status listener only ticks on the NEXT frame; (b) a controller
+  reports `completed` only once elapsed strictly exceeds the
+  duration (its simulation's `isDone` is `time > duration`), so a
+  segment pumped to exactly its length sits at value 1.0 with no
+  status event. The off-by-one (expected the step-3 centre, got
+  step-2) and the capture settle reading 1.12 instead of 1.18
+  were the same lag. Fixed by replacing the restart driver with
+  the polyline form the research already blessed (§2.2: "a single
+  controller whose value maps onto a polyline"): one controller
+  for the whole sequence, segment + fraction derived from its
+  value, plus a value listener (`_onStepValue`) that finishes the
+  step phase at value 1.0 — the late `completed` status is then a
+  no-op via `_finishStepPhase`'s guard, so the capture can never
+  start twice. No test was changed to accommodate this; the tests
+  encode the specified boundary timing.
+- **Known failure (d).** Unused import
+  `package:diceup/domain/ai/ai_player.dart` in
+  `test/premium_animation_test.dart:2` — removed (nothing in the
+  file uses it). Also fixed: `dart format` drift in the four
+  premium-touched files (`game_screen.dart`,
+  `test/ludo_board_test.dart`,
+  `test/offline_game_controller_test.dart`,
+  `test/premium_animation_test.dart`) — reformatted, check clean.
+- **Environment note.** The hung run's log opens with a load
+  failure ("No space left on device" copying the test dill):
+  `/tmp` is a 512 MB tmpfs and was full at the time. All
+  replacement-run verification used `TMPDIR` on the big volume
+  (`diceup_app/.flutter-tmp`, removed afterwards); every
+  `flutter test` invocation also carried a hard `timeout`
+  (300 s targeted, 900 s full suite).
+
+**Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local
+only):** `flutter test` — **591/591 passed** (579 at M3.10 + 7
+new premium tests + 4 new `ludo_board` shouldRepaint cases + 1
+new results-rendering test; 0 failed, 0 skipped), full suite
+1:57. `flutter analyze` — **0 errors, 0 warnings, 37 info**
+(all the pre-existing `material.dart` deprecation notice; the
+single warning is gone). `dart format --output=none
+--set-exit-if-changed .` — **0 changed**. `flutter pub get` —
+clean. `tool/check.sh` — **exit 0** (boundaries 12/12, strings
+3/3). Per-file: `premium_animation_test` 7/7,
+`animation_test` 15/15, `ludo_board_test` 12/12,
+`game_screen_characterization_test` 2/2,
+`offline_game_controller_test` 17/17, `results_screen_test`
+12/12, `game_screen_test` 13/13.
+
+**Files changed (vs the M3.10 baseline, confirmed by diff):**
+`lib/core/design_system/diceup_shadows.dart` (new),
+`lib/domain/offline_game_controller.dart` (AI narration status
+strings), `lib/l10n/app_en.arb` + generated
+`app_localizations*.dart` (new narration / results strings),
+`lib/main.dart`, `lib/presentation/navigation/app_routes.dart`
+(results transition + `MatchResultPlayer.tokensHome`),
+`lib/presentation/screens/game_screen.dart` (step/capture/dice/
+feedback/pause), `lib/presentation/screens/results_screen.dart`
+(winner's mark, confetti, Home n/4, entrance),
+`lib/presentation/widgets/dice_widget.dart` (rollable border),
+`lib/presentation/widgets/ludo_board.dart` (capture + last-moved
++ shake painter parameters), `test/premium_animation_test.dart`
+(new, 7 tests in 4 groups),
+`test/animation_test.dart`, `test/ludo_board_test.dart`,
+`test/game_screen_characterization_test.dart`,
+`test/offline_game_controller_test.dart`,
+`test/results_screen_test.dart`.
+
+**Test changes, with reasons (no test weakened to force
+green):** `animation_test.dart` — the hop group rewritten to
+the step sequence (straight hop → per-cell steps is the specified
+behaviour change) and the pause test rewritten from hop-cancel
+to freeze/resume (Q2 supersedes M2.7); `offline_game_controller_
+test.dart` + `game_screen_characterization_test.dart` — status
+strings updated to the Q10 AI narration (the strings themselves
+are the specified change; the characterization test still pins
+the exact sequence and the 700–1,199 ms pacing bounds);
+`results_screen_test.dart` — the scripted-match drive loop now
+exits when the results screen is showing, not only when the
+provider reports finished (the `autoDispose` provider is disposed
+after the results navigation, so a fresh read yields a controller
+with no game whose `state` throws; the results screen itself is
+proof the match finished) — plus, by the replacement worker, one
+new test asserting the premium results rendering (winner's mark
+key, "Home 4/4" / "Home 1/4", confetti painter on entry), because
+no existing test asserted those three; `ludo_board_test.dart` —
+4 new `shouldRepaint` cases (capture/shake/last-moved
+parameters); `premium_animation_test.dart` — new, 7 tests:
+multi-cell step order at exact segment boundaries, capture
+sequencing + settle scale, reduced-motion capture collapse,
+dice settle + input lock, reduced-motion step collapse
+(`disableAnimations` and `reduceMotion` separately),
+reduced-motion dice-face freeze.
+
+**Deliberately NOT done (per the brief / Q decisions):**
+auto-move on a single legal move (Q3 — NO), destination ghost
+preview (Q4 — NO), direction chevrons / reachable-safe-cell
+outline (Q9 — NO), in-app animation setting (Q7 — NO), sound
+(D-32 — NOT implemented, no audio code), the pure-Dart package
+split (deferred pending Anti), `test/seat_ai_difficulty_test.dart`
+untouched. The dice's rollable border is steady, not
+oscillating, and the legal-move pulse stays one-shot — both are
+named revisits if the harness ever moves off `pumpAndSettle`
+(see the code comments); neither is a behaviour gap in this
+phase.
+
+**Outstanding (not this milestone):** the ~110 ms/cell feel is
+verified only in the test harness — play-tuning on the low-end
+reference device (D-14) is still owed; CI jobs (`vectors`,
+`coverage`, `strings`) still blocked on the Workflows
+permission; device screen-reader + layout confirmation stays
+M4.
 
 ### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
 
