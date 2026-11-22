@@ -16,7 +16,13 @@ analyzer:
 
 linter:
   rules:
-    # The domain layer (engine + AI) must stay pure Dart: no Flutter,
-    # storage or network imports. Presentation may import domain, never
-    # the other way round.
+    # Import boundary (M-07, M3.4; SDD §4.2): the domain layer (engine
+    # + AI) must stay pure Dart — no Flutter, storage or network imports
+    # — and must not import presentation or data; presentation must not
+    # gain new imports of the data layer. No analyzer rule enforces any
+    # of that: the boundary is enforced by `tool/check_boundaries.sh`
+    # (CI job `boundaries`), not by this file. `depend_on_referenced_packages`
+    # below does something different — it only requires directly imported
+    # packages to be listed in pubspec.yaml — and must not be mistaken
+    # for the boundary rule.
     depend_on_referenced_packages: true

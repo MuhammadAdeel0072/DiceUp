@@ -566,6 +566,122 @@ after a resume loses the custom ruleset. Needs a decision (fix
 `fromState` to honour the embedded ruleset vs keep stock as the
 resumed default) before it is touched; recorded here so it is not
 fixed silently.
+
+### M3.4 — DONE (import boundary rule, M-07; 2026-11-22)
+
+Option A from remediation plan M3.4 (script + CI job), M-07 / SDD
+§4.2. The M3.3 script was verified both ways first, then extended
+from 8 to 12 checks.
+
+Rules enforced by `tool/check_boundaries.sh` (12 checks, all pass on
+the clean tree):
+
+- Domain purity: no Flutter, no Riverpod, no storage (`sqflite` /
+  `package:diceup/data`), no `dart:io` / network (`package:http`,
+  `package:dio`) — the last two are NEW in M3.4; the M3.3 script did
+  not check them — and no import of the presentation/data layers
+  (NEW; M3.3 only covered `package:diceup/data` via the storage
+  check, not relative `../data/` / `../presentation/` imports).
+- `RandomDiceRoller` used only in the engine + tests (NEW; NFR-18
+  online boundary guard — no presentation file uses it today).
+- No NEW presentation → data import (NEW): only the six
+  grandfathered files may import `data/` — see the gap note below.
+- Unchanged from M3.3: only the provider graph constructs
+  `OfflineGameController`; no screen constructs a SQLite repository,
+  the engine, or `AppDependencies`; the game screen imports no data
+  layer.
+
+Both-ways evidence (scratch copies, deleted afterwards — never in
+staging):
+
+- Clean tree: script exits 0, 12/12 checks pass.
+- Negative probe (the plan §6 case): `import
+  'package:flutter/material.dart';` added to
+  `lib/domain/engine/board.dart` → script fails, exit 1.
+- One probe per NEW check, each failing with exit 1: `dart:io`
+  in `board.dart`; `package:diceup/presentation/foo.dart` in
+  `board.dart`; `RandomDiceRoller` referenced in
+  `game_screen.dart`; a `data/local` import added to
+  `settings_screen.dart`. The scratch copy passed again once the
+  probes were reverted, then was deleted.
+
+Gap found in the M3.3 script, and two deliberate deviations from
+the M-07 letter (also recorded in the script header):
+
+- The blanket "presentation imports no data" ban is NOT enforceable
+  yet: five screens (`app_routes`, `splash_screen`, `home_screen`,
+  `offline_setup_screen`, `app_dependencies_scope`) still import the
+  data layer through `AppDependenciesScope` (M3.3 deferred their
+  migration one screen at a time), and the provider graph
+  legitimately imports it as the composition root. The M3.4 check
+  therefore enforces "no NEW presentation → data import" against
+  that grandfathered list of six files; the blanket ban replaces
+  the list once those screens migrate.
+- The `RandomDiceRoller` check is stricter than M-07's letter,
+  which also allows offline-presentation: nothing there uses it
+  today, so the check allows engine + tests only. If offline
+  presentation ever needs it, add an explicit allowlist entry with
+  a reason — do not silently widen the grep.
+
+`analysis_options.yaml` comment correction (no analyzer setting
+changed): the old comment sat under `linter: rules:` next to
+`depend_on_referenced_packages: true`, implying that lint rule
+enforces the boundary. It does not — it only requires directly
+imported packages to be listed in `pubspec.yaml`. The corrected
+comment states the boundary is enforced by
+`tool/check_boundaries.sh` (CI job `boundaries`), and that
+`depend_on_referenced_packages` does something different and must
+not be mistaken for the boundary rule. `depend_on_referenced_packages`
+stays, per M-07.
+
+Local check script + CI (new):
+
+- `diceup_app/tool/check.sh` (new): `flutter pub get`, `dart
+  format --output=none --set-exit-if-changed .`, `flutter analyze
+  --no-fatal-infos`, `flutter test`, `sh tool/check_boundaries.sh`;
+  run as `sh tool/check.sh` from anywhere. Exit 0 end to end.
+- `.github/workflows/ci.yml` (new, repo root): jobs `test`,
+  `analyze`, `format`, `boundaries`; Flutter 3.50.1 via
+  `subosito/flutter-action@v2`; the `boundaries` job needs no
+  toolchain (pure grep). The `vectors` (M3.6) and `coverage`
+  (M3.7) jobs are deliberately NOT added — later milestones extend
+  the workflow; the same note is in the workflow file's comments.
+- Analyze-gate nuance (found by probe during this milestone):
+  plain `flutter analyze` exits 1 on the 33 known info-level
+  notices, so both `check.sh` and the CI `analyze` job use
+  `flutter analyze --no-fatal-infos`. The gate is therefore "0
+  errors / 0 warnings" — errors and warnings stay fatal by default
+  and still fail the gate. The 33 infos are all the same
+  pre-existing `material.dart` deprecation notice
+  (known/unactionable; the count was 17 at audit time, 24 at M3.3,
+  33 now — it grows as files are added, same notice each time).
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local
+only): `flutter test` — **539/539 passed** (no new tests: M3.4
+adds enforcement, not behaviour). `flutter analyze` — **0 errors,
+0 warnings, 33 info** (all the pre-existing `material.dart`
+notices). `dart format --output=none --set-exit-if-changed .` —
+**0 changed** (97 files; the M3.3-era 45-file drift is gone, format
+is clean tree-wide). `tool/check_boundaries.sh` — **12/12, exit 0**.
+`tool/check.sh` — **exit 0 end to end**. No new dependencies; no
+code file touched except the boundary script; M2.13's platform
+files and M2.14's design-system files untouched.
+
+Deliberately left for later (not this milestone):
+
+- Option B (`custom_lint` + `import_lint` for in-editor
+  enforcement) — documented follow-up, not implemented.
+- CI jobs `vectors` (M3.6) and `coverage` (M3.7, gated only after
+  the measured number is ≥90% locally).
+- The blanket presentation → data ban (gated on the M3.3 screen
+  migration off `AppDependenciesScope`).
+- The Workflows permission is not verifiable from this
+  environment: the workflow file is pushed separately from the
+  code, and a 403 on that push is a blocker to report (and resolve
+  via Anti), not a reason to drop the workflow. The pubspec.lock
+  stash + `../.vscode/` on Anti's Windows machine (D:\DiceUp) are
+  likewise not verifiable from this environment; untouched.
+
 ### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
 
 The theme-token half of H-10 (remediation plan §4 M2.3, §6.2
@@ -1714,7 +1830,9 @@ are not verifiable from this environment; untouched.
 
 The small-fixes pass for remediation plan §4 M2.14 + §3.3
 L-01/L-04. Three items, each resolved in the smallest way that
-is honest about what the app actually ships.
+is honest about what the app actually ships. Push landed as
+`fc4d3982d0d9c5388527455bc1778245a9e41858` (verified live via
+`list_commits`; remote head `fc4d3982d`).
 
 **1. Roboto — named the actual fallback instead of bundling
 (L-04).** What was found: `diceup_typography.dart` named
