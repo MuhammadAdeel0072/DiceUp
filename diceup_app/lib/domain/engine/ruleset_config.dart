@@ -75,15 +75,15 @@ class RulesetConfig {
   }
 
   Map<String, Object> toJson() => {
-        'releaseOnSix': releaseOnSix,
-        'releaseOnOne': releaseOnOne,
-        'extraTurnOnSix': extraTurnOnSix,
-        'extraTurnOnCapture': extraTurnOnCapture,
-        'extraTurnOnHome': extraTurnOnHome,
-        'maxConsecutiveSixes': maxConsecutiveSixes,
-        'exactFinish': exactFinish,
-        'version': version,
-      };
+    'releaseOnSix': releaseOnSix,
+    'releaseOnOne': releaseOnOne,
+    'extraTurnOnSix': extraTurnOnSix,
+    'extraTurnOnCapture': extraTurnOnCapture,
+    'extraTurnOnHome': extraTurnOnHome,
+    'maxConsecutiveSixes': maxConsecutiveSixes,
+    'exactFinish': exactFinish,
+    'version': version,
+  };
 
   /// Strict deserialization (M1.1, D-22): all eight fields must be
   /// present with the correct types, and [validate] must pass. A
@@ -95,12 +95,15 @@ class RulesetConfig {
       releaseOnSix: requireBool(json['releaseOnSix'], 'releaseOnSix'),
       releaseOnOne: requireBool(json['releaseOnOne'], 'releaseOnOne'),
       extraTurnOnSix: requireBool(json['extraTurnOnSix'], 'extraTurnOnSix'),
-      extraTurnOnCapture:
-          requireBool(json['extraTurnOnCapture'], 'extraTurnOnCapture'),
-      extraTurnOnHome:
-          requireBool(json['extraTurnOnHome'], 'extraTurnOnHome'),
-      maxConsecutiveSixes:
-          requireInt(json['maxConsecutiveSixes'], 'maxConsecutiveSixes'),
+      extraTurnOnCapture: requireBool(
+        json['extraTurnOnCapture'],
+        'extraTurnOnCapture',
+      ),
+      extraTurnOnHome: requireBool(json['extraTurnOnHome'], 'extraTurnOnHome'),
+      maxConsecutiveSixes: requireInt(
+        json['maxConsecutiveSixes'],
+        'maxConsecutiveSixes',
+      ),
       exactFinish: requireBool(json['exactFinish'], 'exactFinish'),
       version: requireString(json['version'], 'version'),
     );
@@ -126,15 +129,15 @@ class RulesetConfig {
 
   @override
   int get hashCode => Object.hash(
-        releaseOnSix,
-        releaseOnOne,
-        extraTurnOnSix,
-        extraTurnOnCapture,
-        extraTurnOnHome,
-        maxConsecutiveSixes,
-        exactFinish,
-        version,
-      );
+    releaseOnSix,
+    releaseOnOne,
+    extraTurnOnSix,
+    extraTurnOnCapture,
+    extraTurnOnHome,
+    maxConsecutiveSixes,
+    exactFinish,
+    version,
+  );
 }
 
 /// Thrown when a [RulesetConfig] fails [RulesetConfig.validate].

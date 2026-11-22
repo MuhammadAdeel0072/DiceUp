@@ -53,15 +53,14 @@ class LocalPlayerSeat {
     bool? isAi,
     AiDifficulty? difficulty,
     DateTime? lastUsedAt,
-  }) =>
-      LocalPlayerSeat(
-        id: id ?? this.id,
-        displayName: displayName ?? this.displayName,
-        colour: colour ?? this.colour,
-        isAi: isAi ?? this.isAi,
-        difficulty: difficulty ?? this.difficulty,
-        lastUsedAt: lastUsedAt ?? this.lastUsedAt,
-      );
+  }) => LocalPlayerSeat(
+    id: id ?? this.id,
+    displayName: displayName ?? this.displayName,
+    colour: colour ?? this.colour,
+    isAi: isAi ?? this.isAi,
+    difficulty: difficulty ?? this.difficulty,
+    lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -74,14 +73,8 @@ class LocalPlayerSeat {
       other.lastUsedAt == lastUsedAt;
 
   @override
-  int get hashCode => Object.hash(
-        id,
-        displayName,
-        colour,
-        isAi,
-        difficulty,
-        lastUsedAt,
-      );
+  int get hashCode =>
+      Object.hash(id, displayName, colour, isAi, difficulty, lastUsedAt);
 }
 
 /// Local/guest seat identities (SDD §4.3, §9.1 `local_players`).

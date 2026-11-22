@@ -36,8 +36,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _load() async {
-    final dependencies =
-        AppDependenciesScope.maybeOf(context)?.dependencies;
+    final dependencies = AppDependenciesScope.maybeOf(context)?.dependencies;
     if (dependencies == null) {
       if (mounted) setState(() => _unavailable = true);
       return;
@@ -63,7 +62,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return const EmptyState(
         icon: Icons.history,
         title: 'History unavailable',
-        hint: "Your saved data couldn't be loaded, so past matches "
+        hint:
+            "Your saved data couldn't be loaded, so past matches "
             'cannot be shown right now.',
       );
     }
@@ -117,10 +117,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ),
               const SizedBox(width: DiceUpSpacing.sm),
-              Text(
-                'Local',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text('Local', style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
         );
@@ -175,15 +172,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   static String _modeLabel(LocalMatchMode mode) => switch (mode) {
-        LocalMatchMode.vsAi => 'vs AI',
-        LocalMatchMode.localMultiplayer => 'Local multiplayer',
-      };
+    LocalMatchMode.vsAi => 'vs AI',
+    LocalMatchMode.localMultiplayer => 'Local multiplayer',
+  };
 
   /// Short date without the intl package: "21 Nov 2026, 12:00".
   static String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final local = date.toLocal();
     final hour = local.hour.toString().padLeft(2, '0');
@@ -216,16 +223,12 @@ class _DetailRow extends StatelessWidget {
             width: 72,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
           ),
         ],
       ),

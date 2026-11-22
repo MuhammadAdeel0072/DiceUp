@@ -36,7 +36,8 @@ LocalMatch testMatch({
   List<LocalMatchPlayer>? players,
   int? durationSeconds,
 }) {
-  final seats = players ??
+  final seats =
+      players ??
       [
         LocalMatchPlayer(
           name: 'Player 1',
@@ -71,15 +72,14 @@ LocalPlayerSeat testSeat({
   bool isAi = false,
   AiDifficulty? difficulty,
   DateTime? lastUsedAt,
-}) =>
-    LocalPlayerSeat(
-      id: id,
-      displayName: displayName,
-      colour: colour,
-      isAi: isAi,
-      difficulty: difficulty,
-      lastUsedAt: lastUsedAt,
-    );
+}) => LocalPlayerSeat(
+  id: id,
+  displayName: displayName,
+  colour: colour,
+  isAi: isAi,
+  difficulty: difficulty,
+  lastUsedAt: lastUsedAt,
+);
 
 /// Registers the shared repository contract tests against repositories
 /// built by [create] — a fresh set per test.
@@ -95,9 +95,7 @@ LocalPlayerSeat testSeat({
 /// database; the in-memory fake factory just wraps the constructor
 /// in an async closure. No test body below depends on which backend
 /// built the repositories.
-void defineRepositoryContractTests(
-  Future<RepositorySet> Function() create,
-) {
+void defineRepositoryContractTests(Future<RepositorySet> Function() create) {
   late RepositorySet repos;
 
   setUp(() async {
@@ -127,11 +125,7 @@ void defineRepositoryContractTests(
           mode: LocalMatchMode.vsAi,
           playerCount: 3,
           players: [
-            LocalMatchPlayer(
-              name: 'A',
-              colour: PlayerColour.red,
-              isAi: false,
-            ),
+            LocalMatchPlayer(name: 'A', colour: PlayerColour.red, isAi: false),
             LocalMatchPlayer(
               name: 'B',
               colour: PlayerColour.green,
@@ -156,11 +150,7 @@ void defineRepositoryContractTests(
           mode: LocalMatchMode.vsAi,
           playerCount: 2,
           players: [
-            LocalMatchPlayer(
-              name: 'A',
-              colour: PlayerColour.red,
-              isAi: false,
-            ),
+            LocalMatchPlayer(name: 'A', colour: PlayerColour.red, isAi: false),
             LocalMatchPlayer(
               name: 'B',
               colour: PlayerColour.green,
@@ -188,10 +178,7 @@ void defineRepositoryContractTests(
     });
 
     test('a seat needs a non-empty display name', () {
-      expect(
-        () => testSeat(displayName: '   '),
-        throwsArgumentError,
-      );
+      expect(() => testSeat(displayName: '   '), throwsArgumentError);
     });
 
     test('a snapshot needs a non-empty key and JSON', () {
@@ -229,18 +216,12 @@ void defineRepositoryContractTests(
     test('match mode labels round-trip; unknown labels reject', () {
       expect(LocalMatchMode.vsAi.label, 'vs_ai');
       expect(LocalMatchMode.localMultiplayer.label, 'local_multiplayer');
-      expect(
-        LocalMatchMode.fromLabel('vs_ai'),
-        LocalMatchMode.vsAi,
-      );
+      expect(LocalMatchMode.fromLabel('vs_ai'), LocalMatchMode.vsAi);
       expect(
         LocalMatchMode.fromLabel('local_multiplayer'),
         LocalMatchMode.localMultiplayer,
       );
-      expect(
-        () => LocalMatchMode.fromLabel('online'),
-        throwsFormatException,
-      );
+      expect(() => LocalMatchMode.fromLabel('online'), throwsFormatException);
     });
   });
 
@@ -252,8 +233,7 @@ void defineRepositoryContractTests(
         savedAt: DateTime.utc(2026, 11, 21, 12, 0),
       );
       await repos.snapshots.saveSnapshot(snapshot);
-      expect(await repos.snapshots.loadSnapshot(kCurrentMatchKey),
-          snapshot);
+      expect(await repos.snapshots.loadSnapshot(kCurrentMatchKey), snapshot);
       expect(await repos.snapshots.hasSnapshot(kCurrentMatchKey), isTrue);
     });
 
@@ -333,8 +313,7 @@ void defineRepositoryContractTests(
       expect(second.id, 2);
     });
 
-    test('getMatch returns the recorded match; unknown id is null',
-        () async {
+    test('getMatch returns the recorded match; unknown id is null', () async {
       final recorded = await repos.matches.recordMatch(testMatch());
       expect(await repos.matches.getMatch(recorded.id!), recorded);
       expect(await repos.matches.getMatch(999), isNull);
@@ -358,10 +337,7 @@ void defineRepositoryContractTests(
         testMatch(playedAt: DateTime.utc(2026, 11, 22, 12, 0)),
       );
       final listed = await repos.matches.listMatches();
-      expect(
-        listed.map((m) => m.id),
-        [recent.id, mid.id, old.id],
-      );
+      expect(listed.map((m) => m.id), [recent.id, mid.id, old.id]);
     });
 
     test('listMatches breaks playedAt ties by id descending', () async {
@@ -423,99 +399,95 @@ void defineRepositoryContractTests(
       // The oldest match (id 1, earliest playedAt) is gone.
       expect(await repos.matches.getMatch(1), isNull);
       // The newest match survived.
-      expect(
-        await repos.matches.getMatch(kMaxLocalMatches + 1),
-        isNotNull,
-      );
+      expect(await repos.matches.getMatch(kMaxLocalMatches + 1), isNotNull);
       final listed = await repos.matches.listMatches();
       expect(listed.length, kMaxLocalMatches);
       expect(listed.first.id, kMaxLocalMatches + 1);
     });
 
-    test('recordMatch preserves lifetime statistics beyond 500 (D-24, NFR-36)',
-        () async {
-      // The first 200 matches are local-mode human wins; the rest are
-      // vs-AI matches the AI wins. If statistics were derived from
-      // the retained 500, the 200 pruned human wins and local matches
-      // would vanish from the totals — and the lifetime total would
-      // freeze at 501 once pruning starts.
-      final base = DateTime.utc(2026, 1, 1);
-      final localHumanWin = [
-        LocalMatchPlayer(
-          name: 'Player 1',
-          colour: PlayerColour.red,
-          isAi: false,
-        ),
-        LocalMatchPlayer(
-          name: 'Player 2',
-          colour: PlayerColour.green,
-          isAi: false,
-        ),
-      ];
-      for (var i = 0; i < 200; i++) {
-        await repos.matches.recordMatch(
-          testMatch(
-            playedAt: base.add(Duration(minutes: i)),
-            mode: LocalMatchMode.localMultiplayer,
-            winnerIndex: 0,
-            players: localHumanWin,
+    test(
+      'recordMatch preserves lifetime statistics beyond 500 (D-24, NFR-36)',
+      () async {
+        // The first 200 matches are local-mode human wins; the rest are
+        // vs-AI matches the AI wins. If statistics were derived from
+        // the retained 500, the 200 pruned human wins and local matches
+        // would vanish from the totals — and the lifetime total would
+        // freeze at 501 once pruning starts.
+        final base = DateTime.utc(2026, 1, 1);
+        final localHumanWin = [
+          LocalMatchPlayer(
+            name: 'Player 1',
+            colour: PlayerColour.red,
+            isAi: false,
           ),
-        );
-      }
-      var stats = await repos.statistics.getStatistics();
-      expect(stats.matchesPlayed, 200);
-      expect(stats.matchesWon, 200);
-      expect(stats.matchesLocal, 200);
-      expect(stats.matchesVsAi, 0);
-
-      // Records 201–501: vs-AI matches the AI wins.
-      for (var i = 200; i < 501; i++) {
-        await repos.matches.recordMatch(
-          testMatch(
-            playedAt: base.add(Duration(minutes: i)),
-            winnerIndex: 1, // the AI seat wins.
+          LocalMatchPlayer(
+            name: 'Player 2',
+            colour: PlayerColour.green,
+            isAi: false,
           ),
-        );
-      }
-      // 501 records, 500 retained — the lifetime total is 501.
-      expect(await repos.matches.countMatches(), kMaxLocalMatches);
-      stats = await repos.statistics.getStatistics();
-      expect(stats.matchesPlayed, 501);
-      expect(stats.matchesWon, 200);
-      expect(stats.matchesVsAi, 301);
-      expect(stats.matchesLocal, 200);
+        ];
+        for (var i = 0; i < 200; i++) {
+          await repos.matches.recordMatch(
+            testMatch(
+              playedAt: base.add(Duration(minutes: i)),
+              mode: LocalMatchMode.localMultiplayer,
+              winnerIndex: 0,
+              players: localHumanWin,
+            ),
+          );
+        }
+        var stats = await repos.statistics.getStatistics();
+        expect(stats.matchesPlayed, 200);
+        expect(stats.matchesWon, 200);
+        expect(stats.matchesLocal, 200);
+        expect(stats.matchesVsAi, 0);
 
-      // One more record: deriving from the retained list would freeze
-      // the lifetime total at 501 here.
-      await repos.matches.recordMatch(
-        testMatch(
-          playedAt: base.add(const Duration(minutes: 501)),
-          winnerIndex: 1,
-        ),
-      );
-      stats = await repos.statistics.getStatistics();
-      expect(stats.matchesPlayed, 502);
-      expect(stats.matchesWon, 200);
+        // Records 201–501: vs-AI matches the AI wins.
+        for (var i = 200; i < 501; i++) {
+          await repos.matches.recordMatch(
+            testMatch(
+              playedAt: base.add(Duration(minutes: i)),
+              winnerIndex: 1, // the AI seat wins.
+            ),
+          );
+        }
+        // 501 records, 500 retained — the lifetime total is 501.
+        expect(await repos.matches.countMatches(), kMaxLocalMatches);
+        stats = await repos.statistics.getStatistics();
+        expect(stats.matchesPlayed, 501);
+        expect(stats.matchesWon, 200);
+        expect(stats.matchesVsAi, 301);
+        expect(stats.matchesLocal, 200);
 
-      // Up to 700 records: the count stays capped, the lifetime
-      // totals stay exact.
-      for (var i = 502; i < 700; i++) {
+        // One more record: deriving from the retained list would freeze
+        // the lifetime total at 501 here.
         await repos.matches.recordMatch(
           testMatch(
-            playedAt: base.add(Duration(minutes: i)),
+            playedAt: base.add(const Duration(minutes: 501)),
             winnerIndex: 1,
           ),
         );
-      }
-      expect(await repos.matches.countMatches(), kMaxLocalMatches);
-      expect(await repos.matches.getMatch(1), isNull);
-      expect((await repos.matches.listMatches()).first.id, 700);
-      stats = await repos.statistics.getStatistics();
-      expect(stats.matchesPlayed, 700);
-      expect(stats.matchesWon, 200);
-      expect(stats.matchesVsAi, 500);
-      expect(stats.matchesLocal, 200);
-    });
+        stats = await repos.statistics.getStatistics();
+        expect(stats.matchesPlayed, 502);
+        expect(stats.matchesWon, 200);
+
+        // Up to 700 records: the count stays capped, the lifetime
+        // totals stay exact.
+        for (var i = 502; i < 700; i++) {
+          await repos.matches.recordMatch(
+            testMatch(playedAt: base.add(Duration(minutes: i)), winnerIndex: 1),
+          );
+        }
+        expect(await repos.matches.countMatches(), kMaxLocalMatches);
+        expect(await repos.matches.getMatch(1), isNull);
+        expect((await repos.matches.listMatches()).first.id, 700);
+        stats = await repos.statistics.getStatistics();
+        expect(stats.matchesPlayed, 700);
+        expect(stats.matchesWon, 200);
+        expect(stats.matchesVsAi, 500);
+        expect(stats.matchesLocal, 200);
+      },
+    );
 
     test('clearHistory removes matches and resets statistics', () async {
       await repos.matches.recordMatch(testMatch());
@@ -544,8 +516,7 @@ void defineRepositoryContractTests(
       expect(stats.matchesLocal, 0);
     });
 
-    test('recomputeFromHistory reproduces the cached aggregates',
-        () async {
+    test('recomputeFromHistory reproduces the cached aggregates', () async {
       await repos.matches.recordMatch(testMatch(winnerIndex: 0));
       await repos.matches.recordMatch(testMatch(winnerIndex: 1));
       await repos.matches.recordMatch(
@@ -561,28 +532,29 @@ void defineRepositoryContractTests(
       expect(recomputed.matchesWon, 2);
     });
 
-    test('recomputeFromHistory derives exactly at exactly 500 matches',
-        () async {
-      final base = DateTime.utc(2026, 1, 1);
-      for (var i = 0; i < kMaxLocalMatches; i++) {
-        await repos.matches.recordMatch(
-          testMatch(playedAt: base.add(Duration(minutes: i))),
-        );
-      }
-      expect(await repos.matches.countMatches(), kMaxLocalMatches);
-      final cached = await repos.statistics.getStatistics();
-      expect(cached.matchesPlayed, kMaxLocalMatches);
-      // Complete via the retained-count-equals-cached-totals check:
-      // nothing was pruned yet, so the derivation is exact.
-      final recomputed = await repos.statistics.recomputeFromHistory();
-      expect(recomputed.matchesPlayed, kMaxLocalMatches);
-      expect(recomputed.matchesWon, cached.matchesWon);
-      expect(recomputed.matchesVsAi, cached.matchesVsAi);
-      expect(recomputed.matchesLocal, cached.matchesLocal);
-    });
+    test(
+      'recomputeFromHistory derives exactly at exactly 500 matches',
+      () async {
+        final base = DateTime.utc(2026, 1, 1);
+        for (var i = 0; i < kMaxLocalMatches; i++) {
+          await repos.matches.recordMatch(
+            testMatch(playedAt: base.add(Duration(minutes: i))),
+          );
+        }
+        expect(await repos.matches.countMatches(), kMaxLocalMatches);
+        final cached = await repos.statistics.getStatistics();
+        expect(cached.matchesPlayed, kMaxLocalMatches);
+        // Complete via the retained-count-equals-cached-totals check:
+        // nothing was pruned yet, so the derivation is exact.
+        final recomputed = await repos.statistics.recomputeFromHistory();
+        expect(recomputed.matchesPlayed, kMaxLocalMatches);
+        expect(recomputed.matchesWon, cached.matchesWon);
+        expect(recomputed.matchesVsAi, cached.matchesVsAi);
+        expect(recomputed.matchesLocal, cached.matchesLocal);
+      },
+    );
 
-    test('recomputeFromHistory keeps lifetime totals after pruning',
-        () async {
+    test('recomputeFromHistory keeps lifetime totals after pruning', () async {
       final base = DateTime.utc(2026, 1, 1);
       for (var i = 0; i < 700; i++) {
         await repos.matches.recordMatch(
@@ -602,14 +574,10 @@ void defineRepositoryContractTests(
       // is untouched too, which the equality check covers).
       final recomputed = await repos.statistics.recomputeFromHistory();
       expect(recomputed, cached);
-      expect(
-        (await repos.statistics.getStatistics()).matchesPlayed,
-        700,
-      );
+      expect((await repos.statistics.getStatistics()).matchesPlayed, 700);
     });
 
-    test('recomputeFromHistory derives zeros after clearHistory',
-        () async {
+    test('recomputeFromHistory derives zeros after clearHistory', () async {
       await repos.matches.recordMatch(testMatch());
       await repos.matches.clearHistory();
       final recomputed = await repos.statistics.recomputeFromHistory();
@@ -633,10 +601,10 @@ void defineRepositoryContractTests(
     test('getAllSettings returns what was set', () async {
       await repos.settings.setSetting('sound_enabled', '0');
       await repos.settings.setSetting('last_mode', 'vs_ai');
-      expect(
-        await repos.settings.getAllSettings(),
-        {'sound_enabled': '0', 'last_mode': 'vs_ai'},
-      );
+      expect(await repos.settings.getAllSettings(), {
+        'sound_enabled': '0',
+        'last_mode': 'vs_ai',
+      });
     });
 
     test('getAllSettings is empty on a fresh repository', () async {
@@ -648,10 +616,7 @@ void defineRepositoryContractTests(
       final first = await repos.settings.getAllSettings();
       first['sound_enabled'] = '1';
       first['injected'] = 'yes';
-      expect(
-        await repos.settings.getAllSettings(),
-        {'sound_enabled': '0'},
-      );
+      expect(await repos.settings.getAllSettings(), {'sound_enabled': '0'});
     });
 
     test('resetToDefaults restores the known defaults', () async {
@@ -709,10 +674,7 @@ void defineRepositoryContractTests(
         ),
       );
       final listed = await repos.players.listRecentSeats();
-      expect(
-        listed.map((s) => s.id),
-        [newest.id, middle.id, oldest.id],
-      );
+      expect(listed.map((s) => s.id), [newest.id, middle.id, oldest.id]);
     });
 
     test('listRecentSeats puts seats without lastUsedAt last', () async {

@@ -27,8 +27,8 @@ class AppDependenciesScope extends InheritedWidget {
   AppDependencies? get dependencies => startup.dependencies;
 
   static AppDependenciesScope of(BuildContext context) {
-    final scope =
-        context.dependOnInheritedWidgetOfExactType<AppDependenciesScope>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<AppDependenciesScope>();
     if (scope == null) {
       throw StateError(
         'No AppDependenciesScope found above this widget — '

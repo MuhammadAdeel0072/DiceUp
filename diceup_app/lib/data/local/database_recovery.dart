@@ -74,10 +74,7 @@ const String kDatabaseRecoveryMessage =
 /// the startup flow (M1.6) can show [kDatabaseRecoveryMessage]
 /// exactly once per recovery event.
 class DatabaseOpenResult {
-  const DatabaseOpenResult({
-    required this.handle,
-    required this.recovered,
-  });
+  const DatabaseOpenResult({required this.handle, required this.recovered});
 
   /// The open database handle. Close it with
   /// [DiceUpDatabase.close] when the app shuts down.
@@ -109,9 +106,7 @@ Future<void> verifyDatabase(Database db) async {
   final tableRows = await db.rawQuery(
     "SELECT name FROM sqlite_master WHERE type = 'table'",
   );
-  final names = <String>{
-    for (final row in tableRows) row['name'] as String,
-  };
+  final names = <String>{for (final row in tableRows) row['name'] as String};
   const requiredTables = <String>{
     'local_matches',
     'local_statistics',

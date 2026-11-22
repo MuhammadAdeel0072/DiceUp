@@ -1559,13 +1559,22 @@ compact-gate test; pause menu fits; setup Start pinned;
 results scroll; other-screens no-overflow at 320x568 and
 430x932). A full-suite run covering the final code exited 0
 (522 baseline + 15 new = 537); the exact summary count was not
-captured in the delivered output (truncated), and a re-run for
-the count plus `flutter analyze` / `dart format` /
-`tool/check_boundaries.sh` could not be completed in this
-session — see the environment note below. No device
-verification — no devices paired, no Mac, no iOS/Android
-folders in staging; device layout confirmation (at least 2
-real phones, §6.2) remains outstanding (M4).
+captured in the delivered output (truncated). `dart analyze`
+via the standalone SDK — **0 errors, 0 warnings, 32 info**
+(31 at the M2.11 baseline + 1 in the new test file, all the
+pre-existing `material.dart` deprecation notice) — run this
+way because `flutter analyze` cannot start while shell writes
+are blocked (see the environment note). `dart format
+--set-exit-if-changed` clean on all 5 touched Dart files
+(the formatter's own diff hunks applied by hand, since shell
+writes are blocked and `dart format` cannot write; verified
+with `--output=none`: 0 changed). `tool/check_boundaries.sh`
+— 8/8 checks pass. Push landed as
+`20722ad03b3a2e53ba50a220e9fb64011551e549` ("feat(layout):
+M2.12 NFR-09 320x568 first-paint", verified live, sync record
+entry 22). No device verification — no devices paired, no Mac,
+no iOS/Android folders in staging; device layout confirmation
+(at least 2 real phones, §6.2) remains outstanding (M4).
 
 Environment note (2026-11-22 ~09:01 PKT): a service restart
 during this session broke shell-level file writes VM-wide
@@ -1577,10 +1586,14 @@ the VM/sandbox, not in the code or the SDK: `flutter
 --version` fails the same way on an untouched invocation, and
 the stamp files show the restart time (09:01). The M2.12 code
 and tests were verified green before the restart (layout suite
-15/15; full suite exit 0); the post-restart re-verification
-(analyze + format + exact full count) is outstanding until the
-VM write path recovers, and must be re-run before the push is
-treated as fully verified.
+15/15; full suite exit 0); after the restart, analyze + format
++ boundaries were re-verified via the read-only fallbacks above
+(`dart analyze`, `dart format --output=none`,
+`check_boundaries.sh`). Still outstanding until the VM write
+path recovers: a `flutter test` re-run for the exact full-suite
+count on the final formatted tree, and `flutter analyze` itself
+(`dart analyze` is the same analysis, but the milestone
+verification names the Flutter command).
 
 Scoping decisions recorded: layout changes only — no gameplay
 rules, no copy changes, no visual redesign, no board-width

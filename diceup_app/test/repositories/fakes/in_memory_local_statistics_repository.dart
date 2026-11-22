@@ -10,8 +10,7 @@ import 'in_memory_store.dart';
 /// history is provably complete (see [InMemoryStore.isHistoryComplete]);
 /// after pruning, the cached lifetime totals are returned unchanged,
 /// because the retained 500 matches cannot reconstruct them.
-class InMemoryLocalStatisticsRepository
-    implements LocalStatisticsRepository {
+class InMemoryLocalStatisticsRepository implements LocalStatisticsRepository {
   InMemoryLocalStatisticsRepository(this._store);
 
   final InMemoryStore _store;

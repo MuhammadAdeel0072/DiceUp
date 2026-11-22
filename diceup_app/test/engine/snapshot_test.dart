@@ -27,8 +27,7 @@ void main() {
       final restored = LudoGame.restore(decoded);
 
       expect(jsonEncode(restored.snapshot()), json);
-      expect(restored.state.currentPlayerIndex,
-          game.state.currentPlayerIndex);
+      expect(restored.state.currentPlayerIndex, game.state.currentPlayerIndex);
       expect(restored.state.moveCount, game.state.moveCount);
       expect(restored.players[0].tokens[0].stepsTaken, 4);
       expect(restored.players[1].tokens[1].stepsTaken, 1);
@@ -44,9 +43,9 @@ void main() {
         phase: TurnPhase.awaitingMove,
       );
       final before = game.legalMoves();
-      final restored =
-          LudoGame.restore(jsonDecode(jsonEncode(game.snapshot()))
-              as Map<String, Object?>);
+      final restored = LudoGame.restore(
+        jsonDecode(jsonEncode(game.snapshot())) as Map<String, Object?>,
+      );
       expect(restored.state.phase, TurnPhase.awaitingMove);
       expect(restored.legalMoves(), before);
     });
@@ -60,8 +59,9 @@ void main() {
         diceRoller: FixedDiceRoller(const [3]),
       );
       expect(restored.rollDice(), 3);
-      final result =
-          restored.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
+      final result = restored.applyMove(
+        const Move(playerIndex: 0, tokenIndex: 0),
+      );
       expect(result.toSteps, 4);
     });
 
@@ -102,8 +102,7 @@ void main() {
       expect(Board.starCells, {8, 21, 34, 47});
     });
 
-    test('a token walks the full path: yard, track, home path, home',
-        () {
+    test('a token walks the full path: yard, track, home path, home', () {
       const board = Board();
       expect(board.cellAt(PlayerColour.red, 0), const Cell.yard());
       expect(board.cellAt(PlayerColour.red, 1), const Cell.track(0));

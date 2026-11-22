@@ -22,17 +22,12 @@ class SqliteLocalMatchRepository implements LocalMatchRepository {
   Future<LocalMatch> recordMatch(LocalMatch match) async {
     final now = toUtcIso(DateTime.now());
     final wonIncrement = match.winnerIsHuman ? 1 : 0;
-    final vsAiIncrement =
-        match.mode == LocalMatchMode.vsAi ? 1 : 0;
-    final localIncrement =
-        match.mode == LocalMatchMode.vsAi ? 0 : 1;
+    final vsAiIncrement = match.mode == LocalMatchMode.vsAi ? 1 : 0;
+    final localIncrement = match.mode == LocalMatchMode.vsAi ? 0 : 1;
     final id = await _db.transaction<int>((txn) async {
       // 1. Insert the match row. Any id on the argument is ignored:
       // the map carries no id, so AUTOINCREMENT assigns a fresh one.
-      final insertedId = await txn.insert(
-        'local_matches',
-        matchToRow(match),
-      );
+      final insertedId = await txn.insert('local_matches', matchToRow(match));
       // 2. Maintain the lifetime statistics INCREMENTALLY from the
       // previous cached values (D-24, b0f7ab0 correction) — never
       // derive them from the retained match list, which is capped

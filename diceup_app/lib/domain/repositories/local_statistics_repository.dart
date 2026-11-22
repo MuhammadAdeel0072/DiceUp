@@ -51,14 +51,13 @@ class LocalStatistics {
     int? matchesVsAi,
     int? matchesLocal,
     DateTime? updatedAt,
-  }) =>
-      LocalStatistics(
-        matchesPlayed: matchesPlayed ?? this.matchesPlayed,
-        matchesWon: matchesWon ?? this.matchesWon,
-        matchesVsAi: matchesVsAi ?? this.matchesVsAi,
-        matchesLocal: matchesLocal ?? this.matchesLocal,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => LocalStatistics(
+    matchesPlayed: matchesPlayed ?? this.matchesPlayed,
+    matchesWon: matchesWon ?? this.matchesWon,
+    matchesVsAi: matchesVsAi ?? this.matchesVsAi,
+    matchesLocal: matchesLocal ?? this.matchesLocal,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -71,12 +70,12 @@ class LocalStatistics {
 
   @override
   int get hashCode => Object.hash(
-        matchesPlayed,
-        matchesWon,
-        matchesVsAi,
-        matchesLocal,
-        updatedAt,
-      );
+    matchesPlayed,
+    matchesWon,
+    matchesVsAi,
+    matchesLocal,
+    updatedAt,
+  );
 }
 
 /// Cached offline-match statistics (SDD §4.3, §9.1 `local_statistics`).

@@ -33,9 +33,7 @@ void main() {
     test('rejects fewer than 2 or more than 4 players', () {
       expect(
         () => LudoGame.newMatch(
-          seats: const [
-            SeatConfig(name: 'Solo', colour: PlayerColour.red),
-          ],
+          seats: const [SeatConfig(name: 'Solo', colour: PlayerColour.red)],
         ),
         throwsA(isA<InvalidMatchConfig>()),
       );
@@ -120,8 +118,10 @@ void main() {
       final result = game.applyMove(const Move(playerIndex: 0, tokenIndex: 2));
       expect(result.fromSteps, 0);
       expect(result.toSteps, 1);
-      expect(game.players[0].tokens[2].cell,
-          const Cell.track(0)); // red start cell
+      expect(
+        game.players[0].tokens[2].cell,
+        const Cell.track(0),
+      ); // red start cell
     });
 
     test('release on 1 works only when the variant is enabled', () {
@@ -158,7 +158,10 @@ void main() {
         lastRoll: 2,
         phase: TurnPhase.awaitingMove,
       );
-      expect(game.legalMoves(), contains(const Move(playerIndex: 0, tokenIndex: 0)));
+      expect(
+        game.legalMoves(),
+        contains(const Move(playerIndex: 0, tokenIndex: 0)),
+      );
       final result = game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
       expect(result.reachedHome, isTrue);
       expect(result.toSteps, 56);
@@ -177,8 +180,7 @@ void main() {
         lastRoll: 3,
         phase: TurnPhase.awaitingMove,
       );
-      final result =
-          game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
+      final result = game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
       expect(result.captured, [const TokenRef(1, 0)]);
       expect(game.players[1].tokens[0].isInYard, isTrue);
       expect(result.extraTurn, isTrue); // capture grants an extra roll
@@ -195,17 +197,13 @@ void main() {
         lastRoll: 3,
         phase: TurnPhase.awaitingMove,
       );
-      final result =
-          game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
+      final result = game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
       expect(result.captured, isEmpty);
       expect(game.players[1].tokens[0].stepsTaken, 1);
     });
 
     test('all 8 safe cells are start cells + star cells', () {
-      expect(
-        Board.safeCells,
-        {0, 8, 13, 21, 26, 34, 39, 47},
-      );
+      expect(Board.safeCells, {0, 8, 13, 21, 26, 34, 39, 47});
       const board = Board();
       expect(board.isSafeTrackCell(8), isTrue);
       expect(board.isSafeTrackCell(9), isFalse);
@@ -222,12 +220,10 @@ void main() {
         lastRoll: 3,
         phase: TurnPhase.awaitingMove,
       );
-      final result =
-          game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
+      final result = game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
       expect(result.enteredHomePath, isTrue);
       expect(result.toSteps, 53);
-      expect(game.players[0].tokens[0].cell,
-          const Cell.homePath(1));
+      expect(game.players[0].tokens[0].cell, const Cell.homePath(1));
     });
   });
 
@@ -241,8 +237,7 @@ void main() {
         lastRoll: 2,
         phase: TurnPhase.awaitingMove,
       );
-      final result =
-          game.applyMove(const Move(playerIndex: 0, tokenIndex: 3));
+      final result = game.applyMove(const Move(playerIndex: 0, tokenIndex: 3));
       expect(result.isWinningMove, isTrue);
       expect(game.isFinished, isTrue);
       expect(game.winnerIndex, 0);
@@ -270,8 +265,7 @@ void main() {
       expect(game.currentPlayerIndex, 1);
     });
 
-    test('a third consecutive six is not played and the turn passes',
-        () {
+    test('a third consecutive six is not played and the turn passes', () {
       final game = freshGame(const [6, 6, 6]);
       game.rollDice();
       game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));

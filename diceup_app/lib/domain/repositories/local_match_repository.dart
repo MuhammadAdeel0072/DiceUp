@@ -13,17 +13,17 @@ enum LocalMatchMode {
 
   /// Storage label used in `local_matches.mode` (SDD §9.1).
   String get label => switch (this) {
-        vsAi => 'vs_ai',
-        localMultiplayer => 'local_multiplayer',
-      };
+    vsAi => 'vs_ai',
+    localMultiplayer => 'local_multiplayer',
+  };
 
   /// Parses a storage label back to a mode. Throws [FormatException]
   /// on an unknown label — never silently defaults to a mode.
   static LocalMatchMode fromLabel(String label) => switch (label) {
-        'vs_ai' => vsAi,
-        'local_multiplayer' => localMultiplayer,
-        _ => throw FormatException('Unknown match mode "$label".'),
-      };
+    'vs_ai' => vsAi,
+    'local_multiplayer' => localMultiplayer,
+    _ => throw FormatException('Unknown match mode "$label".'),
+  };
 }
 
 /// One seat of a completed offline match, as stored in history
@@ -96,9 +96,7 @@ class LocalMatch {
       throw ArgumentError('A match id must be at least 1.');
     }
     if (playerCount < 2 || playerCount > 4) {
-      throw ArgumentError(
-        'A match must have 2–4 players (got $playerCount).',
-      );
+      throw ArgumentError('A match must have 2–4 players (got $playerCount).');
     }
     if (players.length != playerCount) {
       throw ArgumentError(
@@ -174,19 +172,18 @@ class LocalMatch {
     int? durationSeconds,
     String? rulesetVersion,
     DateTime? createdAt,
-  }) =>
-      LocalMatch(
-        id: id ?? this.id,
-        playedAt: playedAt ?? this.playedAt,
-        mode: mode ?? this.mode,
-        playerCount: playerCount ?? this.playerCount,
-        players: players ?? this.players,
-        winnerIndex: winnerIndex ?? this.winnerIndex,
-        winnerName: winnerName ?? this.winnerName,
-        durationSeconds: durationSeconds ?? this.durationSeconds,
-        rulesetVersion: rulesetVersion ?? this.rulesetVersion,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  }) => LocalMatch(
+    id: id ?? this.id,
+    playedAt: playedAt ?? this.playedAt,
+    mode: mode ?? this.mode,
+    playerCount: playerCount ?? this.playerCount,
+    players: players ?? this.players,
+    winnerIndex: winnerIndex ?? this.winnerIndex,
+    winnerName: winnerName ?? this.winnerName,
+    durationSeconds: durationSeconds ?? this.durationSeconds,
+    rulesetVersion: rulesetVersion ?? this.rulesetVersion,
+    createdAt: createdAt ?? this.createdAt,
+  );
 
   @override
   bool operator ==(Object other) {
@@ -211,17 +208,17 @@ class LocalMatch {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        playedAt,
-        mode,
-        playerCount,
-        Object.hashAll(players),
-        winnerIndex,
-        winnerName,
-        durationSeconds,
-        rulesetVersion,
-        createdAt,
-      );
+    id,
+    playedAt,
+    mode,
+    playerCount,
+    Object.hashAll(players),
+    winnerIndex,
+    winnerName,
+    durationSeconds,
+    rulesetVersion,
+    createdAt,
+  );
 }
 
 /// Completed offline matches (SDD §4.3, §9.1 `local_matches`).

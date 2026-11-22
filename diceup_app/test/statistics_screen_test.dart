@@ -20,19 +20,19 @@ void main() {
   sqfliteFfiInit();
 
   AppDependencies fakeDeps(InMemoryStore store) => AppDependencies(
-        matches: InMemoryLocalMatchRepository(store),
-        statistics: InMemoryLocalStatisticsRepository(store),
-        settings: InMemorySettingsRepository(store),
-        players: InMemoryLocalPlayerRepository(store),
-        snapshots: InMemorySnapshotRepository(store),
-      );
+    matches: InMemoryLocalMatchRepository(store),
+    statistics: InMemoryLocalStatisticsRepository(store),
+    settings: InMemorySettingsRepository(store),
+    players: InMemoryLocalPlayerRepository(store),
+    snapshots: InMemorySnapshotRepository(store),
+  );
 
   StartupResult fakeStartup(AppDependencies deps) => StartupResult(
-        dependencies: deps,
-        settings: Map<String, String>.of(kDefaultSettings),
-        snapshotOutcome: const NoSnapshot(),
-        databaseRecovered: false,
-      );
+    dependencies: deps,
+    settings: Map<String, String>.of(kDefaultSettings),
+    snapshotOutcome: const NoSnapshot(),
+    databaseRecovered: false,
+  );
 
   Widget scopedApp(AppDependencies deps, Widget home) {
     return AppDependenciesScope(
@@ -44,10 +44,7 @@ void main() {
   /// The value shown beside [label] in a statistics row: the
   /// label's ancestor [Row] holds exactly one value text.
   void expectStat(String label, String value) {
-    final row = find.ancestor(
-      of: find.text(label),
-      matching: find.byType(Row),
-    );
+    final row = find.ancestor(of: find.text(label), matching: find.byType(Row));
     expect(
       find.descendant(of: row, matching: find.text(value)),
       findsOneWidget,
@@ -61,32 +58,25 @@ void main() {
     required DateTime playedAt,
     required int winnerIndex,
     bool seat1IsAi = false,
-  }) =>
-      LocalMatch(
-        playedAt: playedAt,
-        mode: seat1IsAi
-            ? LocalMatchMode.vsAi
-            : LocalMatchMode.localMultiplayer,
-        playerCount: 2,
-        players: [
-          LocalMatchPlayer(
-            name: 'Player 1',
-            colour: PlayerColour.red,
-            isAi: false,
-          ),
-          LocalMatchPlayer(
-            name: 'Player 2',
-            colour: PlayerColour.green,
-            isAi: seat1IsAi,
-            difficulty: seat1IsAi ? AiDifficulty.easy : null,
-          ),
-        ],
-        winnerIndex: winnerIndex,
-        winnerName: 'Player ${winnerIndex + 1}',
-        durationSeconds: 95,
-        rulesetVersion: '1.0.0',
-        createdAt: playedAt,
-      );
+  }) => LocalMatch(
+    playedAt: playedAt,
+    mode: seat1IsAi ? LocalMatchMode.vsAi : LocalMatchMode.localMultiplayer,
+    playerCount: 2,
+    players: [
+      LocalMatchPlayer(name: 'Player 1', colour: PlayerColour.red, isAi: false),
+      LocalMatchPlayer(
+        name: 'Player 2',
+        colour: PlayerColour.green,
+        isAi: seat1IsAi,
+        difficulty: seat1IsAi ? AiDifficulty.easy : null,
+      ),
+    ],
+    winnerIndex: winnerIndex,
+    winnerName: 'Player ${winnerIndex + 1}',
+    durationSeconds: 95,
+    rulesetVersion: '1.0.0',
+    createdAt: playedAt,
+  );
 
   group('statistics screen', () {
     testWidgets('shows persisted lifetime statistics', (tester) async {
@@ -245,11 +235,10 @@ void main() {
       expectStat('Matches played', '0');
     });
 
-    testWidgets('unavailable database shows the unavailable state',
-        (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: StatisticsScreen()),
-      );
+    testWidgets('unavailable database shows the unavailable state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: StatisticsScreen()));
       await tester.pumpAndSettle();
       expect(find.text('Statistics unavailable'), findsOneWidget);
     });

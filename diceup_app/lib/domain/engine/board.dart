@@ -29,17 +29,13 @@ enum CellKind {
 /// today — the painter duplicates the geometry instead (M-08); SDD §6.2's
 /// claim is aspirational until M3.5 derives it from [Board].)
 class Cell {
-  const Cell.yard()
-      : kind = CellKind.yard,
-        index = -1;
+  const Cell.yard() : kind = CellKind.yard, index = -1;
 
   const Cell.track(this.index) : kind = CellKind.track;
 
   const Cell.homePath(this.index) : kind = CellKind.homePath;
 
-  const Cell.home()
-      : kind = CellKind.home,
-        index = -1;
+  const Cell.home() : kind = CellKind.home, index = -1;
 
   final CellKind kind;
 
@@ -129,8 +125,7 @@ class Board {
       // is home (D-20: 51 + 4 + 1 = 56).
       return Cell.homePath(stepsTaken - lastTrackStep - 1);
     }
-    final trackIndex =
-        (startCell(colour) + stepsTaken - 1) % trackSize;
+    final trackIndex = (startCell(colour) + stepsTaken - 1) % trackSize;
     return Cell.track(trackIndex);
   }
 }

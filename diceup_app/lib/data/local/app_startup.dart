@@ -84,10 +84,7 @@ Future<StartupResult> initializeApp({
   final fallbackSettings = Map<String, String>.of(kDefaultSettings);
   late final DatabaseOpenResult open;
   try {
-    open = await openDiceUpDatabaseWithRecovery(
-      factory: factory,
-      path: path,
-    );
+    open = await openDiceUpDatabaseWithRecovery(factory: factory, path: path);
   } catch (error) {
     log(
       'DiceUp startup: database could not be opened even after '
@@ -117,8 +114,7 @@ Future<StartupResult> initializeApp({
   }
   SnapshotLoadOutcome snapshotOutcome;
   try {
-    snapshotOutcome =
-        await loadSnapshotForResume(dependencies.snapshots);
+    snapshotOutcome = await loadSnapshotForResume(dependencies.snapshots);
   } catch (error) {
     log(
       'DiceUp startup: snapshot could not be read ($error); '

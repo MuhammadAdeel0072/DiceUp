@@ -39,8 +39,7 @@ class InMemoryRepositoryFailure implements Exception {
 /// match `playedAt`/`createdAt`, snapshot `savedAt` and seat
 /// `lastUsedAt` all come from the caller.
 class InMemoryStore {
-  InMemoryStore({DateTime Function()? clock})
-      : _clock = clock ?? DateTime.now {
+  InMemoryStore({DateTime Function()? clock}) : _clock = clock ?? DateTime.now {
     statistics = computeStatistics();
   }
 
@@ -80,9 +79,7 @@ class InMemoryStore {
   /// [InMemoryRepositoryFailure]), then the flag clears itself, so
   /// the call after that succeeds. Lets M3 use-case tests verify
   /// error propagation without a real database failure.
-  void failNextCall([
-    Object error = const InMemoryRepositoryFailure(),
-  ]) {
+  void failNextCall([Object error = const InMemoryRepositoryFailure()]) {
     _nextFailure = error;
   }
 
@@ -144,12 +141,11 @@ class InMemoryStore {
     final current = statistics;
     statistics = LocalStatistics(
       matchesPlayed: current.matchesPlayed + 1,
-      matchesWon:
-          current.matchesWon + (match.winnerIsHuman ? 1 : 0),
-      matchesVsAi: current.matchesVsAi +
-          (match.mode == LocalMatchMode.vsAi ? 1 : 0),
-      matchesLocal: current.matchesLocal +
-          (match.mode == LocalMatchMode.vsAi ? 0 : 1),
+      matchesWon: current.matchesWon + (match.winnerIsHuman ? 1 : 0),
+      matchesVsAi:
+          current.matchesVsAi + (match.mode == LocalMatchMode.vsAi ? 1 : 0),
+      matchesLocal:
+          current.matchesLocal + (match.mode == LocalMatchMode.vsAi ? 0 : 1),
       updatedAt: now,
     );
   }

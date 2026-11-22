@@ -59,28 +59,24 @@ void main() {
   /// One completed 2-player match (human win), for seeding and for
   /// proving the repositories work on a recreated database.
   LocalMatch sampleMatch() => LocalMatch(
-        playedAt: DateTime.utc(2026, 11, 21, 12, 0),
-        mode: LocalMatchMode.vsAi,
-        playerCount: 2,
-        players: [
-          LocalMatchPlayer(
-            name: 'Red',
-            colour: PlayerColour.red,
-            isAi: false,
-          ),
-          LocalMatchPlayer(
-            name: 'CPU',
-            colour: PlayerColour.green,
-            isAi: true,
-            difficulty: AiDifficulty.easy,
-          ),
-        ],
-        winnerIndex: 0,
-        winnerName: 'Red',
-        durationSeconds: 123,
-        rulesetVersion: '1.0.0',
-        createdAt: DateTime.utc(2026, 11, 21, 12, 0),
-      );
+    playedAt: DateTime.utc(2026, 11, 21, 12, 0),
+    mode: LocalMatchMode.vsAi,
+    playerCount: 2,
+    players: [
+      LocalMatchPlayer(name: 'Red', colour: PlayerColour.red, isAi: false),
+      LocalMatchPlayer(
+        name: 'CPU',
+        colour: PlayerColour.green,
+        isAi: true,
+        difficulty: AiDifficulty.easy,
+      ),
+    ],
+    winnerIndex: 0,
+    winnerName: 'Red',
+    durationSeconds: 123,
+    rulesetVersion: '1.0.0',
+    createdAt: DateTime.utc(2026, 11, 21, 12, 0),
+  );
 
   /// The five repositories on [db], for asserting on the database
   /// behind an open result.
@@ -91,11 +87,11 @@ void main() {
     SqliteSnapshotRepository snapshots,
   })
   openRepositories(Database db) => (
-        matches: SqliteLocalMatchRepository(db),
-        statistics: SqliteLocalStatisticsRepository(db),
-        settings: SqliteSettingsRepository(db),
-        snapshots: SqliteSnapshotRepository(db),
-      );
+    matches: SqliteLocalMatchRepository(db),
+    statistics: SqliteLocalStatisticsRepository(db),
+    settings: SqliteSettingsRepository(db),
+    snapshots: SqliteSnapshotRepository(db),
+  );
 
   /// A valid in-progress snapshot JSON: a real 2-player match
   /// serialised by the engine, so it passes strict validation.
@@ -119,14 +115,12 @@ void main() {
   }
 
   group('openDatabaseWithRecovery — genuine corruption', () {
-    test('garbage file: recovers, fresh schema v1, usable database',
-        () async {
+    test('garbage file: recovers, fresh schema v1, usable database', () async {
       final dir = await tempDir();
       final path = p.join(dir.path, 'diceup.db');
       // Garbage bytes: not a SQLite file at all, so the open throws.
-      await File(path).writeAsBytes(
-        List<int>.generate(64, (i) => (i * 7 + 3) % 256),
-      );
+      await File(path)
+          .writeAsBytes(List<int>.generate(64, (i) => (i * 7 + 3) % 256));
 
       final result = await openDatabaseWithRecovery(tempHandle(path));
 
@@ -176,9 +170,8 @@ void main() {
         'absent, statistics zeros', () async {
       final dir = await tempDir();
       final path = p.join(dir.path, 'diceup.db');
-      await File(path).writeAsBytes(
-        List<int>.generate(64, (i) => (i * 7 + 3) % 256),
-      );
+      await File(path)
+          .writeAsBytes(List<int>.generate(64, (i) => (i * 7 + 3) % 256));
 
       final result = await openDatabaseWithRecovery(tempHandle(path));
       expect(result.recovered, isTrue);
@@ -194,10 +187,7 @@ void main() {
       expect(statistics.matchesVsAi, 0);
       expect(statistics.matchesLocal, 0);
       expect(await repos.matches.countMatches(), 0);
-      expect(
-        await repos.snapshots.hasSnapshot(kCurrentMatchKey),
-        isFalse,
-      );
+      expect(await repos.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
       await result.handle.close();
     });
 
@@ -228,13 +218,11 @@ void main() {
       expect(statistics.matchesVsAi, 1);
     });
 
-    test('recovery is reported exactly once per recovery event',
-        () async {
+    test('recovery is reported exactly once per recovery event', () async {
       final dir = await tempDir();
       final path = p.join(dir.path, 'diceup.db');
-      await File(path).writeAsBytes(
-        List<int>.generate(64, (i) => (i * 7 + 3) % 256),
-      );
+      await File(path)
+          .writeAsBytes(List<int>.generate(64, (i) => (i * 7 + 3) % 256));
 
       final recovered = await openDatabaseWithRecovery(tempHandle(path));
       expect(recovered.recovered, isTrue);
@@ -244,21 +232,14 @@ void main() {
       // no recovery, and a repeat call on the open handle does too.
       final again = await openDatabaseWithRecovery(tempHandle(path));
       expect(again.recovered, isFalse);
-      expect(
-        (await openDatabaseWithRecovery(again.handle)).recovered,
-        isFalse,
-      );
+      expect((await openDatabaseWithRecovery(again.handle)).recovered, isFalse);
       await again.handle.close();
     });
 
-    test('recreation failure surfaces: factory throws on every open',
-        () async {
+    test('recreation failure surfaces: factory throws on every open', () async {
       final dir = await tempDir();
       final path = p.join(dir.path, 'diceup.db');
-      final database = tempHandle(
-        path,
-        factory: ThrowingDatabaseFactory(),
-      );
+      final database = tempHandle(path, factory: ThrowingDatabaseFactory());
 
       // No infinite loop and no silent success: the open failure
       // surfaces (the test itself would time out if recovery looped).
@@ -269,8 +250,7 @@ void main() {
       expect(database.isOpen, isFalse);
     });
 
-    test('recreation failure surfaces on an in-memory database too',
-        () async {
+    test('recreation failure surfaces on an in-memory database too', () async {
       final database = DiceUpDatabase(
         factory: ThrowingDatabaseFactory(),
         path: inMemoryDatabasePath,
@@ -311,9 +291,7 @@ void main() {
       final reopened = await openDatabaseWithRecovery(tempHandle(path));
       expect(reopened.recovered, isFalse);
       expect(
-        await SqliteLocalMatchRepository(
-          reopened.database,
-        ).countMatches(),
+        await SqliteLocalMatchRepository(reopened.database).countMatches(),
         1,
       );
       await reopened.handle.close();
@@ -343,17 +321,15 @@ void main() {
       // The failed match left nothing behind; the first match and
       // its statistics survive untouched.
       expect(await matches.countMatches(), 1);
-      final statistics =
-          await SqliteLocalStatisticsRepository(inner).getStatistics();
+      final statistics = await SqliteLocalStatisticsRepository(inner)
+          .getStatistics();
       expect(statistics.matchesPlayed, 1);
       await database.close();
 
       final reopened = await openDatabaseWithRecovery(tempHandle(path));
       expect(reopened.recovered, isFalse);
       expect(
-        await SqliteLocalMatchRepository(
-          reopened.database,
-        ).countMatches(),
+        await SqliteLocalMatchRepository(reopened.database).countMatches(),
         1,
       );
       await reopened.handle.close();
@@ -407,10 +383,7 @@ void main() {
       // a corrupt snapshot was found and discarded.
       expect(outcome, isA<CorruptSnapshotDiscarded>());
       expect(await repos.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
-      expect(
-        await repos.snapshots.loadSnapshot(kCurrentMatchKey),
-        isNull,
-      );
+      expect(await repos.snapshots.loadSnapshot(kCurrentMatchKey), isNull);
       // Everything else survives: only the bad snapshot row is gone.
       expect(await repos.matches.countMatches(), 1);
       expect(await repos.settings.getSetting('sound_volume'), '42');
@@ -494,10 +467,7 @@ void main() {
 /// recreation that itself fails surfaces instead of looping.
 class ThrowingDatabaseFactory implements DatabaseFactory {
   @override
-  Future<Database> openDatabase(
-    String path, {
-    OpenDatabaseOptions? options,
-  }) =>
+  Future<Database> openDatabase(String path, {OpenDatabaseOptions? options}) =>
       throw StateError('Simulated database open failure.');
 
   @override
@@ -509,8 +479,7 @@ class ThrowingDatabaseFactory implements DatabaseFactory {
       databaseFactoryFfi.databaseExists(path);
 
   @override
-  Future<String> getDatabasesPath() =>
-      databaseFactoryFfi.getDatabasesPath();
+  Future<String> getDatabasesPath() => databaseFactoryFfi.getDatabasesPath();
 
   @override
   Future<void> setDatabasesPath(String path) =>
@@ -533,8 +502,7 @@ class FailingReadDatabase extends FailingDatabase {
   // failing_database.dart (`_inner`, `_plan`), so they cannot be
   // named as super parameters here.
   // ignore: use_super_parameters
-  FailingReadDatabase(Database inner, FailurePlan plan)
-      : super(inner, plan);
+  FailingReadDatabase(Database inner, FailurePlan plan) : super(inner, plan);
 
   bool failReads = false;
 

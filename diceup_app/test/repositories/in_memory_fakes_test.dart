@@ -3,8 +3,7 @@ import 'package:diceup/domain/repositories/snapshot_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fakes/fakes.dart';
-import 'repository_contract_test.dart'
-    show RepositorySet, testMatch, testSeat;
+import 'repository_contract_test.dart' show RepositorySet, testMatch, testSeat;
 
 /// Fake-specific behaviour that cannot be expressed through the
 /// abstract interfaces alone: failure injection, deliberately
@@ -56,17 +55,13 @@ void main() {
       expect(await repos.settings.getSetting('sound_enabled'), isNull);
     });
 
-    test('the flag is shared: it fails any fake on the store',
-        () async {
+    test('the flag is shared: it fails any fake on the store', () async {
       store.failNextCall();
       await expectLater(
         () => repos.snapshots.loadSnapshot(kCurrentMatchKey),
         throwsA(isA<InMemoryRepositoryFailure>()),
       );
-      expect(
-        await repos.snapshots.hasSnapshot(kCurrentMatchKey),
-        isFalse,
-      );
+      expect(await repos.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
     });
 
     test('a failed recordMatch leaves no partial state', () async {
@@ -88,49 +83,47 @@ void main() {
       expect(await repos.matches.countMatches(), 0);
       final stats = await repos.statistics.getStatistics();
       expect(stats.matchesPlayed, 0);
-      expect(
-        await repos.snapshots.hasSnapshot(kCurrentMatchKey),
-        isTrue,
-      );
+      expect(await repos.snapshots.hasSnapshot(kCurrentMatchKey), isTrue);
     });
 
-    test('a failed recomputeFromHistory leaves the cached row untouched',
-        () async {
-      await repos.matches.recordMatch(testMatch(winnerIndex: 0));
-      final before = await repos.statistics.getStatistics();
-      store.failNextCall();
-      await expectLater(
-        () => repos.statistics.recomputeFromHistory(),
-        throwsA(isA<InMemoryRepositoryFailure>()),
-      );
-      expect(await repos.statistics.getStatistics(), before);
-    });
+    test(
+      'a failed recomputeFromHistory leaves the cached row untouched',
+      () async {
+        await repos.matches.recordMatch(testMatch(winnerIndex: 0));
+        final before = await repos.statistics.getStatistics();
+        store.failNextCall();
+        await expectLater(
+          () => repos.statistics.recomputeFromHistory(),
+          throwsA(isA<InMemoryRepositoryFailure>()),
+        );
+        expect(await repos.statistics.getStatistics(), before);
+      },
+    );
   });
 
   group('diverged statistics', () {
-    test('recomputeFromHistory repairs deliberately diverged statistics',
-        () async {
-      await repos.matches.recordMatch(testMatch(winnerIndex: 0));
-      await repos.matches.recordMatch(testMatch(winnerIndex: 1));
-      // Diverge the cached row directly, as storage corruption would.
-      store.statistics = LocalStatistics(
-        matchesPlayed: 99,
-        matchesWon: 99,
-        matchesVsAi: 99,
-        matchesLocal: 99,
-        updatedAt: DateTime.utc(2020, 1, 1),
-      );
-      expect((await repos.statistics.getStatistics()).matchesPlayed, 99);
-      final repaired = await repos.statistics.recomputeFromHistory();
-      expect(repaired.matchesPlayed, 2);
-      expect(repaired.matchesWon, 1);
-      expect(repaired.matchesVsAi, 2);
-      expect(repaired.matchesLocal, 0);
-      expect(
-        (await repos.statistics.getStatistics()).matchesPlayed,
-        2,
-      );
-    });
+    test(
+      'recomputeFromHistory repairs deliberately diverged statistics',
+      () async {
+        await repos.matches.recordMatch(testMatch(winnerIndex: 0));
+        await repos.matches.recordMatch(testMatch(winnerIndex: 1));
+        // Diverge the cached row directly, as storage corruption would.
+        store.statistics = LocalStatistics(
+          matchesPlayed: 99,
+          matchesWon: 99,
+          matchesVsAi: 99,
+          matchesLocal: 99,
+          updatedAt: DateTime.utc(2020, 1, 1),
+        );
+        expect((await repos.statistics.getStatistics()).matchesPlayed, 99);
+        final repaired = await repos.statistics.recomputeFromHistory();
+        expect(repaired.matchesPlayed, 2);
+        expect(repaired.matchesWon, 1);
+        expect(repaired.matchesVsAi, 2);
+        expect(repaired.matchesLocal, 0);
+        expect((await repos.statistics.getStatistics()).matchesPlayed, 2);
+      },
+    );
 
     test('recomputeFromHistory does not repair diverged statistics '
         'after pruning', () async {
@@ -140,10 +133,7 @@ void main() {
           testMatch(playedAt: base.add(Duration(minutes: i))),
         );
       }
-      expect(
-        (await repos.statistics.getStatistics()).matchesPlayed,
-        700,
-      );
+      expect((await repos.statistics.getStatistics()).matchesPlayed, 700);
       // Diverge the cached row directly, as storage corruption would.
       store.statistics = LocalStatistics(
         matchesPlayed: 99,
@@ -162,10 +152,7 @@ void main() {
       expect(recomputed.matchesVsAi, 99);
       expect(recomputed.matchesLocal, 99);
       expect(recomputed.updatedAt, DateTime.utc(2020, 1, 1));
-      expect(
-        (await repos.statistics.getStatistics()).matchesPlayed,
-        99,
-      );
+      expect((await repos.statistics.getStatistics()).matchesPlayed, 99);
     });
   });
 

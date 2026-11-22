@@ -43,25 +43,29 @@ void main() {
     final underTest = saver(s);
     underTest.save(stateWithMoveCount(3));
     await underTest.flush;
-    expect(await InMemorySnapshotRepository(s).hasSnapshot(kCurrentMatchKey),
-        isTrue);
+    expect(
+      await InMemorySnapshotRepository(s).hasSnapshot(kCurrentMatchKey),
+      isTrue,
+    );
     expect(savedMoveCount(s), 3);
   });
 
-  test('consecutive saves land in order: newer never overwritten by older',
-      () async {
-    final s = store();
-    final inner = InMemorySnapshotRepository(s);
-    // The first write is slow (30 ms); the second is instant. If
-    // writes ran concurrently, the slow first write would land
-    // after the second and the stored state would be stale.
-    final slow = _DelayedSnapshotRepository(inner, firstDelay: 30);
-    final underTest = SnapshotSaver(slow);
-    underTest.save(stateWithMoveCount(1));
-    underTest.save(stateWithMoveCount(2));
-    await underTest.flush;
-    expect(savedMoveCount(s), 2);
-  });
+  test(
+    'consecutive saves land in order: newer never overwritten by older',
+    () async {
+      final s = store();
+      final inner = InMemorySnapshotRepository(s);
+      // The first write is slow (30 ms); the second is instant. If
+      // writes ran concurrently, the slow first write would land
+      // after the second and the stored state would be stale.
+      final slow = _DelayedSnapshotRepository(inner, firstDelay: 30);
+      final underTest = SnapshotSaver(slow);
+      underTest.save(stateWithMoveCount(1));
+      underTest.save(stateWithMoveCount(2));
+      await underTest.flush;
+      expect(savedMoveCount(s), 2);
+    },
+  );
 
   test('discard drops a queued save', () async {
     final s = store();
@@ -87,8 +91,7 @@ void main() {
     );
   });
 
-  test('invalidate drops queued saves without deleting the row',
-      () async {
+  test('invalidate drops queued saves without deleting the row', () async {
     final s = store();
     final underTest = saver(s);
     underTest.save(stateWithMoveCount(1));
@@ -100,8 +103,7 @@ void main() {
     expect(savedMoveCount(s), 1);
   });
 
-  test('a failed save does not throw and does not wedge later saves',
-      () async {
+  test('a failed save does not throw and does not wedge later saves', () async {
     final s = store();
     final underTest = saver(s);
     s.failNextCall();
@@ -150,8 +152,7 @@ class _DelayedSnapshotRepository implements SnapshotRepository {
       _inner.deleteSnapshot(matchKey);
 
   @override
-  Future<bool> hasSnapshot(String matchKey) =>
-      _inner.hasSnapshot(matchKey);
+  Future<bool> hasSnapshot(String matchKey) => _inner.hasSnapshot(matchKey);
 
   @override
   Future<SavedSnapshot?> loadSnapshot(String matchKey) =>

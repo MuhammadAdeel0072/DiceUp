@@ -55,13 +55,13 @@ void main() {
     SqliteLocalPlayerRepository players,
   })
   openRepositories(Database db) => (
-        db: db,
-        matches: SqliteLocalMatchRepository(db),
-        statistics: SqliteLocalStatisticsRepository(db),
-        settings: SqliteSettingsRepository(db),
-        snapshots: SqliteSnapshotRepository(db),
-        players: SqliteLocalPlayerRepository(db),
-      );
+    db: db,
+    matches: SqliteLocalMatchRepository(db),
+    statistics: SqliteLocalStatisticsRepository(db),
+    settings: SqliteSettingsRepository(db),
+    snapshots: SqliteSnapshotRepository(db),
+    players: SqliteLocalPlayerRepository(db),
+  );
 
   /// Reads the single statistics row as a plain map.
   Future<Map<String, Object?>> readStatisticsRow(Database db) async {
@@ -176,28 +176,15 @@ void main() {
           ],
         ),
       );
-      final rows = await repos.db.query(
-        'local_matches',
-        orderBy: 'id ASC',
-      );
+      final rows = await repos.db.query('local_matches', orderBy: 'id ASC');
+      expect(rows[0]['players_json'], contains('"difficulty":null'));
+      expect(rows[1]['players_json'], contains('"difficulty":"medium"'));
       expect(
-        rows[0]['players_json'],
-        contains('"difficulty":null'),
-      );
-      expect(
-        rows[1]['players_json'],
-        contains('"difficulty":"medium"'),
-      );
-      expect(
-        (await repos.matches.getMatch(unspecified.id!))!
-            .players[1]
-            .difficulty,
+        (await repos.matches.getMatch(unspecified.id!))!.players[1].difficulty,
         isNull,
       );
       expect(
-        (await repos.matches.getMatch(medium.id!))!
-            .players[1]
-            .difficulty,
+        (await repos.matches.getMatch(medium.id!))!.players[1].difficulty,
         AiDifficulty.medium,
       );
     });
@@ -206,10 +193,7 @@ void main() {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       const difficultiesJson = '{"0":"easy","1":"medium","2":"hard"}';
-      await repos.settings.setSetting(
-        'last_difficulties',
-        difficultiesJson,
-      );
+      await repos.settings.setSetting('last_difficulties', difficultiesJson);
       expect(
         await repos.settings.getSetting('last_difficulties'),
         difficultiesJson,
@@ -238,40 +222,35 @@ void main() {
       );
       final rows = await repos.db.query('saved_match_snapshots');
       expect(rows.single['snapshot_json'], snapshotJson);
-      final loaded =
-          await repos.snapshots.loadSnapshot(kCurrentMatchKey);
+      final loaded = await repos.snapshots.loadSnapshot(kCurrentMatchKey);
       expect(loaded?.snapshotJson, snapshotJson);
-      expect(
-        loaded?.savedAt,
-        DateTime.utc(2026, 11, 21, 12, 0),
-      );
+      expect(loaded?.savedAt, DateTime.utc(2026, 11, 21, 12, 0));
     });
 
-    test('seat round-trip preserves unicode, difficulty and lastUsedAt',
-        () async {
-      final database = await openInMemoryDatabase();
-      final repos = openRepositories(database.database);
-      final seat = LocalPlayerSeat(
-        displayName: 'Åsa 🎲',
-        colour: PlayerColour.yellow,
-        isAi: true,
-        difficulty: AiDifficulty.hard,
-        lastUsedAt: DateTime.utc(2026, 11, 20, 9, 30),
-      );
-      final stored = await repos.players.upsertSeat(seat);
-      expect(stored.id, 1);
-      final listed = await repos.players.listRecentSeats();
-      expect(listed, [seat.copyWith(id: 1)]);
-      final rows = await repos.db.query('local_players');
-      expect(rows.single['display_name'], 'Åsa 🎲');
-      expect(rows.single['colour'], 'yellow');
-      expect(rows.single['is_ai'], 1);
-      expect(rows.single['difficulty'], 'hard');
-      expect(
-        rows.single['last_used_at'],
-        '2026-11-20T09:30:00.000Z',
-      );
-    });
+    test(
+      'seat round-trip preserves unicode, difficulty and lastUsedAt',
+      () async {
+        final database = await openInMemoryDatabase();
+        final repos = openRepositories(database.database);
+        final seat = LocalPlayerSeat(
+          displayName: 'Åsa 🎲',
+          colour: PlayerColour.yellow,
+          isAi: true,
+          difficulty: AiDifficulty.hard,
+          lastUsedAt: DateTime.utc(2026, 11, 20, 9, 30),
+        );
+        final stored = await repos.players.upsertSeat(seat);
+        expect(stored.id, 1);
+        final listed = await repos.players.listRecentSeats();
+        expect(listed, [seat.copyWith(id: 1)]);
+        final rows = await repos.db.query('local_players');
+        expect(rows.single['display_name'], 'Åsa 🎲');
+        expect(rows.single['colour'], 'yellow');
+        expect(rows.single['is_ai'], 1);
+        expect(rows.single['difficulty'], 'hard');
+        expect(rows.single['last_used_at'], '2026-11-20T09:30:00.000Z');
+      },
+    );
   });
 
   group('strict parsing of corrupt rows', () {
@@ -293,10 +272,7 @@ void main() {
         () => repos.matches.listMatches(),
         throwsFormatException,
       );
-      await expectLater(
-        () => repos.matches.getMatch(1),
-        throwsFormatException,
-      );
+      await expectLater(() => repos.matches.getMatch(1), throwsFormatException);
     });
 
     test('unknown colour label throws FormatException', () async {
@@ -370,8 +346,7 @@ void main() {
       );
     });
 
-    test('recompute throws FormatException on corrupt history',
-        () async {
+    test('recompute throws FormatException on corrupt history', () async {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       await repos.db.insert('local_matches', <String, Object?>{
@@ -395,23 +370,15 @@ void main() {
   });
 
   group('missing-record behaviour', () {
-    test('plain misses return null / false / no-op, never throw',
-        () async {
+    test('plain misses return null / false / no-op, never throw', () async {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       expect(await repos.matches.getMatch(999), isNull);
       expect(await repos.matches.getMatch(1), isNull);
-      expect(await repos.snapshots.loadSnapshot(kCurrentMatchKey),
-          isNull);
-      expect(
-        await repos.snapshots.hasSnapshot(kCurrentMatchKey),
-        isFalse,
-      );
+      expect(await repos.snapshots.loadSnapshot(kCurrentMatchKey), isNull);
+      expect(await repos.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
       await repos.snapshots.deleteSnapshot(kCurrentMatchKey);
-      expect(
-        await repos.snapshots.hasSnapshot(kCurrentMatchKey),
-        isFalse,
-      );
+      expect(await repos.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
       expect(await repos.settings.getSetting('no_such_key'), isNull);
       // Seeded keys are NOT misses on a fresh database (M1.3).
       expect(await repos.settings.getSetting('last_mode'), isNull);
@@ -423,10 +390,7 @@ void main() {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       expect(await repos.settings.getSetting('sound_enabled'), '1');
-      expect(
-        await repos.settings.getSetting('vibration_enabled'),
-        '1',
-      );
+      expect(await repos.settings.getSetting('vibration_enabled'), '1');
       expect(await repos.settings.getSetting('sound_volume'), '100');
       expect(await repos.settings.getAllSettings(), kDefaultSettings);
       // The statistics seed is zeros.
@@ -461,10 +425,7 @@ void main() {
     Future<void> expectRecordMatchRollback(int failingWrite) async {
       final database = await openInMemoryDatabase();
       final plan = FailurePlan();
-      final failingDb = FailingDatabase(
-        database.database,
-        plan,
-      );
+      final failingDb = FailingDatabase(database.database, plan);
       final repos = openRepositories(failingDb);
       // Baseline state (wrapper disarmed): one recorded match, then
       // one in-progress snapshot saved AFTER it — recordMatch
@@ -499,13 +460,9 @@ void main() {
       // statistics byte-identical, snapshot intact.
       expect(await repos.matches.countMatches(), 1);
       expect(await repos.matches.getMatch(2), isNull);
+      expect(await readStatisticsRow(database.database), baselineStats);
       expect(
-        await readStatisticsRow(database.database),
-        baselineStats,
-      );
-      expect(
-        (await repos.snapshots.loadSnapshot(kCurrentMatchKey))
-            ?.snapshotJson,
+        (await repos.snapshots.loadSnapshot(kCurrentMatchKey))?.snapshotJson,
         '{"in":"progress"}',
       );
     }
@@ -514,8 +471,7 @@ void main() {
       await expectRecordMatchRollback(1);
     });
 
-    test('recordMatch rolls back when the statistics update fails',
-        () async {
+    test('recordMatch rolls back when the statistics update fails', () async {
       await expectRecordMatchRollback(2);
     });
 
@@ -523,13 +479,11 @@ void main() {
       await expectRecordMatchRollback(3);
     });
 
-    test('recordMatch rolls back when the snapshot delete fails',
-        () async {
+    test('recordMatch rolls back when the snapshot delete fails', () async {
       await expectRecordMatchRollback(4);
     });
 
-    test('clearHistory rolls back when the statistics reset fails',
-        () async {
+    test('clearHistory rolls back when the statistics reset fails', () async {
       final database = await openInMemoryDatabase();
       final plan = FailurePlan();
       final failingDb = FailingDatabase(database.database, plan);
@@ -555,8 +509,7 @@ void main() {
       expect(stats.matchesLocal, 1);
     });
 
-    test('resetToDefaults rolls back when a default insert fails',
-        () async {
+    test('resetToDefaults rolls back when a default insert fails', () async {
       final database = await openInMemoryDatabase();
       final plan = FailurePlan();
       final failingDb = FailingDatabase(database.database, plan);
@@ -583,8 +536,7 @@ void main() {
   });
 
   group('lifetime statistics beyond the 500-match cap', () {
-    test('501 / 502 / 700: totals stay exact, rows stay capped',
-        () async {
+    test('501 / 502 / 700: totals stay exact, rows stay capped', () async {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       final base = DateTime.utc(2026, 1, 1);
@@ -644,10 +596,7 @@ void main() {
 
       for (var i = 502; i < 700; i++) {
         await repos.matches.recordMatch(
-          testMatch(
-            playedAt: base.add(Duration(minutes: i)),
-            winnerIndex: 1,
-          ),
+          testMatch(playedAt: base.add(Duration(minutes: i)), winnerIndex: 1),
         );
       }
       expect(await repos.matches.countMatches(), kMaxLocalMatches);
@@ -661,8 +610,7 @@ void main() {
       expect(stats.matchesLocal, 200);
     });
 
-    test('recompute cannot overwrite lifetime totals after pruning',
-        () async {
+    test('recompute cannot overwrite lifetime totals after pruning', () async {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       final base = DateTime.utc(2026, 1, 1);
@@ -683,10 +631,7 @@ void main() {
       // lifetime totals (including updatedAt) come back unchanged.
       final recomputed = await repos.statistics.recomputeFromHistory();
       expect(recomputed, cached);
-      expect(
-        (await repos.statistics.getStatistics()).matchesPlayed,
-        700,
-      );
+      expect((await repos.statistics.getStatistics()).matchesPlayed, 700);
     });
 
     test('a diverged cache is NOT repaired after pruning', () async {
@@ -695,16 +640,10 @@ void main() {
       final base = DateTime.utc(2026, 1, 1);
       for (var i = 0; i < 700; i++) {
         await repos.matches.recordMatch(
-          testMatch(
-            playedAt: base.add(Duration(minutes: i)),
-            winnerIndex: 1,
-          ),
+          testMatch(playedAt: base.add(Duration(minutes: i)), winnerIndex: 1),
         );
       }
-      expect(
-        (await repos.statistics.getStatistics()).matchesPlayed,
-        700,
-      );
+      expect((await repos.statistics.getStatistics()).matchesPlayed, 700);
       // Corrupt the cache to wrong values with a fixed updatedAt.
       await corruptStatistics(
         database.database,
@@ -720,43 +659,38 @@ void main() {
       expect(recomputed.matchesWon, 99);
       expect(recomputed.matchesVsAi, 99);
       expect(recomputed.matchesLocal, 99);
-      expect(
-        recomputed.updatedAt,
-        DateTime.parse('2026-01-01T00:00:00.000Z'),
-      );
+      expect(recomputed.updatedAt, DateTime.parse('2026-01-01T00:00:00.000Z'));
       final stillCached = await repos.statistics.getStatistics();
       expect(stillCached, recomputed);
     });
 
-    test('recompute repairs a diverged cache when history is complete',
-        () async {
-      final database = await openInMemoryDatabase();
-      final repos = openRepositories(database.database);
-      await repos.matches.recordMatch(testMatch(winnerIndex: 0));
-      await repos.matches.recordMatch(testMatch(winnerIndex: 1));
-      await repos.matches.recordMatch(
-        testMatch(mode: LocalMatchMode.localMultiplayer, winnerIndex: 0),
-      );
-      await corruptStatistics(
-        database.database,
-        played: 99,
-        won: 50,
-        vsAi: 50,
-        local: 50,
-      );
-      final recomputed = await repos.statistics.recomputeFromHistory();
-      expect(recomputed.matchesPlayed, 3);
-      expect(recomputed.matchesWon, 2);
-      expect(recomputed.matchesVsAi, 2);
-      expect(recomputed.matchesLocal, 1);
-      expect(
-        (await repos.statistics.getStatistics()).matchesPlayed,
-        3,
-      );
-    });
-
     test(
-        'recompute refuses repair at exactly 500 matches when the '
+      'recompute repairs a diverged cache when history is complete',
+      () async {
+        final database = await openInMemoryDatabase();
+        final repos = openRepositories(database.database);
+        await repos.matches.recordMatch(testMatch(winnerIndex: 0));
+        await repos.matches.recordMatch(testMatch(winnerIndex: 1));
+        await repos.matches.recordMatch(
+          testMatch(mode: LocalMatchMode.localMultiplayer, winnerIndex: 0),
+        );
+        await corruptStatistics(
+          database.database,
+          played: 99,
+          won: 50,
+          vsAi: 50,
+          local: 50,
+        );
+        final recomputed = await repos.statistics.recomputeFromHistory();
+        expect(recomputed.matchesPlayed, 3);
+        expect(recomputed.matchesWon, 2);
+        expect(recomputed.matchesVsAi, 2);
+        expect(recomputed.matchesLocal, 1);
+        expect((await repos.statistics.getStatistics()).matchesPlayed, 3);
+      },
+    );
+
+    test('recompute refuses repair at exactly 500 matches when the '
         'cache is diverged', () async {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
@@ -786,8 +720,7 @@ void main() {
   });
 
   group('clearHistory', () {
-    test('resets statistics to zero and leaves snapshots untouched',
-        () async {
+    test('resets statistics to zero and leaves snapshots untouched', () async {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       await repos.matches.recordMatch(testMatch());
@@ -813,8 +746,7 @@ void main() {
       expect(stats.matchesLocal, 0);
       // The in-progress snapshot survived the clear.
       expect(
-        (await repos.snapshots.loadSnapshot(kCurrentMatchKey))
-            ?.snapshotJson,
+        (await repos.snapshots.loadSnapshot(kCurrentMatchKey))?.snapshotJson,
         '{"in":"progress"}',
       );
     });
@@ -835,14 +767,10 @@ void main() {
       );
       expect(updated.id, 42);
       expect(updated.displayName, 'Renamed');
-      expect(
-        (await repos.players.listRecentSeats()).length,
-        1,
-      );
+      expect((await repos.players.listRecentSeats()).length, 1);
     });
 
-    test('lastUsedAt is stored exactly as given, never stamped',
-        () async {
+    test('lastUsedAt is stored exactly as given, never stamped', () async {
       final database = await openInMemoryDatabase();
       final repos = openRepositories(database.database);
       final fixed = DateTime.utc(2026, 11, 20, 9, 30);

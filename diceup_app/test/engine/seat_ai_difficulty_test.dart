@@ -16,8 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// `newMatch` built plain [Player]s of type AI, whose `toJson`
 /// carries no difficulty).
 void main() {
-  test('newMatch builds AI seats as AiPlayers with the seat difficulty',
-      () {
+  test('newMatch builds AI seats as AiPlayers with the seat difficulty', () {
     final game = LudoGame.newMatch(
       seats: const [
         SeatConfig(name: 'Player 1', colour: PlayerColour.red),
@@ -68,10 +67,7 @@ void main() {
     game.applyMove(const Move(playerIndex: 0, tokenIndex: 0));
 
     final json = game.snapshot();
-    expect(
-      (json['players'] as List)[1],
-      containsPair('difficulty', 'hard'),
-    );
+    expect((json['players'] as List)[1], containsPair('difficulty', 'hard'));
     final restored = GameState.fromJson(
       jsonDecode(jsonEncode(json)) as Map<String, Object?>,
     );
@@ -85,8 +81,7 @@ void main() {
     expect(resumed.state.players[1], isA<AiPlayer>());
   });
 
-  test('AI seat stays an AiPlayer with its difficulty after a move',
-      () {
+  test('AI seat stays an AiPlayer with its difficulty after a move', () {
     final game = LudoGame.newMatch(
       seats: const [
         SeatConfig(name: 'Player 1', colour: PlayerColour.red),

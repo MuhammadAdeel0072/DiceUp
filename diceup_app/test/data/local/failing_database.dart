@@ -65,7 +65,9 @@ class FailurePlan {
 /// The default injected error. A distinct public type so tests can assert
 /// the injected failure (and not some other error) propagated.
 class SimulatedRepositoryFailure implements Exception {
-  const SimulatedRepositoryFailure([this.message = 'Simulated repository failure.']);
+  const SimulatedRepositoryFailure([
+    this.message = 'Simulated repository failure.',
+  ]);
 
   final String message;
 
@@ -119,34 +121,31 @@ class FailingDatabaseExecutor implements DatabaseExecutor {
     String? orderBy,
     int? limit,
     int? offset,
-  }) =>
-      _inner.query(
-        table,
-        distinct: distinct,
-        columns: columns,
-        where: where,
-        whereArgs: whereArgs,
-        groupBy: groupBy,
-        having: having,
-        orderBy: orderBy,
-        limit: limit,
-        offset: offset,
-      );
+  }) => _inner.query(
+    table,
+    distinct: distinct,
+    columns: columns,
+    where: where,
+    whereArgs: whereArgs,
+    groupBy: groupBy,
+    having: having,
+    orderBy: orderBy,
+    limit: limit,
+    offset: offset,
+  );
 
   @override
   Future<List<Map<String, Object?>>> rawQuery(
     String sql, [
     List<Object?>? arguments,
-  ]) =>
-      _inner.rawQuery(sql, arguments);
+  ]) => _inner.rawQuery(sql, arguments);
 
   @override
   Future<QueryCursor> rawQueryCursor(
     String sql,
     List<Object?>? arguments, {
     int? bufferSize,
-  }) =>
-      _inner.rawQueryCursor(sql, arguments, bufferSize: bufferSize);
+  }) => _inner.rawQueryCursor(sql, arguments, bufferSize: bufferSize);
 
   @override
   Future<QueryCursor> queryCursor(
@@ -161,20 +160,19 @@ class FailingDatabaseExecutor implements DatabaseExecutor {
     int? limit,
     int? offset,
     int? bufferSize,
-  }) =>
-      _inner.queryCursor(
-        table,
-        distinct: distinct,
-        columns: columns,
-        where: where,
-        whereArgs: whereArgs,
-        groupBy: groupBy,
-        having: having,
-        orderBy: orderBy,
-        limit: limit,
-        offset: offset,
-        bufferSize: bufferSize,
-      );
+  }) => _inner.queryCursor(
+    table,
+    distinct: distinct,
+    columns: columns,
+    where: where,
+    whereArgs: whereArgs,
+    groupBy: groupBy,
+    having: having,
+    orderBy: orderBy,
+    limit: limit,
+    offset: offset,
+    bufferSize: bufferSize,
+  );
 
   @override
   Future<int> rawUpdate(String sql, [List<Object?>? arguments]) {
@@ -207,11 +205,7 @@ class FailingDatabaseExecutor implements DatabaseExecutor {
   }
 
   @override
-  Future<int> delete(
-    String table, {
-    String? where,
-    List<Object?>? whereArgs,
-  }) {
+  Future<int> delete(String table, {String? where, List<Object?>? whereArgs}) {
     _plan.beforeWrite();
     return _inner.delete(table, where: where, whereArgs: whereArgs);
   }
@@ -237,10 +231,8 @@ class FailingTransaction extends FailingDatabaseExecutor
 /// the callback a [FailingTransaction] wrapping the real
 /// transaction, so the plan counts writes across the whole
 /// transaction.
-class FailingDatabase extends FailingDatabaseExecutor
-    implements Database {
-  FailingDatabase(Database super._inner, super._plan)
-      : _innerDb = _inner;
+class FailingDatabase extends FailingDatabaseExecutor implements Database {
+  FailingDatabase(Database super._inner, super._plan) : _innerDb = _inner;
 
   final Database _innerDb;
 
@@ -257,16 +249,13 @@ class FailingDatabase extends FailingDatabaseExecutor
   Future<T> transaction<T>(
     Future<T> Function(Transaction txn) action, {
     bool? exclusive,
-  }) =>
-      _innerDb.transaction<T>(
-        (txn) => action(FailingTransaction(txn, _plan)),
-        exclusive: exclusive,
-      );
+  }) => _innerDb.transaction<T>(
+    (txn) => action(FailingTransaction(txn, _plan)),
+    exclusive: exclusive,
+  );
 
   @override
-  Future<T> readTransaction<T>(
-    Future<T> Function(Transaction txn) action,
-  ) =>
+  Future<T> readTransaction<T>(Future<T> Function(Transaction txn) action) =>
       _innerDb.readTransaction<T>(
         (txn) => action(FailingTransaction(txn, _plan)),
       );

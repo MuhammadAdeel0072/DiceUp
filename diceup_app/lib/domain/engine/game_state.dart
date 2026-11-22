@@ -134,20 +134,20 @@ class GameState {
   }
 
   Map<String, Object?> toJson() => {
-        'formatVersion': 1,
-        'rulesetVersion': rulesetVersion,
-        'ruleset': ruleset.toJson(),
-        'startedAt': startedAt?.toIso8601String(),
-        'currentPlayerIndex': currentPlayerIndex,
-        'phase': phase.name,
-        'lastRoll': lastRoll,
-        'consecutiveSixes': consecutiveSixes,
-        'winnerIndex': winnerIndex,
-        'moveCount': moveCount,
-        'lastRollWasThirdSix': lastRollWasThirdSix,
-        'lastRollHadNoLegalMove': lastRollHadNoLegalMove,
-        'players': players.map((p) => p.toJson()).toList(),
-      };
+    'formatVersion': 1,
+    'rulesetVersion': rulesetVersion,
+    'ruleset': ruleset.toJson(),
+    'startedAt': startedAt?.toIso8601String(),
+    'currentPlayerIndex': currentPlayerIndex,
+    'phase': phase.name,
+    'lastRoll': lastRoll,
+    'consecutiveSixes': consecutiveSixes,
+    'winnerIndex': winnerIndex,
+    'moveCount': moveCount,
+    'lastRollWasThirdSix': lastRollWasThirdSix,
+    'lastRollHadNoLegalMove': lastRollHadNoLegalMove,
+    'players': players.map((p) => p.toJson()).toList(),
+  };
 
   /// Strict deserialization (M1.1, D-22).
   ///
@@ -184,9 +184,13 @@ class GameState {
         'Unsupported snapshot formatVersion $formatVersion; expected 1.',
       );
     }
-    final ruleset =
-        RulesetConfig.fromJson(requireMap(json['ruleset'], 'ruleset'));
-    final rulesetVersion = requireString(json['rulesetVersion'], 'rulesetVersion');
+    final ruleset = RulesetConfig.fromJson(
+      requireMap(json['ruleset'], 'ruleset'),
+    );
+    final rulesetVersion = requireString(
+      json['rulesetVersion'],
+      'rulesetVersion',
+    );
     if (ruleset.version != rulesetVersion) {
       throw FormatException(
         'Snapshot rulesetVersion "$rulesetVersion" does not match '
@@ -227,8 +231,10 @@ class GameState {
     // a persisted state can never hold a count >= the limit — except
     // when the limit is disabled (maxConsecutiveSixes: 0, D-29), where
     // the count grows without bound and any value >= 0 is legitimate.
-    final consecutiveSixes =
-        requireInt(json['consecutiveSixes'], 'consecutiveSixes');
+    final consecutiveSixes = requireInt(
+      json['consecutiveSixes'],
+      'consecutiveSixes',
+    );
     if (consecutiveSixes < 0 ||
         (ruleset.maxConsecutiveSixes > 0 &&
             consecutiveSixes >= ruleset.maxConsecutiveSixes)) {
@@ -242,8 +248,10 @@ class GameState {
     if (moveCount < 0) {
       throw const FormatException('Snapshot moveCount must not be negative.');
     }
-    final lastRollWasThirdSix =
-        requireBool(json['lastRollWasThirdSix'], 'lastRollWasThirdSix');
+    final lastRollWasThirdSix = requireBool(
+      json['lastRollWasThirdSix'],
+      'lastRollWasThirdSix',
+    );
     final lastRollHadNoLegalMove = requireBool(
       json['lastRollHadNoLegalMove'],
       'lastRollHadNoLegalMove',

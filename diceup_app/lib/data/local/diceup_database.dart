@@ -189,9 +189,7 @@ CREATE TABLE saved_match_snapshots (
   Database get database {
     final db = _db;
     if (db == null) {
-      throw StateError(
-        'DiceUp database is not open yet — call open() first.',
-      );
+      throw StateError('DiceUp database is not open yet — call open() first.');
     }
     return db;
   }

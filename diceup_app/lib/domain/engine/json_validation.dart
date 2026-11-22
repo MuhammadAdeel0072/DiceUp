@@ -71,11 +71,7 @@ List<Object?> requireList(Object? value, String field) {
 /// The field [value] must be a string naming one of [values] (matched
 /// on [Enum.name]). Throws [FormatException] on a missing, non-string,
 /// or unknown value.
-T requireEnum<T extends Enum>(
-  Object? value,
-  String field,
-  List<T> values,
-) {
+T requireEnum<T extends Enum>(Object? value, String field, List<T> values) {
   final raw = requireString(value, field);
   for (final candidate in values) {
     if (candidate.name == raw) return candidate;

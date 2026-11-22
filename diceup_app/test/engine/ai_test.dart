@@ -31,10 +31,20 @@ void main() {
             type: PlayerType.ai,
           ),
         ],
-        diceRoller: FixedDiceRoller(
-          const [6, 2, 4, 1, 3, 5, 6, 6, 2, 5, 1, 4],
-          cycle: true,
-        ),
+        diceRoller: FixedDiceRoller(const [
+          6,
+          2,
+          4,
+          1,
+          3,
+          5,
+          6,
+          6,
+          2,
+          5,
+          1,
+          4,
+        ], cycle: true),
       );
       var turns = 0;
       while (!game.isFinished && turns < 300) {
@@ -216,15 +226,18 @@ void main() {
       var positions = 0;
       for (var i = 0; i < 200; i++) {
         List<int> randomSteps() => List.generate(
-              4,
-              (_) => rng.nextInt(57), // 0..56, biased by pure chance
-            );
+          4,
+          (_) => rng.nextInt(57), // 0..56, biased by pure chance
+        );
         final state = stateWith(
           tokenSteps: [randomSteps(), randomSteps()],
           lastRoll: 1 + rng.nextInt(6),
           phase: TurnPhase.awaitingMove,
         );
-        final game = LudoGame.fromState(state, diceRoller: FixedDiceRoller(const [1]));
+        final game = LudoGame.fromState(
+          state,
+          diceRoller: FixedDiceRoller(const [1]),
+        );
         final legal = game.legalMoves();
         if (legal.isEmpty) continue;
         positions++;
@@ -237,16 +250,29 @@ void main() {
           if (landing.kind != CellKind.track || _board.isSafe(landing)) {
             return false;
           }
-          return state.players[1].tokens
-              .any((t) => t.isOnTrack && t.cell == landing);
+          return state.players[1].tokens.any(
+            (t) => t.isOnTrack && t.cell == landing,
+          );
         }
 
-        final hard = aiFromState(state, 0, AiDifficulty.hard, seed: 5)
-            .chooseMove(legal, state, _board);
-        final medium = aiFromState(state, 0, AiDifficulty.medium, seed: 5)
-            .chooseMove(legal, state, _board);
-        final easy = aiFromState(state, 0, AiDifficulty.easy, seed: 5)
-            .chooseMove(legal, state, _board);
+        final hard = aiFromState(
+          state,
+          0,
+          AiDifficulty.hard,
+          seed: 5,
+        ).chooseMove(legal, state, _board);
+        final medium = aiFromState(
+          state,
+          0,
+          AiDifficulty.medium,
+          seed: 5,
+        ).chooseMove(legal, state, _board);
+        final easy = aiFromState(
+          state,
+          0,
+          AiDifficulty.easy,
+          seed: 5,
+        ).chooseMove(legal, state, _board);
         if (finishesOrCaptures(hard)) hardWins++;
         if (finishesOrCaptures(medium)) mediumWins++;
         if (finishesOrCaptures(easy)) easyWins++;
@@ -277,10 +303,24 @@ void main() {
               type: PlayerType.ai,
             ),
           ],
-          diceRoller: FixedDiceRoller(
-            const [6, 2, 4, 1, 3, 5, 6, 6, 2, 5, 1, 4, 3, 2, 6, 1],
-            cycle: true,
-          ),
+          diceRoller: FixedDiceRoller(const [
+            6,
+            2,
+            4,
+            1,
+            3,
+            5,
+            6,
+            6,
+            2,
+            5,
+            1,
+            4,
+            3,
+            2,
+            6,
+            1,
+          ], cycle: true),
         );
         var turns = 0;
         while (!game.isFinished && turns < 200) {
@@ -326,8 +366,7 @@ void main() {
       );
       expect(
         DateTime.tryParse(
-          (jsonDecode(second) as Map<String, Object?>)['startedAt']
-              as String,
+          (jsonDecode(second) as Map<String, Object?>)['startedAt'] as String,
         ),
         isNotNull,
       );

@@ -40,12 +40,11 @@ class SavedSnapshot {
     String? matchKey,
     String? snapshotJson,
     DateTime? savedAt,
-  }) =>
-      SavedSnapshot(
-        matchKey: matchKey ?? this.matchKey,
-        snapshotJson: snapshotJson ?? this.snapshotJson,
-        savedAt: savedAt ?? this.savedAt,
-      );
+  }) => SavedSnapshot(
+    matchKey: matchKey ?? this.matchKey,
+    snapshotJson: snapshotJson ?? this.snapshotJson,
+    savedAt: savedAt ?? this.savedAt,
+  );
 
   @override
   bool operator ==(Object other) =>

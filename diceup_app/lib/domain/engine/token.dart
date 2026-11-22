@@ -30,8 +30,7 @@ class Token {
   bool get isHome => stepsTaken == Board.stepsToHome;
   bool get isInHomePath =>
       stepsTaken > Board.lastTrackStep && stepsTaken < Board.stepsToHome;
-  bool get isOnTrack =>
-      stepsTaken >= 1 && stepsTaken <= Board.lastTrackStep;
+  bool get isOnTrack => stepsTaken >= 1 && stepsTaken <= Board.lastTrackStep;
 
   /// Logical board cell for this token.
   Cell get cell => const Board().cellAt(colour, stepsTaken);
@@ -39,18 +38,22 @@ class Token {
   /// Whether this token may move by [roll] under the given rules
   /// (BR-04 release, BR-10 exact finish). The caller (the engine)
   /// additionally checks turn ownership and phase.
-  bool canMove(int roll, {required Set<int> releaseRolls, required bool exactFinish}) {
+  bool canMove(
+    int roll, {
+    required Set<int> releaseRolls,
+    required bool exactFinish,
+  }) {
     if (isInYard) return releaseRolls.contains(roll);
     if (exactFinish) return stepsTaken + roll <= Board.stepsToHome;
     return !isHome; // Non-exact variant: any roll moves it home.
   }
 
   Token copyWith({int? stepsTaken}) => Token(
-        playerIndex: playerIndex,
-        index: index,
-        colour: colour,
-        stepsTaken: stepsTaken ?? this.stepsTaken,
-      );
+    playerIndex: playerIndex,
+    index: index,
+    colour: colour,
+    stepsTaken: stepsTaken ?? this.stepsTaken,
+  );
 
   /// A token sent back to its yard (BR-08 capture).
   Token get sentToYard => copyWith(stepsTaken: 0);

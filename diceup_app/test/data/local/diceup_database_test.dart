@@ -54,18 +54,17 @@ void main() {
     int playerCount = 2,
     String playersJson = '[]',
     String rulesetVersion = '1.0.0',
-  }) =>
-      <String, Object?>{
-        'played_at': playedAt,
-        'mode': mode,
-        'player_count': playerCount,
-        'players_json': playersJson,
-        'winner_index': null,
-        'winner_name': null,
-        'duration_seconds': null,
-        'ruleset_version': rulesetVersion,
-        'created_at': playedAt,
-      };
+  }) => <String, Object?>{
+    'played_at': playedAt,
+    'mode': mode,
+    'player_count': playerCount,
+    'players_json': playersJson,
+    'winner_index': null,
+    'winner_name': null,
+    'duration_seconds': null,
+    'ruleset_version': rulesetVersion,
+    'created_at': playedAt,
+  };
 
   /// `PRAGMA table_info` rows as (name, type, notnull, pk) tuples,
   /// in declared column order.
@@ -104,51 +103,42 @@ void main() {
       final names = rows.map((row) => row['name'] as String).toSet();
       // AUTOINCREMENT creates the internal sqlite_sequence table;
       // it is SQLite's own bookkeeping, not a sixth app table.
-      expect(
-        names,
-        {
-          'local_matches',
-          'local_statistics',
-          'local_settings',
-          'local_players',
-          'saved_match_snapshots',
-          'sqlite_sequence',
-        },
-      );
+      expect(names, {
+        'local_matches',
+        'local_statistics',
+        'local_settings',
+        'local_players',
+        'saved_match_snapshots',
+        'sqlite_sequence',
+      });
     });
 
     test('local_matches columns match SDD §9.1 exactly', () async {
       final database = await openInMemoryDatabase();
-      expect(
-        await tableColumns(database.database, 'local_matches'),
-        [
-          ('id', 'INTEGER', 0, 1),
-          ('played_at', 'TEXT', 1, 0),
-          ('mode', 'TEXT', 1, 0),
-          ('player_count', 'INTEGER', 1, 0),
-          ('players_json', 'TEXT', 1, 0),
-          ('winner_index', 'INTEGER', 0, 0),
-          ('winner_name', 'TEXT', 0, 0),
-          ('duration_seconds', 'INTEGER', 0, 0),
-          ('ruleset_version', 'TEXT', 1, 0),
-          ('created_at', 'TEXT', 1, 0),
-        ],
-      );
+      expect(await tableColumns(database.database, 'local_matches'), [
+        ('id', 'INTEGER', 0, 1),
+        ('played_at', 'TEXT', 1, 0),
+        ('mode', 'TEXT', 1, 0),
+        ('player_count', 'INTEGER', 1, 0),
+        ('players_json', 'TEXT', 1, 0),
+        ('winner_index', 'INTEGER', 0, 0),
+        ('winner_name', 'TEXT', 0, 0),
+        ('duration_seconds', 'INTEGER', 0, 0),
+        ('ruleset_version', 'TEXT', 1, 0),
+        ('created_at', 'TEXT', 1, 0),
+      ]);
     });
 
     test('local_statistics columns match SDD §9.1 exactly', () async {
       final database = await openInMemoryDatabase();
-      expect(
-        await tableColumns(database.database, 'local_statistics'),
-        [
-          ('id', 'INTEGER', 0, 1),
-          ('matches_played', 'INTEGER', 1, 0),
-          ('matches_won', 'INTEGER', 1, 0),
-          ('matches_vs_ai', 'INTEGER', 1, 0),
-          ('matches_local', 'INTEGER', 1, 0),
-          ('updated_at', 'TEXT', 1, 0),
-        ],
-      );
+      expect(await tableColumns(database.database, 'local_statistics'), [
+        ('id', 'INTEGER', 0, 1),
+        ('matches_played', 'INTEGER', 1, 0),
+        ('matches_won', 'INTEGER', 1, 0),
+        ('matches_vs_ai', 'INTEGER', 1, 0),
+        ('matches_local', 'INTEGER', 1, 0),
+        ('updated_at', 'TEXT', 1, 0),
+      ]);
       // The four counters default to 0.
       final rows = await database.database.rawQuery(
         'PRAGMA table_info(local_statistics)',
@@ -162,43 +152,33 @@ void main() {
 
     test('local_settings columns match SDD §9.1 exactly', () async {
       final database = await openInMemoryDatabase();
-      expect(
-        await tableColumns(database.database, 'local_settings'),
-        [
-          ('key', 'TEXT', 0, 1),
-          ('value', 'TEXT', 1, 0),
-          ('updated_at', 'TEXT', 1, 0),
-        ],
-      );
+      expect(await tableColumns(database.database, 'local_settings'), [
+        ('key', 'TEXT', 0, 1),
+        ('value', 'TEXT', 1, 0),
+        ('updated_at', 'TEXT', 1, 0),
+      ]);
     });
 
     test('local_players columns match SDD §9.1 exactly', () async {
       final database = await openInMemoryDatabase();
-      expect(
-        await tableColumns(database.database, 'local_players'),
-        [
-          ('id', 'INTEGER', 0, 1),
-          ('display_name', 'TEXT', 1, 0),
-          ('colour', 'TEXT', 1, 0),
-          ('is_ai', 'INTEGER', 1, 0),
-          ('difficulty', 'TEXT', 0, 0),
-          ('last_used_at', 'TEXT', 0, 0),
-        ],
-      );
+      expect(await tableColumns(database.database, 'local_players'), [
+        ('id', 'INTEGER', 0, 1),
+        ('display_name', 'TEXT', 1, 0),
+        ('colour', 'TEXT', 1, 0),
+        ('is_ai', 'INTEGER', 1, 0),
+        ('difficulty', 'TEXT', 0, 0),
+        ('last_used_at', 'TEXT', 0, 0),
+      ]);
     });
 
-    test('saved_match_snapshots columns match SDD §9.1 exactly',
-        () async {
+    test('saved_match_snapshots columns match SDD §9.1 exactly', () async {
       final database = await openInMemoryDatabase();
-      expect(
-        await tableColumns(database.database, 'saved_match_snapshots'),
-        [
-          ('id', 'INTEGER', 0, 1),
-          ('match_key', 'TEXT', 1, 0),
-          ('snapshot_json', 'TEXT', 1, 0),
-          ('saved_at', 'TEXT', 1, 0),
-        ],
-      );
+      expect(await tableColumns(database.database, 'saved_match_snapshots'), [
+        ('id', 'INTEGER', 0, 1),
+        ('match_key', 'TEXT', 1, 0),
+        ('snapshot_json', 'TEXT', 1, 0),
+        ('saved_at', 'TEXT', 1, 0),
+      ]);
     });
 
     test('CHECK constraints are declared', () async {
@@ -221,8 +201,7 @@ void main() {
     test('played_at DESC index exists on local_matches', () async {
       final database = await openInMemoryDatabase();
       final db = database.database;
-      final indexes =
-          await db.rawQuery('PRAGMA index_list(local_matches)');
+      final indexes = await db.rawQuery('PRAGMA index_list(local_matches)');
       expect(
         indexes.map((row) => row['name']),
         contains('idx_local_matches_played_at'),
@@ -231,10 +210,7 @@ void main() {
         "SELECT sql FROM sqlite_master WHERE type = 'index' "
         "AND name = 'idx_local_matches_played_at'",
       );
-      expect(
-        sqlRows.single['sql'] as String,
-        contains('played_at DESC'),
-      );
+      expect(sqlRows.single['sql'] as String, contains('played_at DESC'));
     });
 
     test('database version is 1', () async {
@@ -242,8 +218,7 @@ void main() {
       expect(await database.database.getVersion(), 1);
     });
 
-    test('constraint violations are rejected, not silently stored',
-        () async {
+    test('constraint violations are rejected, not silently stored', () async {
       final database = await openInMemoryDatabase();
       final db = database.database;
       // player_count CHECK 2–4.
@@ -311,14 +286,8 @@ void main() {
         orderBy: 'key ASC',
       );
       expect(
-        {
-          for (final row in rows) row['key'] as String: row['value'],
-        },
-        {
-          'sound_enabled': '1',
-          'sound_volume': '100',
-          'vibration_enabled': '1',
-        },
+        {for (final row in rows) row['key'] as String: row['value']},
+        {'sound_enabled': '1', 'sound_volume': '100', 'vibration_enabled': '1'},
       );
       for (final row in rows) {
         expect(row['updated_at'] as String, isNotEmpty);
@@ -367,10 +336,7 @@ void main() {
       await first.close();
 
       // Reopen the same file with a fresh handle.
-      final second = DiceUpDatabase(
-        factory: databaseFactoryFfi,
-        path: path,
-      );
+      final second = DiceUpDatabase(factory: databaseFactoryFfi, path: path);
       addTearDown(second.close);
       await second.open();
       final reopened = second.database;
@@ -382,9 +348,7 @@ void main() {
       expect(stats.single['matches_won'], 3);
       final settings = await reopened.query('local_settings');
       expect(
-        {
-          for (final row in settings) row['key'] as String: row['value'],
-        },
+        {for (final row in settings) row['key'] as String: row['value']},
         {
           'sound_enabled': '1',
           'vibration_enabled': '1',
@@ -409,10 +373,7 @@ void main() {
       );
       await first.close();
 
-      final second = DiceUpDatabase(
-        factory: databaseFactoryFfi,
-        path: path,
-      );
+      final second = DiceUpDatabase(factory: databaseFactoryFfi, path: path);
       addTearDown(second.close);
       await second.open();
       final rows = await second.database.query(
@@ -446,10 +407,7 @@ void main() {
       );
 
       // The failed upgrade left the v1 database intact.
-      final second = DiceUpDatabase(
-        factory: databaseFactoryFfi,
-        path: path,
-      );
+      final second = DiceUpDatabase(factory: databaseFactoryFfi, path: path);
       addTearDown(second.close);
       await second.open();
       expect(await second.database.getVersion(), 1);
@@ -465,8 +423,7 @@ void main() {
       expect(database.isOpen, isTrue);
     });
 
-    test('database getter throws before open and after close',
-        () async {
+    test('database getter throws before open and after close', () async {
       final database = DiceUpDatabase(
         factory: databaseFactoryFfi,
         path: inMemoryDatabasePath,
@@ -568,112 +525,117 @@ void main() {
   });
 
   group('500-match pruning (NFR-36)', () {
-    test('prune keeps the newest 500 and leaves statistics untouched',
-        () async {
-      final database = await openInMemoryDatabase();
-      final db = database.database;
-      // 501 matches, one per second, oldest first.
-      final batch = db.batch();
-      for (var i = 0; i <= 500; i++) {
-        final playedAt = DateTime.utc(2026, 1, 1)
-            .add(Duration(seconds: i))
-            .toIso8601String();
-        batch.insert('local_matches', matchRow(playedAt: playedAt));
-      }
-      await batch.commit(noResult: true);
-      // Lifetime totals maintained incrementally (as recordMatch
-      // does in M1.4) — the prune must not touch this row.
-      await db.update(
-        'local_statistics',
-        <String, Object?>{
+    test(
+      'prune keeps the newest 500 and leaves statistics untouched',
+      () async {
+        final database = await openInMemoryDatabase();
+        final db = database.database;
+        // 501 matches, one per second, oldest first.
+        final batch = db.batch();
+        for (var i = 0; i <= 500; i++) {
+          final playedAt = DateTime.utc(
+            2026,
+            1,
+            1,
+          ).add(Duration(seconds: i)).toIso8601String();
+          batch.insert('local_matches', matchRow(playedAt: playedAt));
+        }
+        await batch.commit(noResult: true);
+        // Lifetime totals maintained incrementally (as recordMatch
+        // does in M1.4) — the prune must not touch this row.
+        await db.update(
+          'local_statistics',
+          <String, Object?>{
+            'matches_played': 501,
+            'matches_won': 300,
+            'matches_vs_ai': 200,
+            'matches_local': 301,
+            'updated_at': '2026-11-21T00:00:00.000Z',
+          },
+          where: 'id = ?',
+          whereArgs: [1],
+        );
+
+        final deleted = await db.rawDelete(DiceUpDatabase.pruneLocalMatchesSql);
+        expect(deleted, 1);
+        expect(
+          Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM local_matches'),
+          ),
+          500,
+        );
+        // The oldest match (i = 0) is gone; the next-oldest (i = 1)
+        // is the earliest survivor.
+        final oldest = DateTime.utc(2026, 1, 1).toIso8601String();
+        expect(
+          Sqflite.firstIntValue(
+            await db.rawQuery(
+              'SELECT COUNT(*) FROM local_matches WHERE played_at = ?',
+              [oldest],
+            ),
+          ),
+          0,
+        );
+        final earliestRow = await db.rawQuery(
+          'SELECT played_at FROM local_matches ORDER BY played_at ASC '
+          'LIMIT 1',
+        );
+        expect(
+          earliestRow.single['played_at'],
+          DateTime.utc(
+            2026,
+            1,
+            1,
+          ).add(const Duration(seconds: 1)).toIso8601String(),
+        );
+
+        // Statistics row is byte-identical to before the prune.
+        final stats = await db.query('local_statistics');
+        expect(stats.single, {
+          'id': 1,
           'matches_played': 501,
           'matches_won': 300,
           'matches_vs_ai': 200,
           'matches_local': 301,
           'updated_at': '2026-11-21T00:00:00.000Z',
-        },
-        where: 'id = ?',
-        whereArgs: [1],
-      );
+        });
+      },
+    );
 
-      final deleted = await db.rawDelete(
-        DiceUpDatabase.pruneLocalMatchesSql,
-      );
-      expect(deleted, 1);
-      expect(
-        Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM local_matches'),
-        ),
-        500,
-      );
-      // The oldest match (i = 0) is gone; the next-oldest (i = 1)
-      // is the earliest survivor.
-      final oldest = DateTime.utc(2026, 1, 1).toIso8601String();
-      expect(
-        Sqflite.firstIntValue(
-          await db.rawQuery(
-            'SELECT COUNT(*) FROM local_matches WHERE played_at = ?',
-            [oldest],
+    test(
+      'prune tie-break: identical played_at keeps the highest ids',
+      () async {
+        final database = await openInMemoryDatabase();
+        final db = database.database;
+        const playedAt = '2026-06-01T12:00:00.000Z';
+        final batch = db.batch();
+        for (var i = 0; i <= 500; i++) {
+          batch.insert('local_matches', matchRow(playedAt: playedAt));
+        }
+        await batch.commit(noResult: true);
+
+        await db.rawDelete(DiceUpDatabase.pruneLocalMatchesSql);
+        expect(
+          Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM local_matches'),
           ),
-        ),
-        0,
-      );
-      final earliestRow = await db.rawQuery(
-        'SELECT played_at FROM local_matches ORDER BY played_at ASC '
-        'LIMIT 1',
-      );
-      expect(
-        earliestRow.single['played_at'],
-        DateTime.utc(2026, 1, 1)
-            .add(const Duration(seconds: 1))
-            .toIso8601String(),
-      );
-
-      // Statistics row is byte-identical to before the prune.
-      final stats = await db.query('local_statistics');
-      expect(stats.single, {
-        'id': 1,
-        'matches_played': 501,
-        'matches_won': 300,
-        'matches_vs_ai': 200,
-        'matches_local': 301,
-        'updated_at': '2026-11-21T00:00:00.000Z',
-      });
-    });
-
-    test('prune tie-break: identical played_at keeps the highest ids',
-        () async {
-      final database = await openInMemoryDatabase();
-      final db = database.database;
-      const playedAt = '2026-06-01T12:00:00.000Z';
-      final batch = db.batch();
-      for (var i = 0; i <= 500; i++) {
-        batch.insert('local_matches', matchRow(playedAt: playedAt));
-      }
-      await batch.commit(noResult: true);
-
-      await db.rawDelete(DiceUpDatabase.pruneLocalMatchesSql);
-      expect(
-        Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM local_matches'),
-        ),
-        500,
-      );
-      // Lowest id (first inserted) pruned; highest id retained.
-      final minId = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT MIN(id) FROM local_matches'),
-      );
-      expect(minId, 2);
-      final maxId = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT MAX(id) FROM local_matches'),
-      );
-      expect(maxId, 501);
-    });
+          500,
+        );
+        // Lowest id (first inserted) pruned; highest id retained.
+        final minId = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT MIN(id) FROM local_matches'),
+        );
+        expect(minId, 2);
+        final maxId = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT MAX(id) FROM local_matches'),
+        );
+        expect(maxId, 501);
+      },
+    );
   });
 
   group('openDiceUpDatabase factory helper', () {
-    test('opens a seeded v1 database with an injected factory',
-        () async {
+    test('opens a seeded v1 database with an injected factory', () async {
       final dir = await Directory.systemTemp.createTemp('diceup_m13_');
       addTearDown(() async {
         if (await dir.exists()) await dir.delete(recursive: true);
@@ -685,11 +647,9 @@ void main() {
       addTearDown(database.close);
       expect(database.isOpen, isTrue);
       expect(await database.database.getVersion(), 1);
-      final stats =
-          await database.database.query('local_statistics');
+      final stats = await database.database.query('local_statistics');
       expect(stats.single['matches_played'], 0);
-      final settings =
-          await database.database.query('local_settings');
+      final settings = await database.database.query('local_settings');
       expect(settings, hasLength(3));
     });
   });

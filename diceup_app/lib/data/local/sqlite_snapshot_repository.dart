@@ -21,11 +21,7 @@ class SqliteSnapshotRepository implements SnapshotRepository {
       'ON CONFLICT(match_key) DO UPDATE SET '
       'snapshot_json = excluded.snapshot_json, '
       'saved_at = excluded.saved_at',
-      [
-        snapshot.matchKey,
-        snapshot.snapshotJson,
-        toUtcIso(snapshot.savedAt),
-      ],
+      [snapshot.matchKey, snapshot.snapshotJson, toUtcIso(snapshot.savedAt)],
     );
   }
 

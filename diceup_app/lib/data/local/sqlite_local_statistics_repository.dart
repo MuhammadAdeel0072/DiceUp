@@ -11,8 +11,7 @@ import 'sqlite_serialization.dart';
 /// `DiceUpDatabase.onCreate`). Takes the open [Database]; the cached row is maintained incrementally by
 /// [SqliteLocalMatchRepository.recordMatch] / `clearHistory` — this
 /// repository only reads it, plus the guarded repair below.
-class SqliteLocalStatisticsRepository
-    implements LocalStatisticsRepository {
+class SqliteLocalStatisticsRepository implements LocalStatisticsRepository {
   SqliteLocalStatisticsRepository(this._db);
 
   final Database _db;
@@ -58,8 +57,7 @@ class SqliteLocalStatisticsRepository
       // to zero — can drop the count below 500) or the retained
       // count equals the cached `matchesPlayed` (no rows removed).
       final isComplete =
-          retained < kMaxLocalMatches ||
-          retained == cached.matchesPlayed;
+          retained < kMaxLocalMatches || retained == cached.matchesPlayed;
       if (!isComplete) {
         // Incomplete history: the retained matches cannot
         // reconstruct lifetime totals, so the cached row is returned
@@ -90,9 +88,7 @@ class SqliteLocalStatisticsRepository
         }
         final winnerIndex = row['winner_index'] as int?;
         if (winnerIndex != null) {
-          final players = decodePlayersJson(
-            row['players_json'] as String,
-          );
+          final players = decodePlayersJson(row['players_json'] as String);
           if (winnerIndex < 0 || winnerIndex >= players.length) {
             throw FormatException(
               'Stored winner_index $winnerIndex is out of range for '

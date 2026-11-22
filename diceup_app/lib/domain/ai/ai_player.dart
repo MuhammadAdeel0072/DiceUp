@@ -29,8 +29,8 @@ class AiPlayer extends Player {
     this.difficulty = AiDifficulty.medium,
     Random? random,
     super.tokens,
-  })  : _random = random ?? Random(),
-        super(type: PlayerType.ai);
+  }) : _random = random ?? Random(),
+       super(type: PlayerType.ai);
 
   final AiDifficulty difficulty;
   final Random _random;
@@ -39,9 +39,9 @@ class AiPlayer extends Player {
   /// this the difficulty would not survive a snapshot round-trip.
   @override
   Map<String, Object> toJson() => {
-        ...super.toJson(),
-        'difficulty': difficulty.name,
-      };
+    ...super.toJson(),
+    'difficulty': difficulty.name,
+  };
 
   /// Preserves the AI identity across engine transitions: the base
   /// [Player.copyWith] would downgrade an [AiPlayer] to a plain
@@ -51,15 +51,14 @@ class AiPlayer extends Player {
     List<Token>? tokens,
     AiDifficulty? difficulty,
     Random? random,
-  }) =>
-      AiPlayer(
-        index: index,
-        name: name,
-        colour: colour,
-        difficulty: difficulty ?? this.difficulty,
-        random: random ?? _random,
-        tokens: tokens ?? this.tokens,
-      );
+  }) => AiPlayer(
+    index: index,
+    name: name,
+    colour: colour,
+    difficulty: difficulty ?? this.difficulty,
+    random: random ?? _random,
+    tokens: tokens ?? this.tokens,
+  );
 
   /// Chooses one move from [legalMoves] (never anything else).
   /// Throws [ArgumentError] if the list is empty — the engine, not
@@ -214,18 +213,13 @@ class AiPlayer extends Player {
 
   /// Is any opponent token on the track 1..6 steps behind [trackIndex]
   /// (i.e. able to land on it with one roll)?
-  bool _opponentWithinSix(
-    int trackIndex,
-    int playerIndex,
-    GameState state,
-  ) {
+  bool _opponentWithinSix(int trackIndex, int playerIndex, GameState state) {
     for (final player in state.players) {
       if (player.index == playerIndex) continue;
       for (final other in player.tokens) {
         if (!other.isOnTrack) continue;
         final distance =
-            (trackIndex - other.cell.index + Board.trackSize) %
-                Board.trackSize;
+            (trackIndex - other.cell.index + Board.trackSize) % Board.trackSize;
         if (distance >= 1 && distance <= 6) return true;
       }
     }

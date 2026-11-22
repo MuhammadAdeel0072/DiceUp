@@ -32,9 +32,7 @@ Map<String, Object?> tokenOf(
   Map<String, Object?> json,
   int player,
   int token,
-) =>
-    (playerOf(json, player)['tokens'] as List)[token]
-        as Map<String, Object?>;
+) => (playerOf(json, player)['tokens'] as List)[token] as Map<String, Object?>;
 
 Map<String, Object?> rulesetOf(Map<String, Object?> json) =>
     json['ruleset'] as Map<String, Object?>;
@@ -136,8 +134,7 @@ void main() {
       expect((ai as AiPlayer).difficulty, AiDifficulty.easy);
     });
 
-    test('the full ruleset round-trips and agrees with rulesetVersion',
-        () {
+    test('the full ruleset round-trips and agrees with rulesetVersion', () {
       const ruleset = RulesetConfig(
         releaseOnSix: true,
         releaseOnOne: true,
@@ -212,40 +209,44 @@ void main() {
       expect(state.startedAt, isNull);
     });
 
-    test('startedAt accepts ISO-8601 with an offset and fractional seconds',
-        () {
-      // tryParse normalises an offset to the same UTC instant, so the
-      // re-emitted string is the UTC rendering, not the input text.
-      // What must survive exactly is the instant.
-      for (final value in [
-        '2026-11-21T17:30:00.000+05:00',
-        '2026-11-21T17:30:00.123456Z',
-      ]) {
-        final json = playedSnapshot()..['startedAt'] = value;
-        final restored = GameState.fromJson(json);
+    test(
+      'startedAt accepts ISO-8601 with an offset and fractional seconds',
+      () {
+        // tryParse normalises an offset to the same UTC instant, so the
+        // re-emitted string is the UTC rendering, not the input text.
+        // What must survive exactly is the instant.
+        for (final value in [
+          '2026-11-21T17:30:00.000+05:00',
+          '2026-11-21T17:30:00.123456Z',
+        ]) {
+          final json = playedSnapshot()..['startedAt'] = value;
+          final restored = GameState.fromJson(json);
+          expect(
+            restored.startedAt!.microsecondsSinceEpoch,
+            DateTime.parse(value).microsecondsSinceEpoch,
+          );
+        }
+        // The fractional-seconds Z form also re-emits string-identically.
+        final fractional = playedSnapshot()
+          ..['startedAt'] = '2026-11-21T17:30:00.123456Z';
         expect(
-          restored.startedAt!.microsecondsSinceEpoch,
-          DateTime.parse(value).microsecondsSinceEpoch,
+          GameState.fromJson(fractional).toJson()['startedAt'],
+          '2026-11-21T17:30:00.123456Z',
         );
-      }
-      // The fractional-seconds Z form also re-emits string-identically.
-      final fractional = playedSnapshot()
-        ..['startedAt'] = '2026-11-21T17:30:00.123456Z';
-      expect(
-        GameState.fromJson(fractional).toJson()['startedAt'],
-        '2026-11-21T17:30:00.123456Z',
-      );
-    });
+      },
+    );
 
-    test('startedAt accepts a naive date-time (the snapshot writer format)',
-        () {
-      // GameState.initial stamps DateTime.now(), whose toIso8601String
-      // has no zone suffix — a persisted snapshot therefore carries a
-      // naive timestamp, and the strict check must accept it.
-      final json = playedSnapshot()..['startedAt'] = '2026-11-21T17:30:00';
-      final restored = GameState.fromJson(json);
-      expect(restored.startedAt, DateTime(2026, 11, 21, 17, 30));
-    });
+    test(
+      'startedAt accepts a naive date-time (the snapshot writer format)',
+      () {
+        // GameState.initial stamps DateTime.now(), whose toIso8601String
+        // has no zone suffix — a persisted snapshot therefore carries a
+        // naive timestamp, and the strict check must accept it.
+        final json = playedSnapshot()..['startedAt'] = '2026-11-21T17:30:00';
+        final restored = GameState.fromJson(json);
+        expect(restored.startedAt, DateTime(2026, 11, 21, 17, 30));
+      },
+    );
 
     test('startedAt accepts a plain UTC timestamp and a leap day', () {
       final utc = playedSnapshot()..['startedAt'] = '2026-11-21T17:30:00Z';
@@ -256,12 +257,8 @@ void main() {
       // Positive control for the leap-year logic: Feb 29 is valid in
       // a leap year (and rejected in a non-leap year — see the rejects
       // below).
-      final leap = playedSnapshot()
-        ..['startedAt'] = '2024-02-29T12:00:00Z';
-      expect(
-        GameState.fromJson(leap).startedAt,
-        DateTime.utc(2024, 2, 29, 12),
-      );
+      final leap = playedSnapshot()..['startedAt'] = '2024-02-29T12:00:00Z';
+      expect(GameState.fromJson(leap).startedAt, DateTime.utc(2024, 2, 29, 12));
     });
 
     test('startedAt preserves the instant for timezone offsets', () {
@@ -386,8 +383,7 @@ void main() {
     });
   });
 
-  group('malformed snapshots are rejected with FormatException (M-11)',
-      () {
+  group('malformed snapshots are rejected with FormatException (M-11)', () {
     final rejects = <String, void Function(Map<String, Object?>)>{
       'missing formatVersion': (j) => j.remove('formatVersion'),
       'formatVersion 2': (j) => j['formatVersion'] = 2,
@@ -395,8 +391,7 @@ void main() {
       'formatVersion as a double': (j) => j['formatVersion'] = 1.0,
       'missing players': (j) => j.remove('players'),
       'players is not a list': (j) => j['players'] = {'red': true},
-      'one player': (j) =>
-          j['players'] = (j['players'] as List).sublist(0, 1),
+      'one player': (j) => j['players'] = (j['players'] as List).sublist(0, 1),
       'five players': (j) {
         final players = j['players'] as List;
         while (players.length < 5) {
@@ -469,24 +464,16 @@ void main() {
       // normalises these, so the component checks must reject them.
       'startedAt month 13 day 45 hour 99': (j) =>
           j['startedAt'] = '2026-13-45T99:99:99Z',
-      'startedAt hour 99': (j) =>
-          j['startedAt'] = '2026-11-21T99:99:99Z',
-      'startedAt month 13': (j) =>
-          j['startedAt'] = '2026-13-21T17:30:00Z',
-      'startedAt month 00': (j) =>
-          j['startedAt'] = '2026-00-21T17:30:00Z',
-      'startedAt Feb 30': (j) =>
-          j['startedAt'] = '2026-02-30T17:30:00Z',
+      'startedAt hour 99': (j) => j['startedAt'] = '2026-11-21T99:99:99Z',
+      'startedAt month 13': (j) => j['startedAt'] = '2026-13-21T17:30:00Z',
+      'startedAt month 00': (j) => j['startedAt'] = '2026-00-21T17:30:00Z',
+      'startedAt Feb 30': (j) => j['startedAt'] = '2026-02-30T17:30:00Z',
       'startedAt Feb 29 in a non-leap year': (j) =>
           j['startedAt'] = '2026-02-29T17:30:00Z',
-      'startedAt April 31': (j) =>
-          j['startedAt'] = '2026-04-31T17:30:00Z',
-      'startedAt hour 24': (j) =>
-          j['startedAt'] = '2026-11-21T24:30:00Z',
-      'startedAt minute 60': (j) =>
-          j['startedAt'] = '2026-11-21T23:60:00Z',
-      'startedAt second 60': (j) =>
-          j['startedAt'] = '2026-11-21T23:59:60Z',
+      'startedAt April 31': (j) => j['startedAt'] = '2026-04-31T17:30:00Z',
+      'startedAt hour 24': (j) => j['startedAt'] = '2026-11-21T24:30:00Z',
+      'startedAt minute 60': (j) => j['startedAt'] = '2026-11-21T23:60:00Z',
+      'startedAt second 60': (j) => j['startedAt'] = '2026-11-21T23:59:60Z',
       'startedAt date-only': (j) => j['startedAt'] = '2026-11-21',
       'startedAt with space separator': (j) =>
           j['startedAt'] = '2026-11-21 17:30:00Z',
@@ -494,8 +481,7 @@ void main() {
           j['startedAt'] = '2026-11-21T17:30:00+25:00',
       'startedAt offset minute 60': (j) =>
           j['startedAt'] = '2026-11-21T17:30:00+05:60',
-      'startedAt without seconds': (j) =>
-          j['startedAt'] = '2026-11-21T17:30Z',
+      'startedAt without seconds': (j) => j['startedAt'] = '2026-11-21T17:30Z',
       'unknown AI difficulty': (j) {
         playerOf(j, 1)['type'] = 'ai';
         playerOf(j, 1)['difficulty'] = 'insane';
@@ -510,10 +496,7 @@ void main() {
       test('rejects ${entry.key}', () {
         final json = playedSnapshot();
         entry.value(json);
-        expect(
-          () => GameState.fromJson(json),
-          throwsFormatException,
-        );
+        expect(() => GameState.fromJson(json), throwsFormatException);
       });
     }
 
@@ -522,8 +505,7 @@ void main() {
       expect(() => GameState.fromJson(json), throwsFormatException);
     });
 
-    test('rejects a finished snapshot with an out-of-range winnerIndex',
-        () {
+    test('rejects a finished snapshot with an out-of-range winnerIndex', () {
       final json = finishedSnapshot()..['winnerIndex'] = 5;
       expect(() => GameState.fromJson(json), throwsFormatException);
     });

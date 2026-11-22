@@ -44,9 +44,7 @@ class LudoGame {
   }) {
     ruleset.validate();
     if (seats.length < 2 || seats.length > 4) {
-      throw const InvalidMatchConfig(
-        'A match needs 2–4 players (FR-13).',
-      );
+      throw const InvalidMatchConfig('A match needs 2–4 players (FR-13).');
     }
     final colours = seats.map((s) => s.colour).toSet();
     if (colours.length != seats.length) {
@@ -59,30 +57,24 @@ class LudoGame {
         'A match needs at least one human seat (FR-14).',
       );
     }
-    final players = List<Player>.generate(
-      seats.length,
-      (i) {
-        final seat = seats[i];
-        if (seat.type == PlayerType.ai) {
-          return AiPlayer(
-            index: i,
-            name: seat.name,
-            colour: seat.colour,
-            difficulty: seat.difficulty ?? AiDifficulty.easy,
-          );
-        }
-        return Player(
+    final players = List<Player>.generate(seats.length, (i) {
+      final seat = seats[i];
+      if (seat.type == PlayerType.ai) {
+        return AiPlayer(
           index: i,
           name: seat.name,
           colour: seat.colour,
-          type: seat.type,
+          difficulty: seat.difficulty ?? AiDifficulty.easy,
         );
-      },
-    );
-    final state = GameState.initial(
-      players: players,
-      ruleset: ruleset,
-    );
+      }
+      return Player(
+        index: i,
+        name: seat.name,
+        colour: seat.colour,
+        type: seat.type,
+      );
+    });
+    final state = GameState.initial(players: players, ruleset: ruleset);
     return LudoGame._(
       state,
       board: board,
@@ -156,18 +148,15 @@ class LudoGame {
       throw StateError('DiceRoller returned an invalid value: $value.');
     }
 
-    final consecutive =
-        value == 6 ? _state.consecutiveSixes + 1 : 0;
-    final isThirdSix = value == 6 &&
+    final consecutive = value == 6 ? _state.consecutiveSixes + 1 : 0;
+    final isThirdSix =
+        value == 6 &&
         ruleset.maxConsecutiveSixes > 0 &&
         consecutive >= ruleset.maxConsecutiveSixes;
 
     if (isThirdSix) {
       // BR-07: the third consecutive six is shown but not played.
-      _state = _advancedTurn(
-        lastRoll: value,
-        lastRollWasThirdSix: true,
-      );
+      _state = _advancedTurn(lastRoll: value, lastRollWasThirdSix: true);
       return value;
     }
 
@@ -256,8 +245,7 @@ class LudoGame {
     // A release spends the roll entering the board: the token lands
     // on its start cell (step 1), it does not advance by the roll
     // (BR-04). Any other move advances by exactly the roll (BR-05).
-    var toSteps =
-        token.isInYard ? 1 : fromSteps + _state.lastRoll;
+    var toSteps = token.isInYard ? 1 : fromSteps + _state.lastRoll;
     if (!ruleset.exactFinish && toSteps > Board.stepsToHome) {
       toSteps = Board.stepsToHome; // Non-exact variant: overshoot lands home.
     }
@@ -269,8 +257,9 @@ class LudoGame {
     final isCaptureCell =
         landing.kind == CellKind.track && !board.isSafe(landing);
     // Mutable working copies; new immutable Players are built below.
-    final tokenLists =
-        _state.players.map((p) => List<Token>.of(p.tokens)).toList();
+    final tokenLists = _state.players
+        .map((p) => List<Token>.of(p.tokens))
+        .toList();
     if (isCaptureCell) {
       for (var pi = 0; pi < tokenLists.length; pi++) {
         if (pi == player.index) continue;
@@ -284,8 +273,9 @@ class LudoGame {
       }
     }
 
-    tokenLists[player.index][move.tokenIndex] =
-        token.copyWith(stepsTaken: toSteps);
+    tokenLists[player.index][move.tokenIndex] = token.copyWith(
+      stepsTaken: toSteps,
+    );
     final updatedPlayers = List<Player>.generate(
       _state.players.length,
       (i) => _state.players[i].copyWith(tokens: tokenLists[i]),
@@ -293,12 +283,13 @@ class LudoGame {
 
     final enteredHomePath =
         fromSteps <= Board.lastTrackStep &&
-            toSteps > Board.lastTrackStep &&
-            toSteps < Board.stepsToHome;
+        toSteps > Board.lastTrackStep &&
+        toSteps < Board.stepsToHome;
     final reachedHome = toSteps == Board.stepsToHome;
     final won = updatedPlayers[player.index].hasWon;
 
-    final extraTurn = !won &&
+    final extraTurn =
+        !won &&
         ((ruleset.extraTurnOnSix && _state.lastRoll == 6) ||
             (ruleset.extraTurnOnCapture && captured.isNotEmpty) ||
             (ruleset.extraTurnOnHome && reachedHome));
@@ -352,9 +343,7 @@ class LudoGame {
       throw StateError('Cannot pass the turn: the match is finished.');
     }
     if (_state.phase != TurnPhase.awaitingRoll) {
-      throw StateError(
-        'Cannot pass the turn while a roll or move is pending.',
-      );
+      throw StateError('Cannot pass the turn while a roll or move is pending.');
     }
     _state = _advancedTurn(lastRoll: 0);
   }
@@ -386,8 +375,7 @@ class LudoGame {
     bool lastRollHadNoLegalMove = false,
   }) {
     final base = from ?? _state;
-    final nextPlayer =
-        (base.currentPlayerIndex + 1) % base.players.length;
+    final nextPlayer = (base.currentPlayerIndex + 1) % base.players.length;
     return base.copyWith(
       currentPlayerIndex: nextPlayer,
       phase: TurnPhase.awaitingRoll,

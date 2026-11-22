@@ -18,12 +18,12 @@ class Player {
     required this.type,
     List<Token>? tokens,
   }) : tokens = List.unmodifiable(
-          tokens ??
-              List.generate(
-                4,
-                (i) => Token(playerIndex: index, index: i, colour: colour),
-              ),
-        ) {
+         tokens ??
+             List.generate(
+               4,
+               (i) => Token(playerIndex: index, index: i, colour: colour),
+             ),
+       ) {
     if (tokens != null && tokens.length != 4) {
       throw ArgumentError('A player must own exactly 4 tokens.');
     }
@@ -49,19 +49,19 @@ class Player {
   bool get hasWon => tokens.every((t) => t.isHome);
 
   Player copyWith({List<Token>? tokens}) => Player(
-        index: index,
-        name: name,
-        colour: colour,
-        type: type,
-        tokens: tokens ?? this.tokens,
-      );
+    index: index,
+    name: name,
+    colour: colour,
+    type: type,
+    tokens: tokens ?? this.tokens,
+  );
 
   Map<String, Object> toJson() => {
-        'name': name,
-        'colour': colour.label,
-        'type': type.name,
-        'tokens': tokens.map((t) => t.toJson()).toList(),
-      };
+    'name': name,
+    'colour': colour.label,
+    'type': type.name,
+    'tokens': tokens.map((t) => t.toJson()).toList(),
+  };
 
   /// Strict deserialization (M1.1, D-22): every field must be present
   /// with the correct type. An unknown colour or type label throws
@@ -76,8 +76,7 @@ class Player {
   /// a present-but-unknown difficulty throws [FormatException].
   factory Player.fromJson(int index, Map<String, Object?> json) {
     final name = requireString(json['name'], 'name');
-    final colour =
-        requireEnum(json['colour'], 'colour', PlayerColour.values);
+    final colour = requireEnum(json['colour'], 'colour', PlayerColour.values);
     final type = requireEnum(json['type'], 'type', PlayerType.values);
     final rawTokens = requireList(json['tokens'], 'tokens');
     if (rawTokens.length != 4) {

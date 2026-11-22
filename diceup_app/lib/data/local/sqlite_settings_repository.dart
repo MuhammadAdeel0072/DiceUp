@@ -45,8 +45,7 @@ class SqliteSettingsRepository implements SettingsRepository {
   Future<Map<String, String>> getAllSettings() async {
     final rows = await _db.query('local_settings');
     return {
-      for (final row in rows)
-        row['key'] as String: row['value'] as String,
+      for (final row in rows) row['key'] as String: row['value'] as String,
     };
   }
 

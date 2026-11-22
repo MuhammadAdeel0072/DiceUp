@@ -19,8 +19,7 @@ class RandomDiceRoller implements DiceRoller {
 
   /// Seeded roller: a fixed seed replays the same dice sequence,
   /// which is how AI regressions are bisected (SDD §7.4).
-  factory RandomDiceRoller.seeded(int seed) =>
-      RandomDiceRoller(Random(seed));
+  factory RandomDiceRoller.seeded(int seed) => RandomDiceRoller(Random(seed));
 
   @override
   int roll() => _random.nextInt(6) + 1;
@@ -29,7 +28,7 @@ class RandomDiceRoller implements DiceRoller {
 /// Test dice: returns a predetermined sequence of values.
 class FixedDiceRoller implements DiceRoller {
   FixedDiceRoller(List<int> values, {this.cycle = false})
-      : _values = List.unmodifiable(values) {
+    : _values = List.unmodifiable(values) {
     if (_values.isEmpty) {
       throw ArgumentError('FixedDiceRoller needs at least one value.');
     }

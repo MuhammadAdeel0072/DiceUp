@@ -52,17 +52,17 @@ AiDifficulty parseAiDifficultyLabel(String label) {
 /// the [AiDifficulty] label or null (null for human seats and for AI
 /// seats with an unspecified difficulty).
 String encodePlayersJson(List<LocalMatchPlayer> players) => jsonEncode(
-      players
-          .map(
-            (player) => <String, Object?>{
-              'name': player.name,
-              'colour': player.colour.label,
-              'isAi': player.isAi,
-              'difficulty': player.difficulty?.name,
-            },
-          )
-          .toList(),
-    );
+  players
+      .map(
+        (player) => <String, Object?>{
+          'name': player.name,
+          'colour': player.colour.label,
+          'isAi': player.isAi,
+          'difficulty': player.difficulty?.name,
+        },
+      )
+      .toList(),
+);
 
 /// Parses `local_matches.players_json` back to seats. Strict: the
 /// JSON must be an array of seat objects with a non-empty string
@@ -76,9 +76,7 @@ List<LocalMatchPlayer> decodePlayersJson(String json) {
   }
   return decoded.map<LocalMatchPlayer>((entry) {
     if (entry is! Map) {
-      throw const FormatException(
-        'players_json entries must be JSON objects.',
-      );
+      throw const FormatException('players_json entries must be JSON objects.');
     }
     final name = entry['name'];
     if (name is! String || name.trim().isEmpty) {
@@ -88,15 +86,11 @@ List<LocalMatchPlayer> decodePlayersJson(String json) {
     }
     final colourLabel = entry['colour'];
     if (colourLabel is! String) {
-      throw const FormatException(
-        'players_json entries need a string colour.',
-      );
+      throw const FormatException('players_json entries need a string colour.');
     }
     final isAi = entry['isAi'];
     if (isAi is! bool) {
-      throw const FormatException(
-        'players_json entries need a boolean isAi.',
-      );
+      throw const FormatException('players_json entries need a boolean isAi.');
     }
     final difficultyLabel = entry['difficulty'];
     AiDifficulty? difficulty;
@@ -125,52 +119,50 @@ List<LocalMatchPlayer> decodePlayersJson(String json) {
 /// Builds a `local_matches` row map from [match] (no `id` — the
 /// database assigns it on insert; any id on the argument is ignored).
 Map<String, Object?> matchToRow(LocalMatch match) => <String, Object?>{
-      'played_at': toUtcIso(match.playedAt),
-      'mode': match.mode.label,
-      'player_count': match.playerCount,
-      'players_json': encodePlayersJson(match.players),
-      'winner_index': match.winnerIndex,
-      'winner_name': match.winnerName,
-      'duration_seconds': match.durationSeconds,
-      'ruleset_version': match.rulesetVersion,
-      'created_at': toUtcIso(match.createdAt),
-    };
+  'played_at': toUtcIso(match.playedAt),
+  'mode': match.mode.label,
+  'player_count': match.playerCount,
+  'players_json': encodePlayersJson(match.players),
+  'winner_index': match.winnerIndex,
+  'winner_name': match.winnerName,
+  'duration_seconds': match.durationSeconds,
+  'ruleset_version': match.rulesetVersion,
+  'created_at': toUtcIso(match.createdAt),
+};
 
 /// Builds a [LocalMatch] from a `local_matches` row. Strict parsing
 /// (see [decodePlayersJson]; unknown mode labels throw via
 /// [LocalMatchMode.fromLabel]).
 LocalMatch matchFromRow(Map<String, Object?> row) => LocalMatch(
-      id: row['id'] as int,
-      playedAt: DateTime.parse(row['played_at'] as String),
-      mode: LocalMatchMode.fromLabel(row['mode'] as String),
-      playerCount: row['player_count'] as int,
-      players: decodePlayersJson(row['players_json'] as String),
-      winnerIndex: row['winner_index'] as int?,
-      winnerName: row['winner_name'] as String?,
-      durationSeconds: row['duration_seconds'] as int?,
-      rulesetVersion: row['ruleset_version'] as String,
-      createdAt: DateTime.parse(row['created_at'] as String),
-    );
+  id: row['id'] as int,
+  playedAt: DateTime.parse(row['played_at'] as String),
+  mode: LocalMatchMode.fromLabel(row['mode'] as String),
+  playerCount: row['player_count'] as int,
+  players: decodePlayersJson(row['players_json'] as String),
+  winnerIndex: row['winner_index'] as int?,
+  winnerName: row['winner_name'] as String?,
+  durationSeconds: row['duration_seconds'] as int?,
+  rulesetVersion: row['ruleset_version'] as String,
+  createdAt: DateTime.parse(row['created_at'] as String),
+);
 
 /// Builds a [LocalStatistics] from the single `local_statistics`
 /// row (id = 1).
-LocalStatistics statisticsFromRow(Map<String, Object?> row) =>
-    LocalStatistics(
-      matchesPlayed: row['matches_played'] as int,
-      matchesWon: row['matches_won'] as int,
-      matchesVsAi: row['matches_vs_ai'] as int,
-      matchesLocal: row['matches_local'] as int,
-      updatedAt: DateTime.parse(row['updated_at'] as String),
-    );
+LocalStatistics statisticsFromRow(Map<String, Object?> row) => LocalStatistics(
+  matchesPlayed: row['matches_played'] as int,
+  matchesWon: row['matches_won'] as int,
+  matchesVsAi: row['matches_vs_ai'] as int,
+  matchesLocal: row['matches_local'] as int,
+  updatedAt: DateTime.parse(row['updated_at'] as String),
+);
 
 /// Builds a [SavedSnapshot] from a `saved_match_snapshots` row. The
 /// snapshot JSON is returned verbatim, never parsed.
-SavedSnapshot snapshotFromRow(Map<String, Object?> row) =>
-    SavedSnapshot(
-      matchKey: row['match_key'] as String,
-      snapshotJson: row['snapshot_json'] as String,
-      savedAt: DateTime.parse(row['saved_at'] as String),
-    );
+SavedSnapshot snapshotFromRow(Map<String, Object?> row) => SavedSnapshot(
+  matchKey: row['match_key'] as String,
+  snapshotJson: row['snapshot_json'] as String,
+  savedAt: DateTime.parse(row['saved_at'] as String),
+);
 
 /// Builds a `local_players` row map from [seat]. The `id` is
 /// included only when present (a null id means "assign a fresh id"
@@ -182,8 +174,7 @@ Map<String, Object?> seatToRow(LocalPlayerSeat seat) {
     'colour': seat.colour.label,
     'is_ai': seat.isAi ? 1 : 0,
     'difficulty': seat.difficulty?.name,
-    'last_used_at':
-        seat.lastUsedAt == null ? null : toUtcIso(seat.lastUsedAt!),
+    'last_used_at': seat.lastUsedAt == null ? null : toUtcIso(seat.lastUsedAt!),
   };
   final id = seat.id;
   if (id != null) row['id'] = id;

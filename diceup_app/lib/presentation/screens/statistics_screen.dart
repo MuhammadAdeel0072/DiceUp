@@ -53,8 +53,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Future<void> _load() async {
-    final dependencies =
-        AppDependenciesScope.maybeOf(context)?.dependencies;
+    final dependencies = AppDependenciesScope.maybeOf(context)?.dependencies;
     if (dependencies == null) {
       if (mounted) setState(() => _unavailable = true);
       return;
@@ -95,15 +94,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       return const EmptyState(
         icon: Icons.bar_chart_outlined,
         title: 'Statistics unavailable',
-        hint: "Your saved data couldn't be loaded, so statistics "
+        hint:
+            "Your saved data couldn't be loaded, so statistics "
             'cannot be shown right now.',
       );
     }
     if (_loadFailed) {
-      return ErrorView(
-        message: "Couldn't load statistics",
-        onRetry: _retry,
-      );
+      return ErrorView(message: "Couldn't load statistics", onRetry: _retry);
     }
     final statistics = _statistics;
     final matches = _matches;
@@ -120,18 +117,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 label: 'Matches played',
                 value: statistics.matchesPlayed,
               ),
-              _StatRow(
-                label: 'Human wins',
-                value: statistics.matchesWon,
-              ),
-              _StatRow(
-                label: 'Matches vs AI',
-                value: statistics.matchesVsAi,
-              ),
-              _StatRow(
-                label: 'Local matches',
-                value: statistics.matchesLocal,
-              ),
+              _StatRow(label: 'Human wins', value: statistics.matchesWon),
+              _StatRow(label: 'Matches vs AI', value: statistics.matchesVsAi),
+              _StatRow(label: 'Local matches', value: statistics.matchesLocal),
             ],
           ),
         ),
@@ -144,10 +132,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
         ] else ...[
           const SizedBox(height: DiceUpSpacing.lg),
-          Text(
-            'Wins by seat',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Wins by seat', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: DiceUpSpacing.xs),
           Text(
             kPerPlayerWinsCaption,
@@ -175,9 +160,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       wins[seat] = (wins[seat] ?? 0) + 1;
     }
     if (wins.isEmpty) {
-      return [
-        const Text('No human wins in your latest 500 matches yet.'),
-      ];
+      return [const Text('No human wins in your latest 500 matches yet.')];
     }
     final seats = wins.keys.toList()
       ..sort((a, b) => a.index.compareTo(b.index));
@@ -210,15 +193,9 @@ class _StatRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            child: Text(label, style: Theme.of(context).textTheme.titleMedium),
           ),
-          Text(
-            '$value',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('$value', style: Theme.of(context).textTheme.titleMedium),
         ],
       ),
     );
@@ -234,9 +211,7 @@ class _SeatIdentity {
 
   @override
   bool operator ==(Object other) =>
-      other is _SeatIdentity &&
-      other.index == index &&
-      other.colour == colour;
+      other is _SeatIdentity && other.index == index && other.colour == colour;
 
   @override
   int get hashCode => Object.hash(index, colour);
