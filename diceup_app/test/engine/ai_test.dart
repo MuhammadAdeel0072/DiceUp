@@ -333,6 +333,143 @@ void main() {
     });
   });
 
+  group('Hard scoring weights (FR-38, SDD §7.3)', () {
+    // scoreMove adds a uniform jitter in [0, 1) to break ties, so
+    // every assertion below allows a full jitter of slack on each
+    // side: the pinned numbers are the documented weights, not the
+    // jitter. Positions reuse the cascade tests above.
+    test('a finishing move scores its +100 plus safe-landing +15', () {
+      final game = gameWith(
+        tokenSteps: const [
+          [55, 10, 0, 0],
+          [0, 0, 0, 0],
+        ],
+        lastRoll: 1,
+        phase: TurnPhase.awaitingMove,
+      );
+      final ai = aiFromState(game.state, 0, AiDifficulty.hard);
+      final finish = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 0),
+        game.state,
+        _board,
+      );
+      final advance = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 1),
+        game.state,
+        _board,
+      );
+      // Finish: 100 + 56 * 0.5 + 15 (home is safe) + jitter.
+      expect(finish, greaterThanOrEqualTo(143));
+      expect(finish, lessThan(144));
+      // Advance 10 -> 11: 11 * 0.5 + jitter; track 10 is not safe and
+      // no opponent is on the track, so no danger penalty.
+      expect(advance, greaterThanOrEqualTo(5.5));
+      expect(advance, lessThan(6.5));
+      expect(finish - advance, greaterThan(130));
+    });
+
+    test('a capture scores its +60 over a release', () {
+      final game = gameWith(
+        tokenSteps: const [
+          [0, 9, 0, 0],
+          [2, 0, 0, 0],
+        ],
+        lastRoll: 6,
+        phase: TurnPhase.awaitingMove,
+      );
+      final ai = aiFromState(game.state, 0, AiDifficulty.hard);
+      final capture = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 1),
+        game.state,
+        _board,
+      );
+      final release = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 0),
+        game.state,
+        _board,
+      );
+      // Capture: 60 + 15 * 0.5 + jitter; track 14 is not safe, and
+      // green's other tokens are in the yard, so no danger penalty.
+      expect(capture, greaterThanOrEqualTo(67.5));
+      expect(capture, lessThan(68.5));
+      // Release: 25 + 1 * 0.5 + 15 (start cell is safe) + jitter.
+      expect(release, greaterThanOrEqualTo(40.5));
+      expect(release, lessThan(41.5));
+      expect(capture - release, greaterThan(20));
+    });
+
+    test('landing in danger scores its -40 against a safe landing', () {
+      final game = gameWith(
+        tokenSteps: const [
+          [10, 30, 0, 0],
+          [0, 18, 0, 0],
+        ],
+        lastRoll: 4,
+        phase: TurnPhase.awaitingMove,
+      );
+      final ai = aiFromState(game.state, 0, AiDifficulty.hard);
+      final safe = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 0),
+        game.state,
+        _board,
+      );
+      final danger = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 1),
+        game.state,
+        _board,
+      );
+      // Safe: 14 * 0.5 + 15 (track 13 is a start cell) + jitter.
+      expect(safe, greaterThanOrEqualTo(22));
+      expect(safe, lessThan(23));
+      // Danger: 34 * 0.5 - 40 (green on track 30 is 3 behind track 33)
+      // + jitter; no teammate shares the cell, so no -10.
+      expect(danger, greaterThanOrEqualTo(-23));
+      expect(danger, lessThan(-22));
+      expect(safe - danger, greaterThan(40));
+    });
+
+    test('leaving a teammate exposed costs -10 against the same move '
+        'alone', () {
+      // Two red tokens share track 9; green sits on track 5, four
+      // steps behind the shared cell.
+      final shared = gameWith(
+        tokenSteps: const [
+          [10, 10, 0, 0],
+          [45, 0, 0, 0],
+        ],
+        lastRoll: 1,
+        phase: TurnPhase.awaitingMove,
+      );
+      final solo = gameWith(
+        tokenSteps: const [
+          [10, 0, 0, 0],
+          [45, 0, 0, 0],
+        ],
+        lastRoll: 1,
+        phase: TurnPhase.awaitingMove,
+      );
+      final ai = aiFromState(shared.state, 0, AiDifficulty.hard);
+      final sharedScore = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 0),
+        shared.state,
+        _board,
+      );
+      final soloScore = ai.scoreMove(
+        const Move(playerIndex: 0, tokenIndex: 0),
+        solo.state,
+        _board,
+      );
+      // Both moves: 11 * 0.5 - 40 (green on track 5 is 5 behind
+      // track 10) + jitter; only the shared one also pays -10.
+      expect(soloScore, greaterThanOrEqualTo(-34.5));
+      expect(soloScore, lessThan(-33.5));
+      expect(sharedScore, greaterThanOrEqualTo(-44.5));
+      expect(sharedScore, lessThan(-43.5));
+      expect(soloScore - sharedScore, greaterThan(8));
+      expect(soloScore - sharedScore, lessThan(12));
+    });
+  });
+
   group('determinism (SDD §7.4)', () {
     test('a fixed dice sequence and seed replays identically', () {
       String play() {
