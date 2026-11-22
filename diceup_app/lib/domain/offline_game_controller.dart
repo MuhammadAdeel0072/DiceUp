@@ -668,10 +668,21 @@ class OfflineGameController {
   /// [onMoveApplied] callback the view wires to its [FeedbackService]
   /// abstraction, and only while vibration is enabled.
   /// Fire-and-forget and never throwing into the turn loop: a failed
-  /// haptic must not wedge a move.
+  /// haptic must not wedge a move. The provider's closure already
+  /// swallows async failures (`catchError`); this try/catch covers
+  /// a hook that throws synchronously (M2.11: proved by
+  /// `test/haptics_gate_test.dart`, "a throwing feedback hook
+  /// never wedges a move").
   void _vibrateOnMove() {
     if (!_vibrationEnabled) return;
-    onMoveApplied?.call();
+    try {
+      onMoveApplied?.call();
+    } catch (error) {
+      log(
+        'DiceUp haptic feedback failed ($error)',
+        name: 'DiceUpOfflineGameController',
+      );
+    }
   }
 
   // -- Turn flow ----------------------------------------------------------

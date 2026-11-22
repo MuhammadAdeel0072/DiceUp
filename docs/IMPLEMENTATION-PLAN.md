@@ -1373,3 +1373,104 @@ is deferred as above, not silently kept. The
 `LudoGame.fromState` custom-ruleset follow-up (M3.2/M3.3)
 is untouched, as instructed. No sound (D-32 follow-up), no
 AI timeout fallback, no gameplay-rule changes.
+
+### M2.11 — DONE (haptics coverage, M-12/D-32; 2026-11-22)
+
+The gap-fill pass for remediation plan §4 M2.11 + §6 "Haptics
+(M2.11)": M1.7 had already built the `FeedbackService`
+abstraction and wired haptics into the move path, so this
+milestone re-verified each plan item against the code and
+implemented only what was still missing. No new dependency,
+no sound, no gameplay change, no splash-spinner change
+(M2.10 deferred follow-up, out of scope).
+
+Item-by-item verdicts:
+
+- **`FeedbackService` with `HapticFeedback.lightImpact()` on
+  moves — already covered (M1.7), proved again here.**
+  `lib/presentation/feedback/feedback_service.dart`:
+  `HapticFeedbackService.vibrateMove()` sends one light impact;
+  the abstraction covers haptics only and deliberately has no
+  audio method. The M1.7 channel-mock test
+  (`test/settings_haptics_test.dart`, "HapticFeedbackService
+  calls HapticFeedback.lightImpact") still passes unchanged.
+- **Gated by the vibration toggle — already covered, now
+  proved end to end (the one real gap).** The gate lives in
+  `OfflineGameController._vibrateOnMove` (skipped when
+  `_vibrationEnabled` is false, refreshed from the persisted
+  setting after start) and is wired in the composition root
+  (`offlineGameControllerProvider`'s `onMoveApplied` → the
+  provider's `FeedbackService`; the screen never touches
+  haptics). The M1.7 tests proved the two halves separately
+  (fake: 1 call enabled / 0 disabled; real service: channel
+  call), but the remediation plan §6 criterion — "toggle off
+  → no call, on → call" via a `TestDefaultBinaryMessenger`
+  channel mock — was never proved through the production
+  wiring. New `test/haptics_gate_test.dart` closes it: with
+  the REAL service (no feedback override) a move sends
+  exactly one `HapticFeedback.vibrate` /
+  `HapticFeedbackType.lightImpact` call on
+  `SystemChannels.platform` when vibration is on, and zero
+  calls when it is off.
+- **Haptic failure never wedges a move — IMPLEMENTED
+  (hardening).** The controller doc claimed `_vibrateOnMove`
+  is "never throwing into the turn loop", but no test proved
+  it — and the new test failed first: a synchronously
+  throwing `onMoveApplied` hook propagated out of
+  `applyMove` (`Bad state: haptics boom`), skipping the
+  turn-change path. `_vibrateOnMove` now wraps the call in
+  try/catch and logs (`DiceUpOfflineGameController`); the
+  provider closure's `catchError` already covered async
+  failures. Test: "a throwing feedback hook never wedges a
+  move" — the move lands, status becomes "Six! Player 1
+  rolls again.", same player stays on.
+- **Sound — DEFERRED per D-32, with reason.** No audio
+  dependency exists in `pubspec.yaml` (verified: no audio
+  package, no sound assets, no sound code path — only the
+  `sound_enabled` / `sound_volume` preference keys and the
+  disabled toggle). The Sound toggle stays DISABLED with the
+  honest note "Coming soon — sound does not play anything
+  yet." (M1.7 test proves disabled + note); the volume slider
+  persists `sound_volume` (default 100, D-25) for when sound
+  lands. No bundled click asset: Anti has not approved the
+  dependency/asset (the plan's alternative (b)), so none was
+  added and no placebo setting ships.
+- **No haptics on illegal taps, dice rolls, captures or wins
+  beyond the one per completed move — already correct, not
+  changed.** M2.8 decided illegal taps get SnackBar + status
+  only; the plan names haptics "on moves" only. Captures and
+  wins vibrate exactly once as completed moves (the same
+  `_vibrateOnMove` call — verified: the five-move
+  controller test counts 3 human + 2 AI moves, one each).
+- **`loadedSettings`-always-empty vibration quirk — NOT
+  fixed here, with reason.** M3.3 documented it as
+  preserved, not silently fixed: the provider's initial value
+  resolves to on (empty map → `!= '0'`) and the controller's
+  repository refresh picks up the persisted value after
+  start. The M2.11 plan row does not assign it, and changing
+  startup/settings resolution is outside this milestone's
+  gap-fill scope. It stays recorded in `app_providers.dart`
+  and the M3.3 plan section.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **522/522 passed** (baseline 519 + 3 new in
+`test/haptics_gate_test.dart`: channel-mock gate on/off, throwing
+hook). The throwing-hook test failed before the fix (proved the
+gap) and passes after; the two gate tests passed against the
+unmodified wiring (proving coverage, not a fix).
+`flutter analyze` — **0 errors, 0 warnings, 31 info** (30 at the
+M2.10 baseline + 1 in the new test file, all the pre-existing
+`material.dart` deprecation notice). `dart format` clean on all
+M2.11-touched files (`--set-exit-if-changed` passes on the 2
+files). `tool/check_boundaries.sh` — 8/8 checks pass. No device
+verification — no devices paired, no Mac, no iOS/Android folders
+in staging; haptics are asserted via fakes and the platform
+channel mock, never claimed felt on a device.
+
+Scoping decisions recorded: no sound work of any kind (D-32
+named follow-up); no splash-spinner removal (M2.10 deferred);
+no `loadedSettings` quirk fix (see above); no haptics added to
+illegal taps, dice rolls, captures or wins; no gameplay-rule
+changes; the `LudoGame.fromState` custom-ruleset follow-up
+(M3.2/M3.3) is untouched, as instructed; no AI timeout
+fallback.
