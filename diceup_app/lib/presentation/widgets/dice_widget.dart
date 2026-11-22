@@ -27,6 +27,16 @@ import '../../core/design_system/diceup_colors.dart';
 /// rolls — the handler does that, so a tap on the dimmed dice still
 /// gets the brief illegal-tap feedback instead of silence. The dice
 /// stays 64 dp (D-09: already above the 48 dp control minimum).
+///
+/// Semantics (M2.9, NFR-08; the M2.8 row's deferred item): the dice
+/// always carries one semantics node — 'Dice, tap to roll' before
+/// the first roll, 'Dice, showing X. Tap to roll' while a roll is
+/// available, 'Dice, showing X' when it is not, 'Dice, rolling'
+/// mid-tumble — with a button role + tap action exactly when
+/// [onTap] is given, so a screen reader can roll from the dice.
+/// The pips are decorative (no semantics of their own) and are
+/// excluded: the label is the node's whole content, never the
+/// tooltip text plus a pip count.
 class DiceWidget extends StatelessWidget {
   const DiceWidget({
     super.key,
@@ -124,14 +134,38 @@ class DiceWidget extends StatelessWidget {
       ),
     );
     final onTap = this.onTap;
-    if (onTap == null) return dice;
-    // The tooltip names the affordance only while a roll is
-    // available — a dimmed dice must not promise a tap that
-    // cannot roll. The handler (not this widget) decides whether
-    // the tap rolls or gets illegal-tap feedback.
-    final tappable = enabled
-        ? Tooltip(message: 'Tap to roll', child: dice)
-        : dice;
-    return GestureDetector(onTap: onTap, child: tappable);
+    final tappable = onTap == null
+        ? dice
+        : GestureDetector(
+            onTap: onTap,
+            // The tooltip names the affordance only while a roll is
+            // available — a dimmed dice must not promise a tap that
+            // cannot roll. The handler (not this widget) decides whether
+            // the tap rolls or gets illegal-tap feedback.
+            child: enabled
+                ? Tooltip(message: 'Tap to roll', child: dice)
+                : dice,
+          );
+    // Semantics (M2.9): one labelled node for the whole dice. The
+    // label names the state — a mid-tumble face is a passing frame,
+    // never the decided value, so it reads 'rolling', not a number;
+    // before the first roll there is no value to show. The button
+    // role + tap action exist exactly when the dice is tappable, so
+    // a screen-reader activation rolls (or gets the same brief
+    // feedback a sighted tap gets) through the same handler.
+    final label = rolling
+        ? 'Dice, rolling'
+        : value == null
+        ? (enabled ? 'Dice, tap to roll' : 'Dice, no roll yet')
+        : (enabled
+              ? 'Dice, showing $value. Tap to roll'
+              : 'Dice, showing $value');
+    return Semantics(
+      label: label,
+      button: onTap != null,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: tappable,
+    );
   }
 }

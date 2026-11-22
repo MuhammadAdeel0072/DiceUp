@@ -190,6 +190,13 @@ class _PlayerShapePainter extends CustomPainter {
 /// ring; when it is null the ring falls back to the seat-order colour
 /// ([DiceUpColors.playerColor]). The shape always follows the seat
 /// ([PlayerShape.forSeat]), matching the board tokens.
+///
+/// Semantics (M2.9, NFR-08; D-27): the avatar is one labelled node —
+/// the player's name, seat shape and colour name (e.g. "Adeel, circle
+/// token, red") — so a screen reader identifies the player by name
+/// and shape, never by colour alone, and never hears the bare initial
+/// letter ("P") the disc draws. The shape marker and initial are
+/// decorative inside that node.
 class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
     super.key,
@@ -211,44 +218,55 @@ class PlayerAvatar extends StatelessWidget {
         ? DiceUpColors.forColour(colour!)
         : DiceUpColors.playerColor(seatIndex);
     final shape = PlayerShape.forSeat(seatIndex);
+    // The colour name in the label is the ring's colour: the chosen
+    // colour when given, else the seat-order colour — the same
+    // source as [ringColour] ([DiceUpColors.playerColor] is ordered
+    // to match [PlayerColour.values], see diceup_colors.dart).
+    final colourName =
+        (colour ?? PlayerColour.values[seatIndex % PlayerColour.values.length])
+            .label;
     final ringWidth = (radius * 0.15).clamp(2.0, 3.0);
     final badgeSize = radius * 0.75;
-    return SizedBox(
-      width: radius * 2,
-      height: radius * 2,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            key: const ValueKey('player-avatar-disc'),
-            width: radius * 2,
-            height: radius * 2,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: ringColour, width: ringWidth),
-            ),
-            child: Text(
-              initial,
-              style: TextStyle(
-                color: DiceUpColors.navy,
-                fontWeight: FontWeight.w700,
-                fontSize: radius * 0.85,
+    return Semantics(
+      label: '$name, ${shape.name} token, $colourName',
+      excludeSemantics: true,
+      child: SizedBox(
+        width: radius * 2,
+        height: radius * 2,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              key: const ValueKey('player-avatar-disc'),
+              width: radius * 2,
+              height: radius * 2,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: ringColour, width: ringWidth),
+              ),
+              child: Text(
+                initial,
+                style: TextStyle(
+                  color: DiceUpColors.navy,
+                  fontWeight: FontWeight.w700,
+                  fontSize: radius * 0.85,
+                ),
               ),
             ),
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: PlayerShapeMarker(
-              key: ValueKey('player-avatar-shape-${shape.name}'),
-              shape: shape,
-              color: ringColour,
-              size: badgeSize,
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: PlayerShapeMarker(
+                key: ValueKey('player-avatar-shape-${shape.name}'),
+                shape: shape,
+                color: ringColour,
+                size: badgeSize,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

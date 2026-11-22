@@ -1129,3 +1129,124 @@ fake time, so illegal-tap tests assert it right after the tap
 with a bounded pump — a later `pumpAndSettle` would dismiss it
 first — and dice taps on the AI turn are made with no settle at
 all, since settling would fire the AI pacing timer.
+
+### M2.9 — DONE (semantics labels, NFR-08; 2026-11-22)
+
+The Semantics half of H-10 (remediation plan §4 M2.9, §6
+"Semantics (M2.9)"), completing the plan's M2.9 acceptance
+criteria — dice, Roll button, turn banner, board — plus the
+honest extras the brief asked for where the framework already
+provides them (avatar name + shape, setup swatches, mode cards,
+icon-button tooltips, disabled states). No visual change, no
+gameplay change, no haptic, no sound.
+
+- `lib/presentation/widgets/dice_widget.dart`: one `Semantics`
+  node for the whole dice (the M2.8 deferred item): 'Dice, tap
+  to roll' before the first roll, 'Dice, showing X. Tap to roll'
+  while a roll is available, 'Dice, showing X' when it is not,
+  'Dice, rolling' mid-tumble (a passing face is never announced
+  as a value), 'Dice, no roll yet' when no value exists and no
+  roll is available. Button role + tap action exactly when
+  `onTap` is given, through the same handler as the sighted tap
+  — a screen-reader activation rolls (or gets the same brief
+  feedback) — and `excludeSemantics: true`, so the decorative
+  pips and the tooltip contribute no second node.
+- `lib/presentation/screens/game_screen.dart`: the turn banner
+  carries the plan's label ("<name>'s turn") with the name and
+  status texts still readable as child nodes (the status line is
+  the illegal-tap feedback channel and must never be hidden);
+  the board is one labelled node — "Ludo board. <name>'s turn,
+  N legal moves", updated on every build from the controller
+  state (a finished match names the winner instead) — with the
+  painted board contributing no semantics of its own
+  (`CustomPaint` draws, it does not label).
+- `lib/core/design_system/diceup_components.dart`:
+  `PlayerAvatar` is one labelled node — "<name>, <shape> token,
+  <colour>" (e.g. "Adeel, circle token, red") — so a screen
+  reader identifies the player by name and shape, never by
+  colour alone (D-27), and never hears the bare initial letter
+  the disc draws. The shape follows the seat, the colour name
+  follows the ring's colour (chosen colour when given, else the
+  seat-order colour — `DiceUpColors.playerColor` is ordered to
+  match `PlayerColour.values`).
+- `lib/presentation/screens/offline_setup_screen.dart`: each
+  colour swatch is a labelled button — the colour *name*, never
+  the colour alone — with its state: 'Colour red, selected',
+  'Colour green, taken by Player 2', 'Colour blue'. The check
+  icon is decorative inside the node; the visual tooltip is
+  unchanged.
+- `lib/presentation/screens/mode_selection_screen.dart`: each
+  tappable mode card is one labelled button (title + subtitle in
+  a single node) with the same navigation as its InkWell; the
+  online card is not tappable (Phase 5) and keeps its plain
+  text, whose title + subtitle merge into one readable node
+  with no button role.
+- Not changed, verified by the tests instead: the Roll button
+  (its text is its label; `onPressed: null` exposes the
+  disabled state — no code change needed), the icon-only
+  buttons (the pause and Home settings buttons carry their
+  `tooltip` as their accessible name — `Tooltip` exposes the
+  message as the node's `tooltip` property, not its `label`,
+  which is the framework's own mechanism for icon buttons, so
+  no extra wrapper was added), the setup SegmentedButtons /
+  switches / dropdown / name fields and the settings switches
+  (headings and `labelText` / titles already name them).
+- **Per-token semantics nodes: out of scope, as the plan
+  requires.** The remediation plan's M2.9 row says explicitly:
+  "Per-token semantics nodes are out of scope this pass —
+  record as a follow-up, do not fake it." The tokens are
+  canvas-painted, not widgets; no overlay nodes were faked.
+  The board-level node (turn + legal-move count) plus the
+  avatar nodes (name + shape + colour per player) are what
+  this milestone delivers for board identity. Follow-up: real
+  per-token nodes (positioned semantics nodes at the token
+  centres, routed through the same tap logic) — needs its own
+  milestone, it is not claimed here.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **512/512 passed** (baseline 503 + 9 new in
+`test/accessibility_test.dart`, group "semantics labels (M2.9,
+NFR-08)": dice label before the first roll + Roll enabled +
+pause tooltip, dice shows the rolled value + Roll disables +
+board counts 4 legal moves after a 6, semantics tap on the
+dice rolls, banner + board labels follow the turn to Player 2
+after a dead 3, avatar label carries name/shape/colour with no
+bare-initial node, setup swatches labelled with
+selected/taken state incl. a tap moving the selection, mode
+cards labelled buttons with the online card not a button, Home
+settings button labelled, disabled Sound switch exposes its
+disabled state vs the enabled Vibration switch). The 9 new
+tests initially failed 8/8 and taught three framework facts,
+recorded here: (1) a `SemanticsHandle` must be disposed inline
+at the end of the test body — the end-of-test verification
+runs before `tearDown` callbacks, so `addTearDown(handle
+.dispose)` still leaks; (2) `find.bySemanticsLabel` only
+matches nodes owned by a render object with its own semantics
+— plain title texts are found through `tester.getSemantics`
+on the text widget, and `find.semantics.byPredicate` over the
+real tree; title + subtitle merge into one node joined by
+`\n` (mode cards, switch titles); (3) `Tooltip` exposes its
+message as the semantics `tooltip`, not the `label`, so
+icon-button tooltips are verified with `find.byTooltip`, and
+`SemanticsNode.hasFlag` is deprecated — flag assertions now
+use `getSemanticsData().flagsCollection` (`isButton` bool,
+`isEnabled` / `isSelected` `Tristate`).
+`flutter analyze` — **0 errors, 0 warnings, 29 info** (unchanged
+from the M2.8 baseline, all the pre-existing `material.dart`
+deprecation notice; no new notice — one `unintended_html`
+notice from angle brackets in a new doc comment was fixed
+during the milestone). `dart format` clean on all
+M2.9-touched files (`--set-exit-if-changed` passes on the 6
+files). No device screen-reader verification — automated
+semantics tests only; device traversal is outstanding (M4).
+
+Scoping decisions recorded: NFR-08's three clauses now each have
+named passing tests — 48 dp controls (M2.3), 14 sp body text
+(M2.3), distinguishable-by-more-than-colour avatars/tokens
+(M2.4) and semantics labels (this milestone, automated tests
+only — device screen-reader traversal is outstanding, M4, so
+the accessibility fix is not claimed complete on a device).
+Board tokens stay exempt from 48 dp per D-09 (geometric).
+The `LudoGame.fromState` custom-ruleset follow-up (M3.2/M3.3)
+is untouched, as instructed. No sound (D-32 follow-up), no
+AI timeout fallback, no gameplay-rule changes.

@@ -814,6 +814,21 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // can never disagree about whether a tap rolls.
     final canRoll = isHumanTurn && state.phase == TurnPhase.awaitingRoll;
     final boardSide = _boardSide(context);
+    // Semantics (M2.9, NFR-08): the board is one labelled node —
+    // "Ludo board. <name>'s turn, N legal moves" — updated on every
+    // build from the controller state, so a screen reader always
+    // hears whose turn it is and how many moves are legal. A
+    // finished match names the winner instead. Per-token semantics
+    // nodes are out of scope this pass (remediation plan M2.9):
+    // the tokens are canvas-painted, not widgets, and no overlay
+    // nodes are faked — recorded as a follow-up, not claimed here.
+    final boardLabel = controller.isFinished
+        ? (controller.winner == null
+              ? 'Ludo board. Match finished'
+              : 'Ludo board. ${controller.winner!.name} won the match')
+        : "Ludo board. ${current.name}'s turn, "
+              '${controller.legalMoves.length} legal '
+              '${controller.legalMoves.length == 1 ? 'move' : 'moves'}';
 
     // The baseline for hop detection (M2.7): the tokens and move
     // count this build renders. [_onControllerChanged] diffs
@@ -861,30 +876,37 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 ),
                 const SizedBox(height: DiceUpSpacing.md),
                 Center(
-                  child: GestureDetector(
-                    onTapDown: (details) => _onBoardTap(details, boardSide),
-                    // The board repaints on its own (M2.7): the
-                    // pulse and hop animate inside the
-                    // [RepaintBoundary], so a pulse tick repaints
-                    // the board and nothing else.
-                    child: RepaintBoundary(
-                      child: SizedBox(
-                        width: boardSide,
-                        height: boardSide,
-                        child: AnimatedBuilder(
-                          animation: _boardAnimation,
-                          builder: (context, _) => CustomPaint(
-                            painter: LudoBoardPainter(
-                              tokens: _boardTokens(),
-                              legalTokenIds: controller.legalMoves
-                                  .map(
-                                    (m) => '${m.playerIndex}:${m.tokenIndex}',
-                                  )
-                                  .toSet(),
-                              currentSeat: state.currentPlayerIndex,
-                              pulse: _pulseValue,
-                              hopTokenId: _hopTokenId,
-                              hopCenter: _hopCenter,
+                  child: Semantics(
+                    label: boardLabel,
+                    child: GestureDetector(
+                      onTapDown: (details) => _onBoardTap(details, boardSide),
+                      // The board repaints on its own (M2.7): the
+                      // pulse and hop animate inside the
+                      // [RepaintBoundary], so a pulse tick repaints
+                      // the board and nothing else. The painted board
+                      // itself contributes no semantics nodes
+                      // (CustomPaint draws, it does not label) — the
+                      // Semantics wrapper above is the board's only
+                      // node, so nothing decorative leaks through.
+                      child: RepaintBoundary(
+                        child: SizedBox(
+                          width: boardSide,
+                          height: boardSide,
+                          child: AnimatedBuilder(
+                            animation: _boardAnimation,
+                            builder: (context, _) => CustomPaint(
+                              painter: LudoBoardPainter(
+                                tokens: _boardTokens(),
+                                legalTokenIds: controller.legalMoves
+                                    .map(
+                                      (m) => '${m.playerIndex}:${m.tokenIndex}',
+                                    )
+                                    .toSet(),
+                                currentSeat: state.currentPlayerIndex,
+                                pulse: _pulseValue,
+                                hopTokenId: _hopTokenId,
+                                hopCenter: _hopCenter,
+                              ),
                             ),
                           ),
                         ),
@@ -971,36 +993,45 @@ class _TurnBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DiceUpCard(
-      child: Row(
-        children: [
-          PlayerAvatar(
-            name: player.name,
-            seatIndex: player.index,
-            // The ring follows the player's *chosen* colour (M2.2),
-            // not the seat-order colour — after a swap they differ.
-            colour: player.colour,
-          ),
-          const SizedBox(width: DiceUpSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${player.name}${player.isAi ? ' (AI)' : ''}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(status, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+    // Semantics (M2.9, NFR-08): the banner is announced as
+    // "<name>'s turn" — the plan's label. The name and status
+    // texts stay readable as child nodes (the status line is the
+    // illegal-tap feedback channel, so it must never be hidden),
+    // and the avatar contributes its own name + shape + colour
+    // node (see [PlayerAvatar]).
+    return Semantics(
+      label: "${player.name}'s turn",
+      child: DiceUpCard(
+        child: Row(
+          children: [
+            PlayerAvatar(
+              name: player.name,
+              seatIndex: player.index,
+              // The ring follows the player's *chosen* colour (M2.2),
+              // not the seat-order colour — after a swap they differ.
+              colour: player.colour,
             ),
-          ),
-          if (rolling)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+            const SizedBox(width: DiceUpSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${player.name}${player.isAi ? ' (AI)' : ''}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(status, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
             ),
-        ],
+            if (rolling)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
       ),
     );
   }

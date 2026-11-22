@@ -534,28 +534,45 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
     // held by a seat outside the player count is swapped, not
     // rejected (see [_pickColour]), so it is not dimmed here.
     final isTaken = taker != -1 && taker != seat && taker < _playerCount;
-    return Tooltip(
-      message: 'Colour ${colour.name}',
-      child: GestureDetector(
-        key: ValueKey('seat-$seat-colour-${colour.name}'),
-        onTap: () => _pickColour(seat, colour),
-        child: Padding(
-          padding: const EdgeInsets.only(right: DiceUpSpacing.sm),
-          child: Opacity(
-            opacity: isTaken ? 0.35 : 1.0,
-            child: Container(
-              width: DiceUpSpacing.minTouchTarget,
-              height: DiceUpSpacing.minTouchTarget,
-              decoration: BoxDecoration(
-                color: DiceUpColors.forColour(colour),
-                shape: BoxShape.circle,
-                border: isSelected
-                    ? Border.all(color: DiceUpColors.textPrimary, width: 2.5)
+    // Semantics (M2.9, NFR-08): the swatch is a labelled button —
+    // the colour *name*, never the colour alone — with its state:
+    // selected, or taken by the seat that holds it. The check icon
+    // is decorative inside that node. The tooltip (visual
+    // long-press hint) is unchanged.
+    final swatchLabel = isSelected
+        ? 'Colour ${colour.name}, selected'
+        : isTaken
+        ? 'Colour ${colour.name}, taken by ${_displayName(taker)}'
+        : 'Colour ${colour.name}';
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: swatchLabel,
+      onTap: () => _pickColour(seat, colour),
+      excludeSemantics: true,
+      child: Tooltip(
+        message: 'Colour ${colour.name}',
+        child: GestureDetector(
+          key: ValueKey('seat-$seat-colour-${colour.name}'),
+          onTap: () => _pickColour(seat, colour),
+          child: Padding(
+            padding: const EdgeInsets.only(right: DiceUpSpacing.sm),
+            child: Opacity(
+              opacity: isTaken ? 0.35 : 1.0,
+              child: Container(
+                width: DiceUpSpacing.minTouchTarget,
+                height: DiceUpSpacing.minTouchTarget,
+                decoration: BoxDecoration(
+                  color: DiceUpColors.forColour(colour),
+                  shape: BoxShape.circle,
+                  border: isSelected
+                      ? Border.all(color: DiceUpColors.textPrimary, width: 2.5)
+                      : null,
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, size: 20, color: Colors.white)
                     : null,
               ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 20, color: Colors.white)
-                  : null,
             ),
           ),
         ),
