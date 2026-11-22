@@ -34,9 +34,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # The pure-Dart engine tests (test/engine/) use package:test directly.
-  # They run under `flutter test` only — `dart test` fails (exit 65:
-  # version solving fails on flutter_test from the SDK). See plan §2
-  # H-02a / M-06.
+  # Canonical runner is `flutter test` (see tool/check.sh). They also run
+  # under the Flutter-bundled `dart test` (the `dart` shipped with
+  # Flutter), except test/engine/seat_ai_difficulty_test.dart, which
+  # imports package:flutter_test and loads only under `flutter test`
+  # (dart:ui is unavailable on the plain Dart VM). A standalone Dart SDK
+  # (no Flutter SDK) cannot run `dart test` here at all: version solving
+  # fails on flutter_test from the SDK (exit 65). See plan §2 H-02a / M-06.
   test: ^1.25.0
   sqflite_common_ffi: ^2.4.7
 

@@ -18,6 +18,15 @@ D-03 (decided 2026-11-21) moves both files to `docs/` — **pending Anti**
 re-verified after the move). Until the move happens, every location in
 `IMPLEMENTATION-PLAN.md` points at the repo root.
 
+## Running tests
+
+The canonical runner is `flutter test` (all gates: `sh diceup_app/tool/check.sh`).
+The pure-Dart engine tests (`diceup_app/test/engine/`) also run under the
+Flutter-bundled `dart test`, except `seat_ai_difficulty_test.dart`, which
+imports `package:flutter_test` and loads only under `flutter test`. A
+standalone Dart SDK (no Flutter SDK) cannot run `dart test` here at all:
+version solving fails on `flutter_test` from the SDK (exit 65).
+
 ## Living implementation docs (committed)
 
 - `IMPLEMENTATION-PLAN.md` — Phase 1 audit, roadmap, risks, verification

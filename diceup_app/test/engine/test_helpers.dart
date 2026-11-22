@@ -1,3 +1,10 @@
+// Engine tests run under `flutter test` (canonical; see tool/check.sh).
+// The pure-Dart engine tests also run under the Flutter-bundled
+// `dart test`, except seat_ai_difficulty_test.dart, which imports
+// package:flutter_test and loads only under `flutter test`. A standalone
+// Dart SDK (no Flutter SDK) cannot run `dart test` here at all: version
+// solving fails on flutter_test from the SDK (exit 65). See plan §2
+// H-02a / M-06.
 import 'dart:math';
 
 import 'package:diceup/domain/ai/ai_player.dart';
