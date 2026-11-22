@@ -170,6 +170,18 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
+/// Layout (M2.12, NFR-09): on short screens (viewport height
+/// < 600 dp — the 320x568 worst case) the chrome around the board
+/// compacts so the board + dice row + Roll button are visible at
+/// first paint without scrolling: the turn banner uses tighter
+/// card padding and a smaller avatar (its status then wraps to two
+/// lines instead of three), the gaps above/below the board shrink
+/// from 16 to 8 dp, and the dice renders at 56 dp instead of 64 dp
+/// (still above the 48 dp control minimum). Nothing else changes
+/// — the board side keeps its width rule ([_boardSide]: 280 dp at
+/// 320 dp wide, the plan §6.1 criterion) and the column padding is
+/// untouched. Taller screens render the full layout exactly as
+/// before, dice at 64 dp.
 class _GameScreenState extends ConsumerState<GameScreen>
     with TickerProviderStateMixin {
   /// The provider-owned controller this screen observes. Set in
@@ -814,6 +826,11 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // can never disagree about whether a tap rolls.
     final canRoll = isHumanTurn && state.phase == TurnPhase.awaitingRoll;
     final boardSide = _boardSide(context);
+    // Short-screen compaction (M2.12, NFR-09): the 320x568 worst
+    // case is 568 tall, so the gate is height < 600 dp — the
+    // 800x600 default test viewport and every taller phone keep
+    // the full layout.
+    final isShortScreen = MediaQuery.of(context).size.height < 600;
     // Semantics (M2.9, NFR-08): the board is one labelled node —
     // "Ludo board. <name>'s turn, N legal moves" — updated on every
     // build from the controller state, so a screen reader always
@@ -873,8 +890,11 @@ class _GameScreenState extends ConsumerState<GameScreen>
                   player: current,
                   status: controller.status,
                   rolling: controller.rolling,
+                  compact: isShortScreen,
                 ),
-                const SizedBox(height: DiceUpSpacing.md),
+                SizedBox(
+                  height: isShortScreen ? DiceUpSpacing.xs : DiceUpSpacing.md,
+                ),
                 Center(
                   child: Semantics(
                     label: boardLabel,
@@ -914,7 +934,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: DiceUpSpacing.md),
+                SizedBox(
+                  height: isShortScreen ? DiceUpSpacing.xs : DiceUpSpacing.md,
+                ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -931,6 +953,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
                         value: controller.rolling
                             ? _tumbleFace
                             : controller.displayedRoll,
+                        // Short screens (M2.12): 56 dp dice, still
+                        // above the 48 dp control minimum.
+                        size: isShortScreen ? 56 : 64,
                         rolling: controller.rolling,
                         enabled: canRoll,
                         onTap: _onDiceTap,
@@ -985,11 +1010,20 @@ class _TurnBanner extends StatelessWidget {
     required this.player,
     required this.status,
     required this.rolling,
+    this.compact = false,
   });
 
   final Player player;
   final String status;
   final bool rolling;
+
+  /// Short-screen form (M2.12, NFR-09): tighter card padding and
+  /// a smaller avatar, so the status wraps to two lines instead of
+  /// three at 320 dp wide and the dice row stays above the fold.
+  /// The avatar keeps name + colour ring + shape + initial (M2.4,
+  /// D-27) — only its size changes — and the full status text is
+  /// still shown, never ellipsised.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1002,6 +1036,12 @@ class _TurnBanner extends StatelessWidget {
     return Semantics(
       label: "${player.name}'s turn",
       child: DiceUpCard(
+        padding: compact
+            ? const EdgeInsets.symmetric(
+                horizontal: DiceUpSpacing.md,
+                vertical: DiceUpSpacing.xs,
+              )
+            : DiceUpSpacing.cardPadding,
         child: Row(
           children: [
             PlayerAvatar(
@@ -1010,8 +1050,9 @@ class _TurnBanner extends StatelessWidget {
               // The ring follows the player's *chosen* colour (M2.2),
               // not the seat-order colour — after a swap they differ.
               colour: player.colour,
+              radius: compact ? 16 : 20,
             ),
-            const SizedBox(width: DiceUpSpacing.md),
+            SizedBox(width: compact ? DiceUpSpacing.sm : DiceUpSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

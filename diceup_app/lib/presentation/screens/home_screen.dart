@@ -147,52 +147,73 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: DiceUpSpacing.screenPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: DiceUpSpacing.md),
-              Text(
-                'Ready to play?',
-                style: Theme.of(context).textTheme.displayLarge,
+        // M2.12 (NFR-09): the column scrolls when it cannot fit
+        // (320x568 with a wide font, or a large system text
+        // scale) instead of overflowing — a Column + Spacer with
+        // no scroll view overflowed by 27 px at 320x568 in the
+        // test harness. The ConstrainedBox + IntrinsicHeight keep
+        // the tall-screen layout identical: the column is at least
+        // as tall as the viewport (minus the scroll padding), so
+        // the Spacer still pins the footnote to the bottom and
+        // nothing moves on screens where everything already fit.
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: DiceUpSpacing.screenPadding,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight:
+                    constraints.maxHeight -
+                    DiceUpSpacing.screenPadding.vertical,
               ),
-              const SizedBox(height: DiceUpSpacing.xs),
-              Text(
-                'Classic Ludo — offline, with friends.',
-                style: Theme.of(context).textTheme.bodyLarge
-                    ?.copyWith(color: DiceUpColors.textSecondary),
+              child: IntrinsicHeight(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: DiceUpSpacing.md),
+                    Text(
+                      'Ready to play?',
+                      style: Theme.of(context).textTheme.displayLarge,
+                    ),
+                    const SizedBox(height: DiceUpSpacing.xs),
+                    Text(
+                      'Classic Ludo — offline, with friends.',
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(color: DiceUpColors.textSecondary),
+                    ),
+                    const SizedBox(height: DiceUpSpacing.xl),
+                    PrimaryButton(
+                      label: 'Play Offline',
+                      onPressed: () =>
+                          Navigator.of(context)
+                              .pushNamed(AppRoutes.modeSelection),
+                    ),
+                    const SizedBox(height: DiceUpSpacing.md),
+                    SecondaryButton(
+                      label: 'Play Online',
+                      onPressed: () => _showOnlineLoginPrompt(context),
+                    ),
+                    const SizedBox(height: DiceUpSpacing.md),
+                    SecondaryButton(
+                      label: 'Match History',
+                      onPressed: () =>
+                          Navigator.of(context).pushNamed(AppRoutes.history),
+                    ),
+                    const SizedBox(height: DiceUpSpacing.md),
+                    SecondaryButton(
+                      label: 'Statistics',
+                      onPressed: () =>
+                          Navigator.of(context).pushNamed(AppRoutes.statistics),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'Offline play works without an account or internet.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: DiceUpColors.textSecondary),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: DiceUpSpacing.xl),
-              PrimaryButton(
-                label: 'Play Offline',
-                onPressed: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.modeSelection),
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              SecondaryButton(
-                label: 'Play Online',
-                onPressed: () => _showOnlineLoginPrompt(context),
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              SecondaryButton(
-                label: 'Match History',
-                onPressed: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.history),
-              ),
-              const SizedBox(height: DiceUpSpacing.md),
-              SecondaryButton(
-                label: 'Statistics',
-                onPressed: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.statistics),
-              ),
-              const Spacer(),
-              const Text(
-                'Offline play works without an account or internet.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: DiceUpColors.textSecondary),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -1474,3 +1474,121 @@ illegal taps, dice rolls, captures or wins; no gameplay-rule
 changes; the `LudoGame.fromState` custom-ruleset follow-up
 (M3.2/M3.3) is untouched, as instructed; no AI timeout
 fallback.
+
+### M2.12 — DONE (NFR-09 layout, 320x568 first-paint; L-02; 2026-11-22)
+
+The layout pass for remediation plan §4 M2.12 + §6.1 "Layout
+320" + §6.2 "NFR-09 5-device layout" (D-21: NFR-09 binding).
+
+What was wrong (measured, not assumed): at 320x568 the bare
+harness showed the board 207–487 and the Roll button 511–559
+(viewport 568) — inside, but with only 9 dp of margin. On a
+real phone the status bar pushes content down ~24 dp and the
+gesture bar eats ~16 dp at the bottom, so the button sat ~35 dp
+below the fold (remediation plan C-5 "borderline", confirmed as
+a real gap once insets are counted). The board itself was
+already right: 280 wide with 8 dp to spare (C-3), so no board
+fix was needed and the board keeps its width rule.
+
+Game screen (`game_screen.dart`, layout changes only — no
+gameplay-rule, copy or visual-redesign change):
+
+- Short-screen compaction, gated on viewport height < 600 dp
+  (the 320x568 worst case; the 800x600 default viewport and
+  every taller screen keep the full layout exactly as before):
+  the turn banner uses tighter card padding (16 → 8 dp
+  vertical) and a smaller avatar (radius 20 → 16 dp), and the
+  gaps above/below the board shrink from 16 to 8 dp. The dice
+  renders at 56 dp instead of 64 dp on short screens (still
+  above the 48 dp control minimum). The board side keeps its
+  width rule (`_boardSide`: 280 dp at 320 dp wide, the plan §6.1
+  criterion) and the column padding is untouched. The board does
+  move up the screen (its top goes 207 → 183) — that is what
+  "reduce the chrome around the board" means, and hit-testing is
+  unaffected: every tap test computes its point from
+  `boardTokenCenter` over the painter's tokens, never a magic
+  offset (see the new tap test below).
+- `DiceUpCard` takes an optional `padding` (default unchanged
+  `cardPadding`); only the turn banner passes the compact
+  padding.
+
+Measured after the fix at 320x568 (bare harness): board
+183–463 (280x280), dice 471–527, Roll button 475–523 — 45 dp
+of margin (was 9 dp). With simulated device insets (status bar
+24 + gesture bar 16) the Roll button stays inside the visible
+window (80..552). One harness artifact, recorded honestly: the
+test font renders text ~2x wider than Roboto, so the banner
+status is 3 lines here and 2 lines on a real phone — the
+harness numbers are the pessimistic bound and the real-device
+margin is ~21 dp larger still. Device confirmation itself is
+outstanding (M4); these tests are the automated half of NFR-09
+per the §6.2 device-vs-automated map.
+
+Two more real overflows found by the suite (same milestone,
+same fix pattern — scroll instead of overflow):
+
+- Home (`home_screen.dart`): the plain Column + Spacer
+  overflowed by 27 px at 320x568 in the harness (title and
+  subtitle wrap under the wide test font). Now a
+  `SingleChildScrollView` + `ConstrainedBox` (min-height =
+  viewport − padding) + `IntrinsicHeight`, so the column scrolls
+  only when it cannot fit; on tall screens the layout is
+  identical and the footnote stays pinned to the bottom.
+- Mode selection (`mode_selection_screen.dart`): the plain
+  Column overflowed by 74 px at 320x568 (subtitles wrap to 5–6
+  lines in the harness). Now a `SingleChildScrollView` with the
+  same padding; unchanged where everything fits.
+
+Screens that legitimately scroll (asserted as such, recorded
+here): the results screen — winner headline visible at first
+paint, Play Again / Main Menu reached by scrolling at 320x568;
+the setup screen — seat/rule cards scroll, Start match is
+pinned and visible without scrolling; the game screen's player
+chips + hint sit below the fold at 320x568 by design (the
+scrollable column is the bound). Setup, results, home, mode,
+settings, statistics, history and splash all render at 320x568
+without overflow; home/mode/splash also at 430x932.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local
+only): `flutter test test/layout_320_test.dart` — **15/15
+passed** (5-width first-paint suite 320x568 / 360x640 /
+390x844 / 411x891 / 430x932 with board widths 280 / 312 / 342
+/ 363 / 382; 320x568 headroom bound; simulated-insets test;
+4-player first paint; yard-token tap after the board moved;
+compact-gate test; pause menu fits; setup Start pinned;
+results scroll; other-screens no-overflow at 320x568 and
+430x932). A full-suite run covering the final code exited 0
+(522 baseline + 15 new = 537); the exact summary count was not
+captured in the delivered output (truncated), and a re-run for
+the count plus `flutter analyze` / `dart format` /
+`tool/check_boundaries.sh` could not be completed in this
+session — see the environment note below. No device
+verification — no devices paired, no Mac, no iOS/Android
+folders in staging; device layout confirmation (at least 2
+real phones, §6.2) remains outstanding (M4).
+
+Environment note (2026-11-22 ~09:01 PKT): a service restart
+during this session broke shell-level file writes VM-wide
+(`write()` to any regular file fails EPERM "Operation not
+permitted", while file creation still works) — so `flutter`
+itself cannot start (its startup writes `bin/cache/engine.stamp`
+and aborts) and `dart format` cannot write. The failure is in
+the VM/sandbox, not in the code or the SDK: `flutter
+--version` fails the same way on an untouched invocation, and
+the stamp files show the restart time (09:01). The M2.12 code
+and tests were verified green before the restart (layout suite
+15/15; full suite exit 0); the post-restart re-verification
+(analyze + format + exact full count) is outstanding until the
+VM write path recovers, and must be re-run before the push is
+treated as fully verified.
+
+Scoping decisions recorded: layout changes only — no gameplay
+rules, no copy changes, no visual redesign, no board-width
+change, no column-padding change; the `LudoGame.fromState`
+custom-ruleset follow-up (M3.2/M3.3) is untouched, as
+instructed; no AI timeout fallback; no splash-spinner removal
+(M2.10 deferred); 3-button-navigation bottom insets (~48 dp)
+are not covered by the inset simulation — under those the Roll
+button would need a scroll, which the scrollable column
+provides (nothing is clipped); device layout confirmation is
+M4, not claimed here.

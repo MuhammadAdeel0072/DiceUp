@@ -29,7 +29,13 @@ class ModeSelectionScreen extends StatelessWidget {
             .pushNamed(AppRoutes.offlineSetup, arguments: OfflineMode.local);
     return Scaffold(
       appBar: AppBar(title: const Text('Choose a mode')),
-      body: Padding(
+      // M2.12 (NFR-09): scrolls when the cards cannot fit
+      // (320x568 with a wide font, or a large system text scale)
+      // instead of overflowing — the plain Column overflowed by
+      // 74 px at 320x568 in the test harness, where the mode
+      // subtitles wrap to 5–6 lines. On screens where everything
+      // fits the layout is unchanged.
+      body: SingleChildScrollView(
         padding: DiceUpSpacing.screenPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

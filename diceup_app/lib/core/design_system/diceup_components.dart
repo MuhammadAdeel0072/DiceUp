@@ -65,16 +65,27 @@ class SecondaryButton extends StatelessWidget {
 }
 
 /// Standard content card.
+///
+/// [padding] defaults to [DiceUpSpacing.cardPadding]; the game
+/// screen's turn banner passes a vertically compact padding on
+/// short screens (M2.12, NFR-09) so the dice row stays above the
+/// fold at 320x568 — every other card keeps the default.
 class DiceUpCard extends StatelessWidget {
-  const DiceUpCard({super.key, required this.child, this.onTap});
+  const DiceUpCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.padding = DiceUpSpacing.cardPadding,
+  });
 
   final Widget child;
   final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     final card = Card(
-      child: Padding(padding: DiceUpSpacing.cardPadding, child: child),
+      child: Padding(padding: padding, child: child),
     );
     if (onTap == null) return card;
     return InkWell(
