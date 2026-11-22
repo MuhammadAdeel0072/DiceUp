@@ -71,6 +71,9 @@ class ModeSelectionScreen extends StatelessWidget {
                 title: 'Online multiplayer',
                 subtitle:
                     'Rooms, friends and live matches — coming in Phase 5.',
+                // M2.10 (M-13): no chevron — the card is not tappable
+                // and must not imply navigation.
+                showChevron: false,
               ),
             ),
           ],
@@ -85,11 +88,17 @@ class _ModeRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.showChevron = true,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+
+  /// Whether the trailing navigation chevron renders. Tappable rows
+  /// show it; the non-tappable online card (M2.10) hides it so the
+  /// row never implies a destination it cannot reach.
+  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +116,7 @@ class _ModeRow extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right),
+        if (showChevron) const Icon(Icons.chevron_right),
       ],
     );
   }

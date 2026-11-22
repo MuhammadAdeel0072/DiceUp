@@ -51,8 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _load() async {
-    final dependencies =
-        AppDependenciesScope.maybeOf(context)?.dependencies;
+    final dependencies = AppDependenciesScope.maybeOf(context)?.dependencies;
     if (dependencies == null) {
       if (mounted) setState(() => _unavailable = true);
       return;
@@ -91,8 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// failed write the displayed values are re-read from storage so
   /// the screen never shows a value that did not persist.
   Future<void> _updateSetting(String key, String value) async {
-    final dependencies =
-        AppDependenciesScope.maybeOf(context)?.dependencies;
+    final dependencies = AppDependenciesScope.maybeOf(context)?.dependencies;
     if (dependencies == null) return;
     setState(() => _settings = {..._settings!, key: value});
     try {
@@ -100,9 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Couldn't save that setting. Try again."),
-        ),
+        const SnackBar(content: Text("Couldn't save that setting. Try again.")),
       );
       _retry();
     }
@@ -116,8 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       confirmLabel: 'Reset',
     );
     if (!confirmed || !mounted) return;
-    final dependencies =
-        AppDependenciesScope.maybeOf(context)?.dependencies;
+    final dependencies = AppDependenciesScope.maybeOf(context)?.dependencies;
     if (dependencies == null) return;
     setState(() {
       _settings = null;
@@ -145,15 +140,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return const EmptyState(
         icon: Icons.settings_outlined,
         title: 'Settings unavailable',
-        hint: "Your saved data couldn't be loaded, so settings "
+        hint:
+            "Your saved data couldn't be loaded, so settings "
             'cannot be changed right now.',
       );
     }
     if (_loadFailed) {
-      return ErrorView(
-        message: "Couldn't load settings",
-        onRetry: _retry,
-      );
+      return ErrorView(message: "Couldn't load settings", onRetry: _retry);
     }
     final settings = _settings;
     if (settings == null) {
@@ -205,7 +198,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: DiceUpSpacing.lg),
         Text(
-          'DiceUp 1.0.0 — offline-first Ludo. Online play, friends and '
+          // M2.10 (M-13): the version matches pubspec.yaml (0.1.0+1).
+          // Sourcing it from the pubspec at runtime (package_info_plus)
+          // is a later step — until then this literal is kept in sync
+          // with the pubspec by the M2.10 footer test.
+          'DiceUp 0.1.0+1 — offline-first Ludo. Online play, friends and '
           'leaderboards arrive in later phases.',
           style: Theme.of(context).textTheme.bodySmall,
         ),

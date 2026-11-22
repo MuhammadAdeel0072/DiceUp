@@ -9,6 +9,7 @@ import '../../data/local/app_startup.dart';
 import '../../data/local/database_recovery.dart';
 import '../../data/local/snapshot_recovery.dart';
 import '../../domain/engine/game_state.dart';
+import '../../domain/repositories/snapshot_repository.dart';
 import '../app_dependencies_scope.dart';
 import '../navigation/app_routes.dart';
 
@@ -16,9 +17,9 @@ import '../navigation/app_routes.dart';
 ///
 /// Guests reach every offline feature from here with no account and no
 /// internet. Online entries are present but not yet functional: the Play
-/// Online button is enabled and shows a "coming in Phase 5" snackbar —
-/// no login prompt yet (the login-prompt dialog is an M2 fix, M-13).
-/// The online flow lands in Phase 5.
+/// Online button is enabled and shows the login-prompt dialog (M2.10,
+/// M-13) — online play itself lands in Phase 5, so the dialog is
+/// honest about what exists today rather than navigating anywhere.
 ///
 /// Startup notices (M1.6) are shown here, exactly once, after the
 /// first frame: the database-recovery message, the corrupt-snapshot
@@ -61,15 +62,14 @@ class _HomeScreenState extends State<HomeScreen> {
         const SnackBar(content: Text(kStartupDatabaseErrorMessage)),
       );
     } else if (startup.databaseRecovered) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(kDatabaseRecoveryMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text(kDatabaseRecoveryMessage)));
     }
     final outcome = startup.snapshotOutcome;
     if (outcome is CorruptSnapshotDiscarded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(kCorruptSnapshotMessage)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text(kCorruptSnapshotMessage)));
     } else if (outcome is ValidSnapshot) {
       await _offerResume(startup, outcome);
     }
@@ -79,11 +79,26 @@ class _HomeScreenState extends State<HomeScreen> {
   /// dismisses): Resume navigates to the game with the restored
   /// state, Discard deletes the snapshot and starts no match, a
   /// dismiss leaves the snapshot in place for the next launch.
+  ///
+  /// Re-check (M2.6): the startup outcome is frozen at launch, but
+  /// the snapshot may have been deleted since — a match that
+  /// finished, or was exited from the pause menu, after startup
+  /// (the exit lands on a fresh Home mid-lifetime, which re-runs
+  /// this offer). Never offer a snapshot that no longer exists:
+  /// resuming it would restore — and, at completion, re-record —
+  /// a match that is already gone. When there is nothing to check
+  /// against (degraded startup, no repositories) the frozen
+  /// outcome is offered as before.
   Future<void> _offerResume(
     StartupResult startup,
     ValidSnapshot outcome,
   ) async {
     if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+    final snapshots = startup.dependencies?.snapshots;
+    if (snapshots != null) {
+      final stillThere = await snapshots.hasSnapshot(kCurrentMatchKey);
+      if (!mounted || !stillThere) return;
+    }
     final resume = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -144,21 +159,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: DiceUpSpacing.xs),
               Text(
-                'Classic Ludo — offline, with friends, or online.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: DiceUpColors.textSecondary,
-                    ),
+                'Classic Ludo — offline, with friends.',
+                style: Theme.of(context).textTheme.bodyLarge
+                    ?.copyWith(color: DiceUpColors.textSecondary),
               ),
               const SizedBox(height: DiceUpSpacing.xl),
               PrimaryButton(
                 label: 'Play Offline',
-                onPressed: () => Navigator.of(context)
-                    .pushNamed(AppRoutes.modeSelection),
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.modeSelection),
               ),
               const SizedBox(height: DiceUpSpacing.md),
               SecondaryButton(
                 label: 'Play Online',
-                onPressed: () => _showOnlineComingSoon(context),
+                onPressed: () => _showOnlineLoginPrompt(context),
               ),
               const SizedBox(height: DiceUpSpacing.md),
               SecondaryButton(
@@ -185,12 +199,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showOnlineComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Online play arrives in Phase 5. Offline play is ready now.',
+  /// Login prompt for the online entry (M2.10, M-13; UI-01/FR-42):
+  /// guests are asked to log in, and told plainly that online play
+  /// arrives in Phase 5 — a dialog, not a transient snackbar, so the
+  /// prompt cannot be missed or mistaken for navigation.
+  void _showOnlineLoginPrompt(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Play Online'),
+        content: const Text(
+          'Log in to play online — online play arrives in Phase 5.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

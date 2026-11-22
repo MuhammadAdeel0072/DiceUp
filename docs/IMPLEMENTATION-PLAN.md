@@ -1250,3 +1250,126 @@ Board tokens stay exempt from 48 dp per D-09 (geometric).
 The `LudoGame.fromState` custom-ruleset follow-up (M3.2/M3.3)
 is untouched, as instructed. No sound (D-32 follow-up), no
 AI timeout fallback, no gameplay-rule changes.
+
+### M2.10 — DONE (honesty fixes, M-12/M-13; 2026-11-22)
+
+The batch verification pass (remediation plan §4 M2.10, §6.1
+"Honesty fixes (M2.10)"): each item checked against the code
+one by one — fixed where it was wrong, proved where M1 had
+already made it true, recorded where the plan itself defers
+it. No visual redesign, no gameplay change, no sound, no new
+dependency (`package_info_plus` sourcing is still a later
+step, not this milestone).
+
+Item-by-item verdicts:
+
+- **Session-only settings note — already-correct via M1, no
+  note added.** The plan item asked for the visible note
+  "Settings apply for this session and reset when the app
+  closes" *until M1's persistence lands*. M1.6/M1.7 landed
+  persistence (settings load from `SettingsRepository` and
+  persist immediately), so the note would now be false — it
+  was deliberately NOT added, and the new test asserts its
+  absence (`test/widget_test.dart`, "no session-only note:
+  settings persist (M1.7)": no "reset when the app closes"
+  / "this session" text on the screen). Persistence itself is
+  proved by the M1.7 tests in `test/settings_haptics_test.dart`.
+- **Footer version — FIXED.** The settings footer claimed
+  "DiceUp 1.0.0" while `pubspec.yaml` says `0.1.0+1`; it now
+  reads "DiceUp 0.1.0+1". The literal is kept in sync with
+  the pubspec by the new test ("settings footer reads the
+  pubspec version 0.1.0+1"); runtime sourcing from the
+  pubspec via `package_info_plus` is the plan's later step.
+- **"Not hidden from the user" doc comment — already
+  correct.** No such comment exists anywhere in `lib/` or
+  `test/` (verified by grep): the settings doc comment
+  already describes real persistence (M1.7), so there is
+  nothing to remove or make true.
+- **Online card chevron — FIXED.** `_ModeRow` takes a
+  `showChevron` flag (default true); the non-tappable online
+  card passes `showChevron: false`. The new test asserts
+  exactly 2 chevrons across the 3 mode rows ("online mode
+  card renders no chevron").
+- **Play Online login prompt — FIXED.** The button showed a
+  transient "coming soon" snackbar; it now shows the
+  login-prompt dialog with the exact M-13 copy ("Log in to
+  play online — online play arrives in Phase 5.", OK button),
+  and the old snackbar copy is gone. The new test taps Play
+  Online, asserts the dialog + OK, dismisses it, and asserts
+  the snackbar text is absent.
+- **False FR-42 doc comment — FIXED with the dialog.** The
+  audit's M-22 comment (a guest tapping Play Online "is
+  asked to log in (FR-42)" while the behaviour was a
+  snackbar) was already softened in M0 to describe the
+  snackbar honestly; the behaviour is now the dialog, and
+  the Home doc comment describes the dialog, so comment and
+  code agree again. No `FR-42` string remains anywhere in
+  `lib/` or `test/` (verified by grep) — online play itself
+  is still Phase 5, correctly absent.
+- **Home subtitle — FIXED.** "Classic Ludo — offline, with
+  friends, or online." is now "Classic Ludo — offline, with
+  friends." (new test asserts the new subtitle and that no
+  "or online" text remains on Home).
+- **Settings menu row — already-correct, not added.** The
+  M-13 entry is optional: the AppBar settings icon already
+  satisfies "one tap from home" (SDD §11.2), so no menu row
+  was added. No code change; the existing boot test proves
+  the icon's presence via navigation.
+- **Splash real load — already-correct via M1.6.** The
+  900 ms fixed delay is gone: `main()` awaits
+  `initializeApp()` before the first frame and the splash is
+  a 500 ms brand moment after a real load. Proved by the
+  existing boot test (DiceUpApp reaches Home through the
+  real startup path), not re-implemented.
+- **Splash typography tokens — FIXED.** The title/tagline
+  used raw `TextStyle`s (44 sp w800 / 16 sp); they now use
+  the theme's `displayLarge` (32 sp, w800) and `bodyLarge`
+  (16 sp) with only the on-dark colour applied (new test
+  asserts 32 sp / w800 / white and 16 sp).
+- **Splash loading implication — DEFERRED with reason, not
+  fixed.** The spinner should show only while the real load
+  runs, but removing it from the ready splash broke 26
+  `pumpAndSettle` boot tests across the suite: with nothing
+  animating, the harness returns as soon as no frame is
+  scheduled, before the 500 ms navigation timer fires
+  (verified by probe — ready splash shown, spinner absent,
+  Home never reached; restoring the spinner restores all 26).
+  The spinner's animation frames are what keep the harness
+  pumping until the real-async startup completes and the
+  timer fires. Removing the spinner needs the boot tests'
+  `pumpAndSettle` reliance reworked first — a test-harness
+  change, out of scope for this milestone. The spinner
+  therefore stays through the brand moment, recorded as a
+  known imperfection in the splash doc comment, and locked
+  in by the new test ("splash spinner stays through the
+  brand moment (M2.10)") so a future removal re-breaks
+  loudly instead of silently. The substantive honesty — a
+  real load, no fake delay — is done (M1.6).
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **519/519 passed** (baseline 512 + 7 new in
+`test/widget_test.dart`, group "honesty fixes (M2.10)": home
+subtitle, Play Online dialog, online card chevron count,
+settings footer version, no session-only note, splash
+typography tokens, splash spinner stays through the brand
+moment). The milestone's own verification caught the spinner
+regression first: the first full-suite run with the
+conditional spinner failed 26 tests (493 passed); the
+revert + follow-up record restored 519/519. `flutter
+analyze` — **0 errors, 0 warnings, 30 info** (29 at the
+M2.9 baseline + 1 in the rewritten `test/widget_test.dart`,
+all the pre-existing `material.dart` deprecation notice).
+`dart format` clean on all M2.10-touched files
+(`--set-exit-if-changed` passes on the 5 files).
+`tool/check_boundaries.sh` — 8/8 checks pass. No device
+verification — no devices paired, no Mac, no iOS/Android
+folders in staging.
+
+Scoping decisions recorded: no "session-only" note was
+added anywhere (it would be false now that settings
+persist); no `package_info_plus` dependency was added (the
+plan names it as a later step); the splash spinner removal
+is deferred as above, not silently kept. The
+`LudoGame.fromState` custom-ruleset follow-up (M3.2/M3.3)
+is untouched, as instructed. No sound (D-32 follow-up), no
+AI timeout fallback, no gameplay-rule changes.
