@@ -4,7 +4,9 @@ import 'diceup_colors.dart';
 
 /// DiceUp typography hierarchy (SDD §11.1).
 ///
-/// Body text is never below 14sp (SRS NFR-08). The app uses the platform
+/// Body text is never below 14sp (SRS NFR-08, confirmed binding by
+/// D-21): 14sp is the floor — [TextTheme.bodySmall] is 14sp, and no
+/// style in this theme is smaller. The app uses the platform
 /// default font family deliberately: no custom font files are bundled in
 /// Phase 2, so there is no asset to go missing. A display font can be
 /// introduced later through this file alone.
@@ -61,7 +63,7 @@ abstract final class DiceUpTypography {
       ),
       bodySmall: const TextStyle(
         fontFamily: _fontFamily,
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: FontWeight.w400,
         color: DiceUpColors.textSecondary,
       ),

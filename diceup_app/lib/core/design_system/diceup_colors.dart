@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import '../../domain/engine/player_colour.dart';
 
 /// DiceUp brand colours (SDD §11.1 — visual identity).
 ///
@@ -41,4 +45,38 @@ abstract final class DiceUpColors {
 
   static Color playerColor(int seatIndex) =>
       playerColors[seatIndex % playerColors.length];
+
+  /// WCAG 2.x contrast ratio between two opaque colours (1.0–21.0).
+  ///
+  /// Used by the D-27 avatar tests (M2.4): the avatar initial is navy
+  /// on white for every seat, so the ratio is the same whatever the
+  /// player's ring colour is — navy on white is 14.11:1, comfortably
+  /// above the AA 4.5:1 floor. Alpha is ignored: callers pass opaque
+  /// colours (the avatar disc is opaque white, the initial opaque navy).
+  static double contrastRatio(Color a, Color b) {
+    final l1 = _relativeLuminance(a);
+    final l2 = _relativeLuminance(b);
+    final lighter = math.max(l1, l2);
+    final darker = math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  static double _relativeLuminance(Color color) {
+    double channel(double c) => c <= 0.03928
+        ? c / 12.92
+        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    return 0.2126 * channel(color.r) +
+        0.7152 * channel(color.g) +
+        0.0722 * channel(color.b);
+  }
+
+  /// The display colour for a chosen [PlayerColour] (M2.2).
+  ///
+  /// [playerColors] is ordered to match [PlayerColour.values] (red,
+  /// green, yellow, blue), so the mapping is by index. Use this —
+  /// never [playerColor] — when the colour comes from a player's
+  /// chosen colour rather than their seat: after a colour swap the
+  /// seat and the colour no longer agree.
+  static Color forColour(PlayerColour colour) =>
+      playerColors[colour.index % playerColors.length];
 }

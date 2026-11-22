@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
+import '../../domain/engine/player_colour.dart';
 
 /// Ludo board rendering (SDD §6.2, §11.4; SRS CON-01, FR-23).
 ///
@@ -33,6 +35,7 @@ class BoardToken {
     required this.id,
     required this.seatIndex,
     required this.stepsTaken,
+    this.colour,
   });
 
   final String id;
@@ -40,6 +43,12 @@ class BoardToken {
 
   /// 0 = yard, 1..56 = progress along the token's path (56 = home).
   final int stepsTaken;
+
+  /// The token's chosen colour (M2.2). Null means "seat-order
+  /// default" — older call sites omit it and render exactly as
+  /// before. Deliberately excluded from equality: it is display
+  /// data, and [boardTokenCenter] locates tokens by id/seat/steps.
+  final PlayerColour? colour;
 
   // Value equality: [boardTokenCenter] locates a token among its peers
   // with List.indexOf, which needs this (an earlier version silently
@@ -57,33 +66,118 @@ class BoardToken {
 
 /// 15x15-grid position of every track cell, clockwise from red start.
 const List<math.Point<int>> _trackCells = [
-  math.Point(6, 1), math.Point(6, 2), math.Point(6, 3), math.Point(6, 4), math.Point(6, 5),
-  math.Point(5, 6), math.Point(4, 6), math.Point(3, 6), math.Point(2, 6), math.Point(1, 6),
-  math.Point(0, 6), math.Point(0, 7), math.Point(0, 8), math.Point(1, 8), math.Point(2, 8),
-  math.Point(3, 8), math.Point(4, 8), math.Point(5, 8), math.Point(6, 9), math.Point(6, 10),
-  math.Point(6, 11), math.Point(6, 12), math.Point(6, 13), math.Point(6, 14), math.Point(7, 14),
-  math.Point(8, 14), math.Point(8, 13), math.Point(8, 12), math.Point(8, 11), math.Point(8, 10),
-  math.Point(8, 9), math.Point(9, 8), math.Point(10, 8), math.Point(11, 8), math.Point(12, 8),
-  math.Point(13, 8), math.Point(14, 8), math.Point(14, 7), math.Point(14, 6), math.Point(13, 6),
-  math.Point(12, 6), math.Point(11, 6), math.Point(10, 6), math.Point(9, 6), math.Point(8, 5),
-  math.Point(8, 4), math.Point(8, 3), math.Point(8, 2), math.Point(8, 1), math.Point(8, 0),
-  math.Point(7, 0), math.Point(6, 0),
+  math.Point(6, 1),
+  math.Point(6, 2),
+  math.Point(6, 3),
+  math.Point(6, 4),
+  math.Point(6, 5),
+  math.Point(5, 6),
+  math.Point(4, 6),
+  math.Point(3, 6),
+  math.Point(2, 6),
+  math.Point(1, 6),
+  math.Point(0, 6),
+  math.Point(0, 7),
+  math.Point(0, 8),
+  math.Point(1, 8),
+  math.Point(2, 8),
+  math.Point(3, 8),
+  math.Point(4, 8),
+  math.Point(5, 8),
+  math.Point(6, 9),
+  math.Point(6, 10),
+  math.Point(6, 11),
+  math.Point(6, 12),
+  math.Point(6, 13),
+  math.Point(6, 14),
+  math.Point(7, 14),
+  math.Point(8, 14),
+  math.Point(8, 13),
+  math.Point(8, 12),
+  math.Point(8, 11),
+  math.Point(8, 10),
+  math.Point(8, 9),
+  math.Point(9, 8),
+  math.Point(10, 8),
+  math.Point(11, 8),
+  math.Point(12, 8),
+  math.Point(13, 8),
+  math.Point(14, 8),
+  math.Point(14, 7),
+  math.Point(14, 6),
+  math.Point(13, 6),
+  math.Point(12, 6),
+  math.Point(11, 6),
+  math.Point(10, 6),
+  math.Point(9, 6),
+  math.Point(8, 5),
+  math.Point(8, 4),
+  math.Point(8, 3),
+  math.Point(8, 2),
+  math.Point(8, 1),
+  math.Point(8, 0),
+  math.Point(7, 0),
+  math.Point(6, 0),
 ];
 
 /// Home-path cells per seat (red, green, yellow, blue), in travel order.
 const List<List<math.Point<int>>> _homePaths = [
-  [math.Point(7, 1), math.Point(7, 2), math.Point(7, 3), math.Point(7, 4), math.Point(7, 5)],
-  [math.Point(1, 7), math.Point(2, 7), math.Point(3, 7), math.Point(4, 7), math.Point(5, 7)],
-  [math.Point(7, 13), math.Point(7, 12), math.Point(7, 11), math.Point(7, 10), math.Point(7, 9)],
-  [math.Point(13, 7), math.Point(12, 7), math.Point(11, 7), math.Point(10, 7), math.Point(9, 7)],
+  [
+    math.Point(7, 1),
+    math.Point(7, 2),
+    math.Point(7, 3),
+    math.Point(7, 4),
+    math.Point(7, 5),
+  ],
+  [
+    math.Point(1, 7),
+    math.Point(2, 7),
+    math.Point(3, 7),
+    math.Point(4, 7),
+    math.Point(5, 7),
+  ],
+  [
+    math.Point(7, 13),
+    math.Point(7, 12),
+    math.Point(7, 11),
+    math.Point(7, 10),
+    math.Point(7, 9),
+  ],
+  [
+    math.Point(13, 7),
+    math.Point(12, 7),
+    math.Point(11, 7),
+    math.Point(10, 7),
+    math.Point(9, 7),
+  ],
 ];
 
 /// Yard token slots per seat (2x2 inside each yard).
 const List<List<math.Point<double>>> _yardSlots = [
-  [math.Point(1.5, 1.5), math.Point(1.5, 3.5), math.Point(3.5, 1.5), math.Point(3.5, 3.5)],
-  [math.Point(10.5, 1.5), math.Point(10.5, 3.5), math.Point(12.5, 1.5), math.Point(12.5, 3.5)],
-  [math.Point(10.5, 10.5), math.Point(10.5, 12.5), math.Point(12.5, 10.5), math.Point(12.5, 12.5)],
-  [math.Point(1.5, 10.5), math.Point(1.5, 12.5), math.Point(3.5, 10.5), math.Point(3.5, 12.5)],
+  [
+    math.Point(1.5, 1.5),
+    math.Point(1.5, 3.5),
+    math.Point(3.5, 1.5),
+    math.Point(3.5, 3.5),
+  ],
+  [
+    math.Point(10.5, 1.5),
+    math.Point(10.5, 3.5),
+    math.Point(12.5, 1.5),
+    math.Point(12.5, 3.5),
+  ],
+  [
+    math.Point(10.5, 10.5),
+    math.Point(10.5, 12.5),
+    math.Point(12.5, 10.5),
+    math.Point(12.5, 12.5),
+  ],
+  [
+    math.Point(1.5, 10.5),
+    math.Point(1.5, 12.5),
+    math.Point(3.5, 10.5),
+    math.Point(3.5, 12.5),
+  ],
 ];
 
 /// Screen centre of a token inside a board of [size], using exactly the
@@ -107,18 +201,14 @@ Offset boardTokenCenter(
     return Offset((slot.y + 0.5) * cell, (slot.x + 0.5) * cell);
   }
   if (token.stepsTaken == 56) {
-    final homeTokens =
-        allTokens.where((t) => t.stepsTaken == 56).toList();
+    final homeTokens = allTokens.where((t) => t.stepsTaken == 56).toList();
     final i = homeTokens.indexOf(token);
     return Offset(
       size.width / 2 + (i - homeTokens.length / 2) * cell * 0.55,
       size.height / 2,
     );
   }
-  final centre = Offset(
-    (cellPos!.y + 0.5) * cell,
-    (cellPos.x + 0.5) * cell,
-  );
+  final centre = Offset((cellPos!.y + 0.5) * cell, (cellPos.x + 0.5) * cell);
   final sharing = allTokens
       .where(
         (t) =>
@@ -153,12 +243,32 @@ class LudoBoardPainter extends CustomPainter {
     required this.legalTokenIds,
     required this.currentSeat,
     this.safeTrackIndices = const {0, 8, 13, 21, 26, 34, 39, 47},
+    // Legal-move pulse (M2.7, CON-01): 0..1, driven by the game
+    // screen's 1,200 ms pulse controller — one cycle per legal-move
+    // appearance — the legal ring's radius grows and its alpha fades
+    // as [pulse] rises. Defaults to 0, which renders exactly the
+    // static ring M2.3 drew, so existing call sites and tests keep
+    // working.
+    this.pulse = 0.0,
+    // Token-hop override (M2.7): while a hop is in flight the
+    // screen animates one token's *rendered* centre between its
+    // pre-move and post-move cells and passes it here. The engine
+    // state is already final — this only moves the drawing, never
+    // the game. Both null means "draw every token at its computed
+    // centre". The M3 upgrade (brief §4(C)) sequences a multi-cell
+    // move one cell at a time; this hop interpolates straight from
+    // the old cell to the new one in ≤250 ms.
+    this.hopTokenId,
+    this.hopCenter,
   });
 
   final List<BoardToken> tokens;
   final Set<String> legalTokenIds;
   final int currentSeat;
   final Set<int> safeTrackIndices;
+  final double pulse;
+  final String? hopTokenId;
+  final Offset? hopCenter;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -188,8 +298,8 @@ class LudoBoardPainter extends CustomPainter {
     }
     for (var seat = 0; seat < 4; seat++) {
       for (final cellPos in _homePaths[seat]) {
-        boardPaint.color =
-            DiceUpColors.playerColor(seat).withValues(alpha: 0.55);
+        boardPaint.color = DiceUpColors.playerColor(seat)
+            .withValues(alpha: 0.55);
         canvas.drawRect(_cellRect(cellPos, cell), boardPaint);
         canvas.drawRect(_cellRect(cellPos, cell), gridPaint);
       }
@@ -214,7 +324,10 @@ class LudoBoardPainter extends CustomPainter {
           final slot = _yardSlots[seat][i % 4];
           _drawToken(
             canvas,
-            Offset((slot.y + 0.5) * cell, (slot.x + 0.5) * cell),
+            _centreFor(
+              group[i],
+              Offset((slot.y + 0.5) * cell, (slot.x + 0.5) * cell),
+            ),
             cell,
             group[i],
           );
@@ -224,8 +337,13 @@ class LudoBoardPainter extends CustomPainter {
         for (var i = 0; i < group.length; i++) {
           _drawToken(
             canvas,
-            Offset(size.width / 2 + (i - group.length / 2) * cell * 0.55,
-                size.height / 2),
+            _centreFor(
+              group[i],
+              Offset(
+                size.width / 2 + (i - group.length / 2) * cell * 0.55,
+                size.height / 2,
+              ),
+            ),
             cell,
             group[i],
           );
@@ -240,10 +358,26 @@ class LudoBoardPainter extends CustomPainter {
           final offset = group.length == 1
               ? Offset.zero
               : Offset((i - (group.length - 1) / 2) * cell * 0.4, 0);
-          _drawToken(canvas, centre + offset, cell, group[i]);
+          _drawToken(
+            canvas,
+            _centreFor(group[i], centre + offset),
+            cell,
+            group[i],
+          );
         }
       }
     });
+  }
+
+  /// The centre a token is drawn at: the hop override when this is
+  /// the hopping token and a hop is in flight, else the computed
+  /// centre. The override is rendering-only — the token's engine
+  /// position (and the hit-test geometry in [boardTokenCenter])
+  /// already sit at the destination cell.
+  Offset _centreFor(BoardToken token, Offset computed) {
+    final hop = hopCenter;
+    if (hop != null && token.id == hopTokenId) return hop;
+    return computed;
   }
 
   Rect _yardRect(int seat, double cell) {
@@ -255,12 +389,8 @@ class LudoBoardPainter extends CustomPainter {
     };
   }
 
-  Rect _cellRect(math.Point<int> cellPos, double cell) => Rect.fromLTWH(
-        cellPos.y * cell,
-        cellPos.x * cell,
-        cell,
-        cell,
-      );
+  Rect _cellRect(math.Point<int> cellPos, double cell) =>
+      Rect.fromLTWH(cellPos.y * cell, cellPos.x * cell, cell, cell);
 
   void _drawCell(
     Canvas canvas,
@@ -288,8 +418,8 @@ class LudoBoardPainter extends CustomPainter {
     canvas.drawRect(rect, gridPaint);
     // Start cells get their seat colour.
     if (trackIndex % 13 == 0) {
-      fillPaint.color =
-          DiceUpColors.playerColor(trackIndex ~/ 13).withValues(alpha: 0.35);
+      fillPaint.color = DiceUpColors.playerColor(trackIndex ~/ 13)
+          .withValues(alpha: 0.35);
       canvas.drawRect(rect, fillPaint);
       canvas.drawRect(rect, gridPaint);
     }
@@ -326,23 +456,28 @@ class LudoBoardPainter extends CustomPainter {
         ..lineTo(corners[seat].dx, corners[seat].dy)
         ..lineTo(corners[(seat + 1) % 4].dx, corners[(seat + 1) % 4].dy)
         ..close();
-      canvas.drawPath(
-        path,
-        Paint()..color = DiceUpColors.playerColor(seat),
-      );
+      canvas.drawPath(path, Paint()..color = DiceUpColors.playerColor(seat));
     }
   }
 
   void _drawToken(Canvas canvas, Offset centre, double cell, BoardToken token) {
-    final color = DiceUpColors.playerColor(token.seatIndex);
+    // The token dot takes the player's *chosen* colour (M2.2); the
+    // board geometry itself (yards, start cells, home paths) stays
+    // seat-based — the layout is fixed by seat, only the tokens move.
+    final color = token.colour == null
+        ? DiceUpColors.playerColor(token.seatIndex)
+        : DiceUpColors.forColour(token.colour!);
     final radius = cell * 0.36;
-    // Legal-move highlight: amber ring + slight lift (FR-17).
+    // Legal-move highlight: amber ring + slight lift (FR-17). The
+    // ring pulses with [pulse] (M2.7): its radius grows and its
+    // alpha fades as the pulse rises; at pulse 0 it is the static
+    // ring as before.
     if (legalTokenIds.contains(token.id)) {
       canvas.drawCircle(
         centre,
-        radius + 3,
+        radius + 3 + pulse * 2.5,
         Paint()
-          ..color = DiceUpColors.amber
+          ..color = DiceUpColors.amber.withValues(alpha: 1.0 - pulse * 0.45)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3,
       );
@@ -390,10 +525,23 @@ class LudoBoardPainter extends CustomPainter {
     }
   }
 
+  /// Content-based repaint (M2.7, NFR-02): the board repaints only
+  /// when what it draws actually changed. The old version compared
+  /// the token list and the legal-move set by identity, so a new
+  /// list (which the screen builds on every rebuild) always
+  /// repainted. [BoardToken] implements value equality (its
+  /// `colour` is deliberately excluded — see its doc — so a
+  /// colour-only change does not repaint; no mid-match colour
+  /// change exists, colours are chosen at setup), and sets compare
+  /// by contents.
   @override
   bool shouldRepaint(covariant LudoBoardPainter oldDelegate) {
-    return oldDelegate.tokens != tokens ||
-        oldDelegate.legalTokenIds != legalTokenIds ||
-        oldDelegate.currentSeat != currentSeat;
+    return oldDelegate.currentSeat != currentSeat ||
+        oldDelegate.pulse != pulse ||
+        oldDelegate.hopTokenId != hopTokenId ||
+        oldDelegate.hopCenter != hopCenter ||
+        !listEquals(oldDelegate.tokens, tokens) ||
+        !setEquals(oldDelegate.legalTokenIds, legalTokenIds) ||
+        !setEquals(oldDelegate.safeTrackIndices, safeTrackIndices);
   }
 }

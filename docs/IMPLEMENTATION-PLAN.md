@@ -247,7 +247,7 @@ DiceUp/
 3. ~~Implement the design system (`lib/core/design_system/`) + reusable
    components + navigation + splash/home/mode-selection/offline-setup screens.~~ — done.
 4. ~~Implement the pure-Dart engine + AI with unit tests.~~ — done (see §7).
-5. Wire the game screen to the engine (board painter, dice, tokens, animations). — done **except AnimationController** (CON-01 outstanding: dice is `Timer.periodic`, tokens teleport, no pulse — M2.7).
+5. Wire the game screen to the engine (board painter, dice, tokens, animations). — done, including AnimationController (M2.7, CON-01: 540 ms tumble settling on the engine value, ≤250 ms token hop, legal-move pulse, `RepaintBoundary` + content-based `shouldRepaint`).
 6. ~~Replace `main.dart` and the counter widget test.~~ — done
    (`DiceUpApp`, boot/navigation widget tests, gameplay widget test).
 7. Push the branch, open a **draft** PR, report results honestly. No merge.
@@ -464,3 +464,668 @@ milestone. The settings screen loads/saves the three persisted toggles
 + volume and reset; reading/displaying `last_*` there is out of scope.
 Sound remains a named follow-up (D-32): disabled toggle + volume
 storage only, nothing plays.
+
+### M3.3 — DONE (Riverpod composition root, D-06; 2026-11-22)
+
+The single wiring point (remediation plan M3.3, SDD §3.2/§4.2–§4.4):
+`lib/presentation/providers/app_providers.dart` (new) — one
+`ProviderScope` at the app entry ([DiceUpApp] in `lib/main.dart`)
+wiring repositories → use cases → [OfflineGameController] → screens.
+
+- Providers: `startupResultProvider` (the awaited [initializeApp]
+  result — no default, fails loudly without it),
+  `appDependenciesProvider` + the five repository providers (the
+  same instances startup built — one construction site),
+  `snapshotWriterProvider`, `diceRollerProvider` (null in prod),
+  `feedbackServiceProvider`, `vibrationEnabledProvider` (null in
+  prod), use-case providers (`startOfflineMatchProvider`,
+  `rollDiceProvider`, `applyMoveProvider` — null when degraded),
+  and `offlineGameControllerProvider` (`Provider.autoDispose`:
+  the game screen's watch keeps it alive; the provider disposes
+  it — timers cancelled — when the screen leaves).
+- [OfflineGameController] takes the M3.1 use cases by optional
+  constructor injection (defaults build the same instances as
+  before M3.3, so direct construction behaves identically); the
+  haptics hook (`onMoveApplied`) is wired in the provider, so the
+  screen never touches haptics directly.
+- `GameScreen` is a `ConsumerStatefulWidget` that reads the
+  controller via `ref.read` (start the match in
+  `didChangeDependencies`) + `ref.watch` (build). The
+  optional-constructor-override seam is GONE — exactly one seam
+  mechanism, the provider override (decided at implementation
+  time, per the M3.2 plan text; no test used the `controller:`
+  override). The `diceRoller` / `feedbackService` /
+  `vibrationEnabled` widget parameters are gone too; tests
+  override the providers (`test/test_providers.dart`). The screen
+  holds no copy of the game state.
+- `flutter_riverpod: ^3.5.0` added (D-06 names Riverpod; the
+  remediation plan M3.3 names `ProviderScope` + providers).
+- `tool/check_boundaries.sh` (new): 8 grep checks — domain
+  imports no Flutter/Riverpod/storage; only the provider graph
+  constructs the controller; no screen constructs a repository,
+  the engine or `AppDependencies`; the game screen imports no
+  data layer. All pass.
+- Behaviour preserved bit-identically: same 700–1,199 ms AI
+  pacing, same 6 x 90 ms dice tumble, same status strings, same
+  win trigger, same snapshot/completion semantics. The vibration
+  resolution keeps the M3.2 screen's exact expression
+  (`loadedSettings['vibration_enabled'] != '0'`); note
+  `loadedSettings` is currently always empty from
+  `AppDependencies.fromDatabase` (startup loads settings into
+  `StartupResult.settings` instead), so the effective initial
+  value is on and the persisted value is picked up by the
+  controller's repository refresh — the quirk is preserved, not
+  silently fixed.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **417/417 passed** (baseline 409 + 8 new in
+`test/riverpod_composition_root_test.dart`: repository-provider
+identity, use-case wiring incl. degraded `applyMove == null`,
+controller provision + disposal via container dispose, boot with
+in-memory fakes + move persists, single-source-of-truth
+(externally driven roll renders), feedback override, no-scope
+loud failure, `DiceUpApp` startup wiring with test seams).
+`flutter analyze` — **0 errors, 0 warnings, 24 info** (all the
+pre-existing `material.dart` deprecation notice, incl. 1 in the
+new test file; baseline was 0/0/23). `dart format` clean on all
+M3.3-touched files (note: `dart format --set-exit-if-changed`
+flags 45 pre-existing files tree-wide — older-formatter style
+drift, untouched by this milestone, not reformatted here).
+`tool/check_boundaries.sh` — 8/8 checks pass. The M3.2
+characterization tests pass unchanged.
+
+Single-scope rule (found by probe during this milestone, recorded
+in `lib/main.dart` + `app_providers.dart`): there is exactly one
+[ProviderScope] per widget tree. Riverpod owns a non-overridden
+provider in the outermost scope, so its transitive watches resolve
+there and cannot see an inner scope's overrides — a `DiceUpApp`
+wrapped in an outer test scope failed to start a match
+(`startupResultProvider` in error state, verified by probe), while
+the same tree with a single scope works. [DiceUpApp] therefore
+owns the app tree's scope and takes its test seams as named
+parameters (`testDiceRoller`, `testFeedbackService`,
+`testVibrationEnabled`); `Override` is sealed and not publicly
+exported in Riverpod 3.5, so no raw-override parameter is
+possible. Bare-screen tests build their own single scope via
+`test/test_providers.dart`.
+
+Scoping decisions recorded: game flow + startup wiring only.
+Settings, history, statistics, home and setup screens still read
+repositories through [AppDependenciesScope] (M1.6) — migrated one
+screen at a time, explicit next step, not done here. §1.4's
+as-built description ("no Riverpod… GameScreen's State owns the
+engine") is superseded by M3.2 (controller extraction) + M3.3
+(Riverpod) and is left as the audit-time record; it is not
+rewritten in this milestone.
+
+Follow-up decision item (pre-existing M3.2 finding, NOT fixed
+here): `LudoGame.fromState` uses the default stock ruleset, not
+the restored state's embedded ruleset — a resumed match with
+custom ruleset options plays under stock rules, and Play Again
+after a resume loses the custom ruleset. Needs a decision (fix
+`fromState` to honour the embedded ruleset vs keep stock as the
+resumed default) before it is touched; recorded here so it is not
+fixed silently.
+### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
+
+The theme-token half of H-10 (remediation plan §4 M2.3, §6.2
+"Theme tokens"):
+
+- `diceup_typography.dart`: `bodySmall` 12 → **14 sp** — the
+  14 sp floor now holds for every style in the theme (display 32,
+  headline 24, titles 20/16, body 16/14/14, label 14). The header
+  doc now states the floor explicitly instead of asserting it
+  while `bodySmall` was 12 sp.
+- `diceup_theme.dart`: `segmentedButtonTheme` and
+  `textButtonTheme` 48 dp minimums added
+  (`DiceUpSpacing.minTouchTarget`), alongside the existing
+  elevated/outlined 48 dp minimums. Measured under Flutter 3.50.1
+  the rendered SegmentedButton/TextButton heights already met
+  48 dp — the audit's 40 dp figure is stale under this Flutter
+  version — so these entries pin the requirement as tokens rather
+  than fixing a currently failing rendered size; the test asserts
+  the token as well as the rendered size.
+- `offline_setup_screen.dart`: colour swatches 40x40 → **48x48 dp**
+  (the one interactive control found below 48 dp by the audit
+  beyond the two button themes). Measured 40.0 dp before the fix.
+- `diceup_spacing.dart` / `diceup_components.dart`: the false
+  blanket claims are corrected — "Touch targets are at least
+  48x48 dp" / "All interactive elements meet the 48x48 dp
+  minimum" now say the 48 dp token is enforced for *controls*
+  through the theme, with board tokens named as the D-09
+  exemption (game pieces, not controls).
+- `game_screen.dart` `_onBoardTap`: the D-09 mitigation — the
+  **full-cell hit area**. Any tap inside a legal token's cell
+  selects it; the pre-existing cell×0.6 radius is kept as well,
+  so no previously-valid tap is lost (the radius reaches past the
+  cell along the axes). Board tokens stay exempt from 48 dp
+  (geometric: ~22.4 dp tap target on the minimum 280 dp board;
+  48 dp tokens would need a 720 dp board vs NFR-09's 430 dp max).
+- Incidental finding fixed in verification: at 320 dp the
+  `_PlayerChip` label ("Player 1 · Home 0/4") overflowed its row
+  by 29 px — pre-existing (the chip uses `bodyMedium`, untouched
+  by this milestone; only the 320 dp viewport exposes it). The
+  label is now `Flexible` + `TextOverflow.ellipsis`. No text was
+  shortened and no other chip behaviour changed.
+
+Audit of the remaining controls (measured in the new tests, all
+≥ 48 dp): Primary/Secondary buttons, IconButton (AppBar), the
+setup SwitchListTile rows, Slider, DropdownButtonFormField and
+DiceUpTextField. The dice (64 dp, not yet tappable — M2.8) and the
+player chips (non-interactive) are not controls. The only
+sub-14 sp text in `lib/` was `bodySmall` (the avatar initial
+scales with its radius and is not body text).
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **431/431 passed** (baseline 417 + 14 new in
+`test/accessibility_test.dart`: 4 typography/token, 4 themed-control,
+1 dialog TextButton, 2 real-setup-screen, 1 corner-of-cell tap,
+2 320x568 no-overflow smoke). Before/after: the new file failed
+5/12 against the unfixed code (`bodySmall` 12.0 sp, no theme
+48 dp minimums, swatches 40.0 dp, corner tap missed) and passes
+12/12 after; the two 320 dp smoke tests were added after the fix
+and caught the chip overflow above. `flutter analyze` — **0 errors,
+0 warnings, 25 info** (24 baseline + 1 in the new test file, all the
+pre-existing `material.dart` deprecation notice). `dart format`
+clean on all M2.3-touched files. The 320 dp checks are smoke-only
+(no-overflow); the full 5-width layout suite is M2.12's.
+
+Scoping decisions recorded: avatar contrast + shape markers are
+M2.4 (D-27) and Semantics labels are M2.9 — NFR-08 is still
+non-compliant overall (see TRACEABILITY NFR-07–10 row), and this
+milestone does not claim otherwise. The `LudoGame.fromState`
+custom-ruleset follow-up (M3.2/M3.3) is untouched, as instructed.
+
+### M2.4 — DONE (white-disc avatars + turn banner, D-27; 2026-11-22)
+
+The avatar half of H-10 (remediation plan §4 M2.4, §6.1 "Avatars +
+contrast"):
+
+- `diceup_components.dart`: `PlayerAvatar` reworked to the D-27
+  white disc — white fill, navy initial (`DiceUpColors.navy`,
+  0xFF1B2A4E), player-colour ring, per-seat shape marker. The old
+  coloured disc + white initial is gone, and with it the false
+  shape-marker docstring (the old widget claimed a shape marker it
+  never rendered). The initial is navy on white for every seat:
+  14.11:1 by the WCAG formula, so the three failing
+  white-on-player-colour ratios (red 3.91, green 3.04, yellow 1.85)
+  no longer apply — no text sits on a player colour anymore.
+  Board tokens and the palette constants are untouched (D-27).
+- New `PlayerShape` enum (`circle`/`square`/`diamond`/`triangle`,
+  `forSeat` = seat % 4) + `PlayerShapeMarker` widget: the same
+  shapes as the board tokens in `LudoBoardPainter`, so shape alone
+  identifies the seat. The marker is a small badge in the ring
+  colour at the disc's bottom-right corner.
+- New `DiceUpColors.contrastRatio` (WCAG relative-luminance
+  formula, opaque colours) in `diceup_colors.dart`, so the 14.11:1
+  claim is computed in code and asserted in the test, not quoted
+  from the decision record.
+- `PlayerAvatar` takes an optional `colour` (`PlayerColour`): the
+  ring follows the player's *chosen* colour (M2.2) when given, and
+  falls back to the seat-order colour otherwise. The shape always
+  follows the *seat*, matching the board tokens after a colour swap.
+- `game_screen.dart`: the turn banner passes the current player's
+  chosen colour, so it shows name + avatar (colour ring + shape +
+  initial) — "name + colour + shape" per the remediation plan. The
+  `_PlayerChip`'s colour-only 12 dp dot is replaced by a small
+  `PlayerAvatar` (radius 12); the M2.3 `Flexible` + ellipsis label
+  is unchanged and the 320 dp chip overflow stays fixed.
+- `offline_setup_screen.dart`: the seat card passes the seat's
+  chosen colour to its avatar, and the redundant 14x14 colour-only
+  dot next to the seat title is removed (the avatar in the same row
+  already carries colour + shape + initial).
+- Not in scope here, unchanged: the results screen is M2.5 (the
+  win dialog still shows the winner's name as text; `PlayerAvatar`
+  is available for the results screen to use), history/statistics
+  identify players by text name / "Seat N · colour name" (no
+  colour-only identification there), and Semantics labels are M2.9.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **437/437 passed** (baseline 431 + 6 new in
+`test/accessibility_test.dart`, group "avatars + turn banner (M2.4,
+D-27)": navy-on-white 14.11:1 unit test, per-seat white disc / navy
+initial / ring colour / distinct shape, ring-follows-chosen-colour
+vs shape-follows-seat, initial from the real name, turn banner
+shows the current player and updates on turn change, 320x568
+game screen with 5 avatars without overflow). The new tests assert
+the opposite of the old rendering (white disc, navy initial), so
+they fail against the pre-M2.4 avatar by construction.
+`flutter analyze` — **0 errors, 0 warnings, 25 info** (unchanged
+from the M2.3 baseline, all the pre-existing `material.dart`
+deprecation notice; no new notice). `dart format` clean on all
+M2.4-touched files.
+
+Scoping decisions recorded: NFR-08 is still non-compliant overall
+(see TRACEABILITY NFR-07–10 row) — Semantics labels are M2.9, and
+this milestone does not claim otherwise. The `LudoGame.fromState`
+custom-ruleset follow-up (M3.2/M3.3) is untouched, as instructed.
+
+### M2.5 — DONE (dedicated results screen, H-09; D-02, D-30; 2026-11-22)
+
+The results half of H-09 (remediation plan §3.1 H-09, §4 M2.5,
+§6 "Results screen"):
+
+- `lib/presentation/screens/results_screen.dart` (new): the
+  dedicated results screen (FR-26), a *route* — the M1.6 win
+  dialog is deleted, not kept alongside. Shows exactly what FR-26
+  / SDD §11.1 require: the winner (name + large `PlayerAvatar`:
+  white disc, navy initial, player-colour ring, per-seat shape —
+  M2.4/D-27, never colour alone), duration `mm:ss`, move count,
+  mode (`vs AI` / `Local multiplayer`, matching the history
+  screen's wording), player count, the participant list (avatar +
+  name + `(AI)` + a `Winner` marker), and the finish date
+  (`21 Nov 2026, 12:00`, the history screen's format, no `intl`
+  dependency). "Finishing order where applicable" is winner-only:
+  the match ends at the first finisher (BR-11) and
+  continue-to-rank is DEFERRED (D-02) — no 2nd/3rd order, ranking
+  or placement is shown or invented. No lifetime statistics live
+  here (M1.7 owns those). The record-failure notice
+  (`kMatchRecordFailedMessage`, moved here from `game_screen.dart`)
+  shows when the completion record failed, never a success presented
+  as recorded.
+- `lib/presentation/navigation/app_routes.dart`: new route
+  `AppRoutes.results` (+ route-table entry); new frozen
+  `MatchResult` + `MatchResultPlayer` value objects — winner,
+  players, duration, move count, finish time, the exact
+  `GameSetup`, `completionFailed`. The duration and finish time
+  are frozen at navigation, so a rebuild can never stretch the
+  duration; the screen never reads the game controller (it is
+  disposed when the results route replaces the game route) and
+  never re-records the completion (exactly-once, M1.6). The model
+  is shaped so a future `finishOrder` list slots in beside
+  `winnerSeat` (D-02 condition 6). `matchResultOf` returns null
+  for a route opened without a result — the screen shows an
+  honest empty state (`No match result to show.` + Main Menu),
+  never an invented result. `gameSetupOf`'s fallback is kept
+  only as a deep-link guard: it now logs (release builds
+  included) and asserts in debug — never a silent substitute.
+- `lib/presentation/screens/game_screen.dart`: `_showWinDialog`
+  deleted (with its double-pop: dialog pop, then game-screen pop
+  → setup). `_maybeShowResults` navigates once, when the match
+  is finished and the completion record is decided, via
+  `pushNamedAndRemoveUntil(AppRoutes.results,
+  ModalRoute.withName(AppRoutes.home))` — the stack becomes
+  Home → Results, so system back lands on Home and there is no
+  finished game screen underneath. The duration runs from the
+  match's `GameState.startedAt` (which survives resume and
+  restart), with a screen-tracked `_matchStartedAt` fallback for
+  states built without one — this is the plan's "track
+  `_matchStartedAt`", satisfied by the M1.1 `startedAt` field
+  rather than a second clock. `_gameSetupOf` converts the
+  retained `MatchSetup` back to `GameSetup` field-for-field for
+  Play Again. The controller's doc comments now say "results
+  screen" where they said "win dialog" (comment-only touch in
+  `offline_game_controller.dart`).
+- Navigation (D-30, the double-pop fix): **Play Again** reopens
+  the game route with the exact retained setup via
+  `pushNamedAndRemoveUntil` keeping Home (stack Home → Game).
+  **Main Menu** is a single `pop()` to the Home route below
+  Results — and a fresh Home is pushed only when nothing is
+  below (a deep link straight to the game route). The pop (not
+  a fresh Home) is load-bearing, found by probe during this
+  milestone: Home offers the resume dialog exactly once per Home
+  lifetime from the *frozen* startup snapshot outcome, so a
+  fresh Home after Main Menu re-offered resume for the match
+  that had just finished (its snapshot was deleted at
+  completion) — and resuming that stale snapshot would have
+  recorded the finished match a second time. Returning to the
+  existing Home never re-offers. The stale-offer hazard remains
+  for any *future* flow that pushes a fresh Home mid-lifetime;
+  a re-check of snapshot existence in `HomeScreen` belongs with
+  that flow, not here (recorded follow-up, not fixed).
+- Pause is NOT in this milestone: the D-10 decision record's
+  "M2.5 implements the freeze" predates the remediation plan's
+  split, which assigns pause to M2.6 ("after M2.5, to avoid two
+  authors editing `game_screen` AppBar/dialog code at once") —
+  the remediation plan + brief govern, so `_confirmExit` and the
+  AppBar restart/close paths are untouched. Note as a
+  consequence: from a Play Again match (stack Home → Game) the
+  AppBar close/confirm path pops to Home, while from a first
+  match (stack Home → Mode → Setup → Game) it still pops to
+  setup — M2.6 rationalises the exit flows.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **448/448 passed** (baseline 437 + 11 new in
+`test/results_screen_test.dart`: winner avatar + match info,
+record-failure notice, empty state, Main Menu lands on Home
+exactly once incl. `Navigator.canPop() == false`, Play Again
+reuses the exact setup incl. ruleset behaviour (a roll of 1
+releases under the reused release-on-1 ruleset), the
+Game → Results → Play Again / → Main Menu journeys, a resumed
+finished match showing Results without re-recording, the
+full-app Home → Resume → Game → Results → Play Again / Main
+Menu journeys, and a scripted setup → game → results → Play
+Again match driven through the UI with a cycling
+`FixedDiceRoller([6, 5, 4, 3, 2, 1])` — the 1s matter: all-6s
+would strand tokens at 51–55 under exact finish and the match
+could never end). The two `test/app_lifecycle_test.dart`
+completion tests were updated to the results route (results
+screen, not dialog; `Play Again` label; the results buttons sit
+below the fold in the 800x600 test viewport, so the taps use
+`ensureVisible` — the same reason the new tests tap results
+buttons through a helper). `flutter analyze` — **0 errors, 0
+warnings, 27 info** (25 baseline + 2 in new M2.5 files, all the
+pre-existing `material.dart` deprecation notice). `dart format`
+clean on all M2.5-touched files. `tool/check_boundaries.sh` —
+8/8 checks pass.
+
+Scoping decisions recorded: the `LudoGame.fromState`
+custom-ruleset follow-up (M3.2/M3.3) is untouched, as
+instructed — and is now pinned by a test: Play Again after a
+*resumed* custom-ruleset match restarts under the stock ruleset
+(the loss happens at resume, not at Play Again); Play Again
+after a *normal* match preserves the exact ruleset, proved by
+the scripted test. The results screen is scrollable
+(`SingleChildScrollView`); the full 5-width layout suite is
+M2.12's. D-02's "replace win AlertDialog with a dedicated
+results screen" is done; continue-to-rank stays DEFERRED.
+
+### M2.6 — DONE (pause menu + back confirmation, M-01; D-10, D-30; 2026-11-22)
+
+The pause half of H-09 (remediation plan §3.1 M-01, §4 M2.6,
+§6 "Pause + back"):
+
+- `lib/domain/offline_game_controller.dart`: `pause()` /
+  `resume()` + `isPaused`. Pause is a freeze (D-10): both
+  timers are cancelled — the AI pacing timer and the dice
+  tumble — so no AI roll or move, no tumble tick and no turn
+  change happens while paused, and the snapshot is untouched
+  (a paused match stays resumable). State is preserved
+  exactly: same turn, same legal moves, same displayed roll.
+  The tumble's engine-decided value is kept in
+  `_settlingRollValue` (extracted `_settleRoll()`, shared by
+  the tumble timer and by `resume()`), so a tumble
+  interrupted by pause settles on resume on the same value,
+  with the same side effects, exactly once. `resume()` runs
+  the turn-change path exactly once: an AI turn re-schedules
+  its pacing timer fresh (700–1,199 ms, D-31), a human turn
+  schedules nothing. Guards: `rollDice`/`applyMove` ignore
+  input while paused, `_afterTurnChange` returns early while
+  paused, the AI timer callback checks `_paused`, `pause()`
+  is a no-op on a finished match, both are idempotent, and
+  `startMatch`/`restoreMatch`/`restart()` clear the paused
+  flag. The M3.2 timer-cancellation invariant is kept: no
+  stale timer can act on a resumed or restarted match.
+- `lib/presentation/screens/game_screen.dart`: the AppBar
+  close button is now a pause button (`Icons.pause`, tooltip
+  'Pause'; the refresh restart button is gone) opening the
+  pause menu — an `AlertDialog` (the remediation plan's
+  "bottom sheet or dialog"; dialog chosen to match the
+  existing confirmation dialogs) with Resume / Restart /
+  Main Menu. Restart and Main Menu reuse the existing
+  confirmation dialogs; cancelling either resumes the match,
+  and a plain dismissal (back button, tap outside) counts as
+  Resume. `PopScope(canPop: false)` while the match is
+  unfinished: system back opens the same pause menu instead
+  of popping (the old back-pop deleted the snapshot with no
+  confirmation at all); once finished the pop is allowed.
+  While the pause dialog is open, back dismisses the dialog,
+  which resumes. Exit is rationalised (M2.5 note (c)):
+  Main Menu always lands on Home via a single
+  `pushNamedAndRemoveUntil(AppRoutes.home, (_) => false)` —
+  from a first match (Home → Mode → Setup → Game) as well as
+  from a Play Again match (Home → Game); the old AppBar-close
+  pop landed on setup from a first match. A fresh Home is
+  pushed rather than popping to an existing one, so the
+  landing is identical from every entry path including a
+  deep link straight to the game route. Board taps and the
+  Roll button are additionally gated on `isPaused`.
+- `lib/presentation/screens/home_screen.dart`: the
+  stale-resume re-offer hazard (M2.5 note (b)) is FIXED here,
+  because this milestone's exit flow is the flow that pushes
+  a fresh Home mid-lifetime. The resume offer re-checks
+  snapshot existence (`hasSnapshot(kCurrentMatchKey)`)
+  before offering: the startup outcome is frozen at launch,
+  but the snapshot may have been deleted since (finished or
+  exited), and offering it would restore — and at completion
+  re-record — a match that is already gone. When there is
+  nothing to check against (degraded startup, no
+  repositories) the frozen outcome is offered as before.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **468/468 passed** (baseline 448 + 20 new in
+`test/pause_exit_test.dart`: 8 controller — AI timer cancelled
+while paused, resume re-schedules exactly once in the 700–1,199
+ms band and the AI then acts, human-turn state preserved
+exactly, mid-tumble settles on the decided value on resume,
+input ignored while paused, pause/resume idempotent, pause
+no-op when finished, restart while paused starts fresh
+unpaused; 12 widget — pause menu contents, Resume, Restart /
+Main Menu with confirmation and with cancel resuming, system
+back opens the menu while playing and dismisses it while
+paused, no AI move in 5 s paused then AI acts after Resume,
+displayed roll + legal moves preserved, Main Menu from a first
+match and from a Play Again match lands on Home exactly once,
+exiting a resumed match never re-offers its deleted snapshot).
+`test/app_lifecycle_test.dart`'s two clean-exit tests were
+updated to the pause menu (Main Menu now lands on Home,
+'Ready to play?', not the host screen). Two findings from the
+re-check, both fixed in the tests, not by weakening the
+production code: `test/results_screen_test.dart`'s
+`pumpResumedApp` built a `ValidSnapshot` outcome with no row
+in the snapshot store — the exact stale offer the re-check
+refuses — so it now seeds the store first; the two
+`test/app_lifecycle_test.dart` ffi startup tests needed a
+real-async drain (`runAsync` + 200 ms delay, then settle)
+before the dialog appears, because the re-check is a real
+ffi read that does not complete inside the widget-test zone's
+`pumpAndSettle` (verified by probe; production async is
+unaffected). `flutter analyze` — **0 errors, 0 warnings, 28
+info** (27 baseline + 1 in the new test file, all the
+pre-existing `material.dart` deprecation notice). `dart
+format` clean on all M2.6-touched files.
+`tool/check_boundaries.sh` — 8/8 checks pass.
+
+Scoping decisions recorded: the `LudoGame.fromState`
+custom-ruleset follow-up (M3.2/M3.3) is untouched, as
+instructed. No sound (D-32 follow-up), no Semantics labels
+(M2.9), no tappable-dice work (M2.8), no gameplay-rule
+changes. Two test-framework notes, recorded for later
+milestones: `tester.pageBack()` needs a visible back button
+(the game screen's AppBar leading is the pause button), so
+system back is simulated with
+`tester.binding.handlePopRoute()`; `pumpAndSettle` alone
+does not advance the fake clock far enough to fire AI pacing
+timers, so AI-turn widget tests drain with explicit
+`pump(Duration(seconds: 2))` steps.
+
+### M2.7 — DONE (AnimationController, H-05/CON-01; M-16 UI pacing test; 2026-11-22)
+
+The animation half of H-05 (remediation plan §3.1 H-05, §4 M2.7,
+§6.4 "Animation (M2.7)"):
+
+- `lib/presentation/screens/game_screen.dart`: the state is now
+  the `TickerProviderStateMixin` host for three
+  [AnimationController]s. (a) **Dice tumble** — a 540 ms controller
+  started when the controller reports a roll in flight; the
+  displayed face cycles 1..6 from the controller's value while the
+  engine's decided value is pending, and settles on the engine
+  value, never a random one. The domain controller keeps its
+  6 x 90 ms timer as the *state-timing* authority — the domain
+  layer cannot own a Ticker, and the M2.6 pause/settle semantics
+  plus the fake-timer controller tests depend on it — so the two
+  run the same 540 ms and settle together; the timer is no longer
+  what the user *sees*. (b) **Token hop** — a ≤250 ms controller
+  interpolating one token's *rendered* centre from its pre-move
+  cell to its post-move cell (endpoints from
+  [boardTokenCenter]); the engine state is already final, so the
+  hop animates rendering only and can never change the game. A
+  move is detected by the move count rising by exactly one since
+  the last build, so start/restore/restart (which reset or jump
+  the count) never hop; a captured token snaps back to the yard —
+  its smooth return is the M3 capture animation, not this hop.
+  (c) **Legal-move pulse** — a 1,200 ms controller feeding
+  [pulse] into the painter, smoothed to a 0..1..0 oscillation.
+- **Pulse design deviation, recorded:** the remediation plan
+  says "repeating controller", but the pulse plays **one 1,200 ms
+  cycle each time legal moves newly appear** (a roll settles, a
+  move leaves moves legal, a resume) and then rests at the static
+  ring. A continuously repeating ticker schedules a frame on
+  every vsync, so `tester.pumpAndSettle()` — which the existing
+  suite uses throughout, and which the plan itself requires to
+  keep passing unmodified ("existing `game_screen_test.dart`
+  must still pass unmodified") — never terminates while one
+  repeats. Verified by probe: with the repeating form,
+  `game_screen_test.dart` and the characterization test timed out
+  unmodified. The painter still receives a changing pulse and the
+  ring radius/alpha oscillate; a continuous pulse is a named M3
+  revisit if the harness ever moves off `pumpAndSettle`.
+- `lib/presentation/widgets/ludo_board.dart`: new optional
+  `pulse` (default 0 — the static ring as before), `hopTokenId` /
+  `hopCenter` (rendering-only override, both null when idle); the
+  legal ring's radius grows (`+ pulse * 2.5`) and alpha fades
+  (`1 - pulse * 0.45`). The board is wrapped in a
+  [RepaintBoundary] in the game screen (the pulse/hop repaint the
+  board and nothing else). [shouldRepaint] is now content-based
+  ([listEquals] on tokens — [BoardToken] implements `==`, its
+  `colour` deliberately excluded — [setEquals] on the legal-move
+  and safe-cell sets, plus seat/pulse/hop); the old version
+  compared the token list and legal set by identity, so a new list
+  (which the screen builds on every rebuild) always repainted.
+- **Pause/dispose (M2.6 discipline, applied to animations):**
+  pause stops all three controllers where they are — the tumble's
+  engine value is kept in the controller and settles on resume,
+  the hop's destination is already the engine position — and
+  resume restarts the turn flow exactly once; a hop in flight is
+  replaced, never overlapped; all controllers are disposed with
+  the screen; a controller swap (new match) cancels the hop and
+  resets the tumble. Input is locked while the tumble or a hop is
+  in flight (Roll button + board taps; the hop is ≤250 ms).
+- **M-16 (FR-40, D-31):** the UI-layer pacing test is DONE — the
+  AI acts within 700–1,199 ms of its turn starting, asserted at
+  widget level with the real pacing (not started at 699 ms,
+  started by 1,199 ms, measured in 100 ms steps). The AI timeout
+  fallback (UC-03 E1 — a random legal move when AI calculation
+  exceeds NFR-04) is **accepted risk, NOT implemented**: Hard is
+  O(4) and practically unreachable, and the remediation plan marks
+  it Optional; recorded here and in TRACEABILITY rather than built.
+- `lib/presentation/widgets/dice_widget.dart`: doc comment
+  updated — the tumble is AnimationController-driven now; the
+  CON-01 note is closed for the dice.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **490/490 passed** (baseline 468 + 22 new:
+14 in `test/animation_test.dart` — tumble duration/settle/
+face-cycling/input lock, hop interpolation/end-state/no-hop-
+on-restart/pause-mid-hop, pulse presence/stop-on-pause,
+RepaintBoundary presence, pause-mid-tumble freeze + resume
+settle, restart mid-tumble, dispose mid-tumble, M-16 pacing —
+and 8 in `test/ludo_board_test.dart` — shouldRepaint same
+content → false, changed tokens/legal set/seat/safe cells/
+pulse/hop → true, parameter defaults). The M3.2
+characterization tests and the M2.6 pause tests pass
+unchanged. `flutter analyze` — **0 errors, 0 warnings, 29
+info** (28 baseline + 1 in the new test file, all the
+pre-existing `material.dart` deprecation notice; one new
+`unnecessary_import` in the first draft of the painter test was
+fixed, not left). `dart format` clean on all M2.7-touched
+files. `tool/check_boundaries.sh` — 8/8 checks pass.
+
+Scoping decisions recorded: the M3 token-movement upgrade
+(brief §4(C) — smooth one-cell-at-a-time movement, capture
+animation returning the token to base) is still to come; this
+milestone's hop is the foundation for it, not the final
+movement. The `LudoGame.fromState` custom-ruleset follow-up
+(M3.2/M3.3) is untouched, as instructed. No sound (D-32
+follow-up), no Semantics labels (M2.9), no tappable-dice work
+(M2.8), no gameplay-rule changes. Two test-framework notes,
+recorded for later milestones: `pumpAndSettle` times out while
+the turn banner's `CircularProgressIndicator` is spinning
+(infinite animation while `rolling` is true), so tests that
+open the pause menu mid-tumble use bounded pumps; after a
+Resume, `pumpAndSettle` advances fake time through the whole
+1,200 ms pulse cycle, so a mid-cycle pulse read needs bounded
+pumps instead.
+
+### M2.8 — DONE (illegal-tap feedback + tappable dice, M-02/FR-21; 2026-11-22)
+
+The illegal-tap half of H-05's follow-on (remediation plan §3.1
+M-02, §4 M2.8, §6.1 "Illegal-tap + tappable dice (M2.8)"):
+
+- `lib/presentation/widgets/dice_widget.dart`: new `enabled`
+  (default true, visual only) + `onTap` parameters. When `onTap`
+  is given the dice is wrapped in a [GestureDetector]; when
+  enabled it also carries a `Tooltip` ('Tap to roll'). Opacity is
+  1.0 when a roll is available, 0.6 while rolling, 0.45 when a
+  roll is not available (AI turn, paused, finished) — so the dice
+  reads as disabled, not tappable, when it cannot roll. The dice
+  stays 64 dp (D-09: already above the 48 dp control minimum).
+  `enabled` never decides whether a tap rolls — the screen's
+  handler does that — so a tap on the dimmed dice still gets
+  brief feedback instead of silence.
+- `lib/presentation/screens/game_screen.dart`: the dice is wired
+  to [_onDiceTap] with `enabled: canRoll`, where `canRoll` is
+  exactly the Roll button's condition (`isHumanTurn &&
+  phase == awaitingRoll`), so the two affordances can never
+  disagree about whether a tap rolls. [_onDiceTap] rolls under
+  those guards; a tap that cannot roll gets SnackBar + status
+  feedback naming the reason — "It's not your turn yet." (AI
+  turn), "Wait for the dice to settle." (rolling), "Wait for the
+  move to finish." (hop in flight), "Choose a token to move."
+  (already rolled, awaiting a move) — and never rolls, never
+  queues, never changes game state. The controller's own guards
+  are the second line of defence (a tap racing the tumble start
+  is ignored there too). [_onBoardTap] keeps the legal path
+  bit-identical (legal moves hit-tested first, in engine order,
+  with the M2.3 full-cell + radius area) and adds feedback only
+  when no legal move was taken: a tap on any token that cannot
+  move — a non-legal token of the current player, an opponent's
+  token, a token tapped during the AI's turn or mid-tumble — gets
+  the plan's exact message, "That token can't move now", via
+  [_showIllegalTapFeedback] (SnackBar, 2 s, latest message wins
+  over any showing one, plus the status line through
+  [OfflineGameController.noteIllegalTap]). Taps on empty board
+  area stay silent: the plan requires feedback for token taps
+  only. Finished / paused taps are silent: the results screen
+  (finished) and the pause dialog (paused) already own the
+  screen, so no feedback path exists there. Feedback never breaks
+  the M2.7 input lock and never lets a second action through.
+- `lib/domain/offline_game_controller.dart`: new
+  [noteIllegalTap] — display only, it replaces the status line
+  until the next roll or move overwrites it. No roll, no move, no
+  turn change, nothing persisted, no vibration.
+- No haptic on illegal taps: the plan names the SnackBar + status
+  only, and haptics are reserved for completed moves (M1.7,
+  D-32). No gameplay-rule change, no new feedback channel, no
+  sound.
+- **Semantics deviation, recorded:** the remediation plan's M2.8
+  row names a `Semantics` label ('Dice, tap to roll') for the
+  dice, but this milestone's brief explicitly forbids adding
+  Semantics labels (M2.9 scope, separate milestone) — so no
+  Semantics widget was added here. The tooltip ('Tap to roll')
+  and the GestureDetector are done; the dice label lands with
+  the rest of semantics in M2.9, whose row already covers the
+  dice labels ("Dice, showing X" / "tap to roll"). Nothing is
+  lost — M2.9 owns it.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **503/503 passed** (baseline 490 + 13 new: 12
+in `test/game_screen_test.dart` — dice tap rolls when allowed,
+dice looks disabled while rolling, rapid double-tap rolls exactly
+once, Roll-button-then-dice-tap rolls exactly once (shared
+guard), dice tap on the AI turn ignored with feedback, dice tap
+after rolling names the move, non-legal token / opponent token /
+AI-turn token / mid-tumble token taps give "That token can't move
+now" with SnackBar + status and unchanged state, empty-area tap
+silent, feedback does not consume the turn (a legal tap still
+moves afterwards) — and 1 in
+`test/offline_game_controller_test.dart` —
+`noteIllegalTap` changes status only, no roll/move/turn change,
+no vibration). The M3.2 characterization tests, the M2.6 pause
+tests and the M2.7 animation tests pass unchanged.
+`flutter analyze` — **0 errors, 0 warnings, 29 info** (unchanged
+from the M2.7 baseline, all the pre-existing `material.dart`
+deprecation notice; no new notice). `dart format` clean on all
+M2.8-touched files. `tool/check_boundaries.sh` — 8/8 checks pass.
+
+Scoping decisions recorded: the `LudoGame.fromState`
+custom-ruleset follow-up (M3.2/M3.3) is untouched, as instructed.
+No sound (D-32 follow-up), no Semantics labels (M2.9), no AI
+timeout fallback, no gameplay-rule changes. Two test-framework
+notes, recorded for later milestones: the M2.8 widget tests run
+at a tall 800x1400 viewport so the whole column fits with no
+scrolling (no `ensureVisible` needed); a SnackBar lives 2 s in
+fake time, so illegal-tap tests assert it right after the tap
+with a bounded pump — a later `pumpAndSettle` would dismiss it
+first — and dice taps on the AI turn are made with no settle at
+all, since settling would fire the AI pacing timer.

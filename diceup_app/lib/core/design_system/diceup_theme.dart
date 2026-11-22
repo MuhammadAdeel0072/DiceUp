@@ -35,16 +35,12 @@ abstract final class DiceUpTheme {
           foregroundColor: Colors.white,
           // Finite minimum width: Size.fromHeight (infinite width) breaks
           // buttons placed in a Row, e.g. next to the dice.
-          minimumSize:
-              const Size(88, DiceUpSpacing.minTouchTarget),
+          minimumSize: const Size(88, DiceUpSpacing.minTouchTarget),
           padding: DiceUpSpacing.buttonPadding,
           shape: const RoundedRectangleBorder(
             borderRadius: DiceUpSpacing.radiusMdBorder,
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -52,12 +48,31 @@ abstract final class DiceUpTheme {
           foregroundColor: DiceUpColors.teal,
           side: const BorderSide(color: DiceUpColors.teal, width: 1.5),
           // Finite minimum width — see the elevated button note above.
-          minimumSize:
-              const Size(88, DiceUpSpacing.minTouchTarget),
+          minimumSize: const Size(88, DiceUpSpacing.minTouchTarget),
           padding: DiceUpSpacing.buttonPadding,
           shape: const RoundedRectangleBorder(
             borderRadius: DiceUpSpacing.radiusMdBorder,
           ),
+        ),
+      ),
+      // M2.3 (NFR-08, D-21): the remaining button kinds get the same
+      // 48 dp minimum explicitly, as theme tokens — not left to the
+      // framework default. Measured under Flutter 3.50.1 the rendered
+      // heights already met 48 dp, so these entries pin the
+      // requirement rather than fixing a currently failing size;
+      // `test/accessibility_test.dart` asserts the token as well as
+      // the rendered size. SegmentedButton's minimum applies per
+      // segment (each segment is its own tap target).
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          minimumSize: const Size(48, DiceUpSpacing.minTouchTarget),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          // 64 dp is Material's default minimum width for a text
+          // button; only the height is raised to the NFR-08 floor.
+          minimumSize: const Size(64, DiceUpSpacing.minTouchTarget),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

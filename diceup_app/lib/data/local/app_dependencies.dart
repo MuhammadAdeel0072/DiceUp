@@ -27,6 +27,7 @@ import 'package:diceup/domain/repositories/local_player_repository.dart';
 import 'package:diceup/domain/repositories/local_statistics_repository.dart';
 import 'package:diceup/domain/repositories/settings_repository.dart';
 import 'package:diceup/domain/repositories/snapshot_repository.dart';
+import 'package:diceup/domain/snapshot_writer.dart';
 
 import 'diceup_database.dart';
 import 'sqlite_local_match_repository.dart';
@@ -46,10 +47,10 @@ class AppDependencies {
     required this.snapshots,
     this.database,
     Map<String, String>? loadedSettings,
-  })  : snapshotSaver = SnapshotSaver(snapshots),
-        loadedSettings = Map.unmodifiable(
-          loadedSettings ?? const <String, String>{},
-        );
+  }) : snapshotSaver = SnapshotSaver(snapshots),
+       loadedSettings = Map.unmodifiable(
+         loadedSettings ?? const <String, String>{},
+       );
 
   /// Builds the dependencies on the open SQLite database: the five
   /// M1.4 repositories over the same handle.
@@ -101,7 +102,11 @@ class AppDependencies {
 /// queue keeps working, so one failed write cannot wedge later
 /// ones. Callers that need to observe completion (tests, clean
 /// exit) await [flush].
-class SnapshotSaver {
+///
+/// Implements the domain layer's [SnapshotWriter] (M3.2) so the
+/// [OfflineGameController] can use this queue without importing the
+/// data layer.
+class SnapshotSaver implements SnapshotWriter {
   SnapshotSaver(this._repository);
 
   final SnapshotRepository _repository;
@@ -118,6 +123,7 @@ class SnapshotSaver {
   /// Queues a save of [state] (serialised with [GameState.toJson],
   /// M1.1 format) under the single in-progress key. Returns
   /// immediately; use [flush] to wait for it.
+  @override
   void save(GameState state) {
     final generation = _generation;
     final snapshot = SavedSnapshot(
@@ -144,6 +150,7 @@ class SnapshotSaver {
   /// completes: [LocalMatchRepository.recordMatch] deletes the
   /// snapshot in its own transaction, and no stale write may land
   /// after that delete.
+  @override
   void invalidate() {
     _generation++;
   }
@@ -159,6 +166,7 @@ class SnapshotSaver {
   /// skips itself. Never throws: a failed delete is logged and the
   /// caller (clean exit) still leaves — exiting must never trap the
   /// user behind storage.
+  @override
   Future<void> discard() async {
     _generation++;
     final pending = _tail;

@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../domain/engine/player_colour.dart';
 import 'diceup_colors.dart';
 import 'diceup_spacing.dart';
 
 /// Reusable DiceUp components (SDD §11.5).
 ///
 /// Every screen builds from these — no screen invents its own button,
-/// card or dialog style. All interactive elements meet the 48x48 dp
-/// minimum touch target (SRS NFR-08).
+/// card or dialog style. Interactive elements meet the 48x48 dp
+/// minimum touch target (SRS NFR-08, confirmed binding by D-21):
+/// the button themes in [DiceUpTheme] enforce it, and the
+/// hand-built controls (e.g. the setup colour swatches) are sized to
+/// [DiceUpSpacing.minTouchTarget]. Board tokens are the one exemption
+/// — game pieces, not controls (D-09; full-cell hit area).
 
 /// Primary call-to-action button. Disabled while [onPressed] is null,
 /// which is how invalid actions are prevented (SDD §11.2, error prevention).
@@ -79,34 +85,170 @@ class DiceUpCard extends StatelessWidget {
   }
 }
 
-/// Player avatar: coloured circle with the player's initial *and* a shape
-/// marker, so players are distinguishable by more than colour (NFR-08).
+/// A player's shape marker (NFR-08, D-27): the same per-seat shapes
+/// as the board tokens in [LudoBoardPainter] — seat 0 circle, 1
+/// square, 2 diamond, 3 triangle — so a player is identifiable by
+/// shape as well as by colour and name. The shape follows the *seat*,
+/// never the chosen colour: after a colour swap the seat (and its
+/// board tokens) stay the same, so the avatar's shape must too.
+enum PlayerShape {
+  circle,
+  square,
+  diamond,
+  triangle;
+
+  static PlayerShape forSeat(int seatIndex) =>
+      PlayerShape.values[seatIndex % PlayerShape.values.length];
+}
+
+/// A small filled shape in [color] with a thin white edge (the same
+/// treatment as the board tokens, so the marker reads on the white
+/// avatar disc). Used as the avatar's shape badge; the board painter
+/// keeps its own copy of the shapes (it draws on canvas, not widgets).
+class PlayerShapeMarker extends StatelessWidget {
+  const PlayerShapeMarker({
+    super.key,
+    required this.shape,
+    required this.color,
+    required this.size,
+  });
+
+  final PlayerShape shape;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _PlayerShapePainter(shape, color),
+    );
+  }
+}
+
+class _PlayerShapePainter extends CustomPainter {
+  _PlayerShapePainter(this.shape, this.color);
+
+  final PlayerShape shape;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2 - 1;
+    final fill = Paint()..color = color;
+    final edge = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    switch (shape) {
+      case PlayerShape.circle:
+        canvas.drawCircle(centre, radius, fill);
+        canvas.drawCircle(centre, radius, edge);
+      case PlayerShape.square:
+        final rect = Rect.fromCircle(center: centre, radius: radius * 0.92);
+        canvas.drawRect(rect, fill);
+        canvas.drawRect(rect, edge);
+      case PlayerShape.diamond:
+        final diamond = Path()
+          ..moveTo(centre.dx, centre.dy - radius)
+          ..lineTo(centre.dx + radius, centre.dy)
+          ..lineTo(centre.dx, centre.dy + radius)
+          ..lineTo(centre.dx - radius, centre.dy)
+          ..close();
+        canvas.drawPath(diamond, fill);
+        canvas.drawPath(diamond, edge);
+      case PlayerShape.triangle:
+        final triangle = Path()
+          ..moveTo(centre.dx, centre.dy - radius)
+          ..lineTo(centre.dx + radius, centre.dy + radius * 0.8)
+          ..lineTo(centre.dx - radius, centre.dy + radius * 0.8)
+          ..close();
+        canvas.drawPath(triangle, fill);
+        canvas.drawPath(triangle, edge);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlayerShapePainter oldDelegate) =>
+      oldDelegate.shape != shape || oldDelegate.color != color;
+}
+
+/// Player avatar (D-27, M2.4): a white disc with the player's initial
+/// in navy, a ring in the player's colour, and a per-seat shape marker
+/// — so players are distinguishable by name, colour *and* shape, never
+/// by colour alone (NFR-08).
+///
+/// The initial is [DiceUpColors.navy] on white: 14.11:1 by the WCAG
+/// formula ([DiceUpColors.contrastRatio]), the same for every seat —
+/// the three failing white-on-player-colour ratios (red 3.91, green
+/// 3.04, yellow 1.85) no longer apply, because no text sits on a
+/// player colour anymore. Board tokens and the palette constants are
+/// untouched (D-27): only the avatar changed.
+///
+/// [colour] is the player's *chosen* colour (M2.2) and drives the
+/// ring; when it is null the ring falls back to the seat-order colour
+/// ([DiceUpColors.playerColor]). The shape always follows the seat
+/// ([PlayerShape.forSeat]), matching the board tokens.
 class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
     super.key,
     required this.name,
     required this.seatIndex,
+    this.colour,
     this.radius = 20,
   });
 
   final String name;
   final int seatIndex;
+  final PlayerColour? colour;
   final double radius;
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: DiceUpColors.playerColor(seatIndex),
-      child: Text(
-        initial,
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: radius * 0.85,
-        ),
+    final initial = name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+    final ringColour = colour != null
+        ? DiceUpColors.forColour(colour!)
+        : DiceUpColors.playerColor(seatIndex);
+    final shape = PlayerShape.forSeat(seatIndex);
+    final ringWidth = (radius * 0.15).clamp(2.0, 3.0);
+    final badgeSize = radius * 0.75;
+    return SizedBox(
+      width: radius * 2,
+      height: radius * 2,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            key: const ValueKey('player-avatar-disc'),
+            width: radius * 2,
+            height: radius * 2,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: ringColour, width: ringWidth),
+            ),
+            child: Text(
+              initial,
+              style: TextStyle(
+                color: DiceUpColors.navy,
+                fontWeight: FontWeight.w700,
+                fontSize: radius * 0.85,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: PlayerShapeMarker(
+              key: ValueKey('player-avatar-shape-${shape.name}'),
+              shape: shape,
+              color: ringColour,
+              size: badgeSize,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -275,6 +417,7 @@ class DiceUpTextField extends StatelessWidget {
     this.obscureText = false,
     this.validator,
     this.onChanged,
+    this.inputFormatters,
   });
 
   final String label;
@@ -284,6 +427,12 @@ class DiceUpTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final ValueChanged<String>? onChanged;
 
+  /// Input formatters (M2.2: the setup name field caps input at 12
+  /// characters with a [LengthLimitingTextInputFormatter], so the
+  /// 13th character is blocked while typing instead of rejected
+  /// after the fact).
+  final List<TextInputFormatter>? inputFormatters;
+
   @override
   Widget build(BuildContext context) {
     return TextFormField(
@@ -292,6 +441,7 @@ class DiceUpTextField extends StatelessWidget {
       obscureText: obscureText,
       validator: validator,
       onChanged: onChanged,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(labelText: label),
     );
   }

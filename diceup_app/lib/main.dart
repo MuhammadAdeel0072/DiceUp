@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/design_system/diceup_theme.dart';
 import 'data/local/app_startup.dart';
+import 'domain/engine/dice_roller.dart';
 import 'presentation/app_dependencies_scope.dart';
+import 'presentation/feedback/feedback_service.dart';
 import 'presentation/navigation/app_routes.dart';
+import 'presentation/providers/app_providers.dart';
 import 'presentation/screens/splash_screen.dart';
 
 /// App entry point (M1.6): the real load happens here, before the
@@ -19,12 +23,35 @@ Future<void> main() async {
 
 /// DiceUp — multiplayer Ludo (offline-first).
 ///
-/// Composition root (minimal, M1.6): theme + routes + the
-/// dependencies built at startup. No game logic lives here, and no
-/// Riverpod / M3.3 composition root is introduced yet (see
-/// `lib/data/local/app_dependencies.dart`).
+/// Composition root (M3.3, H-07; D-06): the [ProviderScope] below
+/// is the single wiring point — it exposes the awaited startup
+/// result as [startupResultProvider], from which the repository,
+/// use-case and controller providers derive (see
+/// `lib/presentation/providers/app_providers.dart`). No game logic
+/// lives here, and no screen constructs a repository, a use case
+/// or a controller. [AppDependenciesScope] remains for the screens
+/// not yet migrated to providers (settings, history, statistics,
+/// home, setup — one screen at a time; see the M3.3 plan section).
+///
+/// Single-scope rule: this is the ONLY [ProviderScope] in the
+/// app tree. Never wrap [DiceUpApp] in another scope: Riverpod
+/// owns a non-overridden provider in the outermost scope, so its
+/// transitive watches resolve there and cannot see this scope's
+/// [startupResultProvider] override — the controller graph would
+/// read the un-overridden provider and fail. Tests inject fakes
+/// through the named test seams below ([testDiceRoller],
+/// [testFeedbackService], [testVibrationEnabled]) instead; tests
+/// of a bare screen use `test/test_providers.dart`, which builds
+/// its own single scope.
 class DiceUpApp extends StatefulWidget {
-  const DiceUpApp({super.key, this.startup, this.initializer});
+  const DiceUpApp({
+    super.key,
+    this.startup,
+    this.initializer,
+    this.testDiceRoller,
+    this.testFeedbackService,
+    this.testVibrationEnabled,
+  });
 
   /// A completed startup result (production: awaited in [main]).
   /// When null, this widget runs the initializer itself and shows
@@ -35,6 +62,16 @@ class DiceUpApp extends StatefulWidget {
 
   /// Startup override for tests. Defaults to [initializeApp].
   final Future<StartupResult> Function()? initializer;
+
+  /// Test seams for the app-level scope (fixed dice, fake
+  /// feedback, vibration flag), applied as provider overrides
+  /// alongside the startup override. Production passes none.
+  /// This is how tests inject fakes into the app-level scope —
+  /// wrapping [DiceUpApp] in another [ProviderScope] is forbidden
+  /// (see the single-scope rule above).
+  final DiceRoller? testDiceRoller;
+  final FeedbackService? testFeedbackService;
+  final bool? testVibrationEnabled;
 
   @override
   State<DiceUpApp> createState() => _DiceUpAppState();
@@ -69,14 +106,29 @@ class _DiceUpAppState extends State<DiceUpApp> {
         home: const SplashScreen(),
       );
     }
-    return AppDependenciesScope(
-      startup: startup,
-      child: MaterialApp(
-        title: 'DiceUp',
-        debugShowCheckedModeBanner: false,
-        theme: DiceUpTheme.light(),
-        initialRoute: AppRoutes.splash,
-        routes: AppRoutes.routesFor(startup: startup),
+    return ProviderScope(
+      overrides: [
+        startupResultProvider.overrideWithValue(startup),
+        if (widget.testDiceRoller != null)
+          diceRollerProvider.overrideWithValue(widget.testDiceRoller!),
+        if (widget.testFeedbackService != null)
+          feedbackServiceProvider.overrideWithValue(
+            widget.testFeedbackService!,
+          ),
+        if (widget.testVibrationEnabled != null)
+          vibrationEnabledProvider.overrideWithValue(
+            widget.testVibrationEnabled!,
+          ),
+      ],
+      child: AppDependenciesScope(
+        startup: startup,
+        child: MaterialApp(
+          title: 'DiceUp',
+          debugShowCheckedModeBanner: false,
+          theme: DiceUpTheme.light(),
+          initialRoute: AppRoutes.splash,
+          routes: AppRoutes.routesFor(startup: startup),
+        ),
       ),
     );
   }

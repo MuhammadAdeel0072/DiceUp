@@ -18,10 +18,14 @@ import 'package:diceup/domain/repositories/snapshot_repository.dart';
 import 'package:diceup/main.dart';
 import 'package:diceup/presentation/app_dependencies_scope.dart';
 import 'package:diceup/presentation/navigation/app_routes.dart';
+import 'package:diceup/presentation/providers/app_providers.dart';
 import 'package:diceup/presentation/screens/game_screen.dart';
 import 'package:diceup/presentation/screens/history_screen.dart';
+import 'package:diceup/presentation/screens/home_screen.dart';
+import 'package:diceup/presentation/screens/results_screen.dart';
 import 'package:diceup/presentation/widgets/ludo_board.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -38,35 +42,59 @@ void main() {
   // -- Shared helpers -----------------------------------------------------
 
   AppDependencies fakeDeps(InMemoryStore store) => AppDependencies(
-        matches: InMemoryLocalMatchRepository(store),
-        statistics: InMemoryLocalStatisticsRepository(store),
-        settings: InMemorySettingsRepository(store),
-        players: InMemoryLocalPlayerRepository(store),
-        snapshots: InMemorySnapshotRepository(store),
-      );
+    matches: InMemoryLocalMatchRepository(store),
+    statistics: InMemoryLocalStatisticsRepository(store),
+    settings: InMemorySettingsRepository(store),
+    players: InMemoryLocalPlayerRepository(store),
+    snapshots: InMemorySnapshotRepository(store),
+  );
 
   StartupResult fakeStartup(
     AppDependencies deps, {
     SnapshotLoadOutcome outcome = const NoSnapshot(),
-  }) =>
-      StartupResult(
-        dependencies: deps,
-        settings: Map<String, String>.of(kDefaultSettings),
-        snapshotOutcome: outcome,
-        databaseRecovered: false,
-      );
+  }) => StartupResult(
+    dependencies: deps,
+    settings: Map<String, String>.of(kDefaultSettings),
+    snapshotOutcome: outcome,
+    databaseRecovered: false,
+  );
 
-  Widget scopedApp(AppDependencies deps, Widget home,
-      {SnapshotLoadOutcome outcome = const NoSnapshot()}) {
-    return AppDependenciesScope(
-      startup: fakeStartup(deps, outcome: outcome),
-      child: MaterialApp(home: home),
+  /// M3.3: also inside a [ProviderScope] with the fake startup,
+  /// so a [GameScreen] reads the provider graph (fixed dice via
+  /// [diceRoller], fake feedback, vibration flag — the only seams).
+  /// M2.5: the named routes the game screen navigates to are
+  /// registered here (results, game, home) — `home:` alone has no
+  /// route table, and the game screen's completion navigation is a
+  /// `pushNamedAndRemoveUntil`. The splash route is deliberately
+  /// absent: `home:` already occupies `/`.
+  Widget scopedApp(
+    AppDependencies deps,
+    Widget home, {
+    SnapshotLoadOutcome outcome = const NoSnapshot(),
+    DiceRoller? diceRoller,
+  }) {
+    final startup = fakeStartup(deps, outcome: outcome);
+    return ProviderScope(
+      overrides: [
+        startupResultProvider.overrideWithValue(startup),
+        if (diceRoller != null)
+          diceRollerProvider.overrideWithValue(diceRoller),
+      ],
+      child: AppDependenciesScope(
+        startup: startup,
+        child: MaterialApp(
+          home: home,
+          routes: {
+            AppRoutes.results: (_) => const ResultsScreen(),
+            AppRoutes.game: (_) => const GameScreen(),
+            AppRoutes.home: (_) => const HomeScreen(),
+          },
+        ),
+      ),
     );
   }
 
-  Future<Map<String, Object?>> savedSnapshotJson(
-    AppDependencies deps,
-  ) async {
+  Future<Map<String, Object?>> savedSnapshotJson(AppDependencies deps) async {
     final saved = await deps.snapshots.loadSnapshot(kCurrentMatchKey);
     expect(saved, isNotNull, reason: 'expected a saved snapshot');
     return jsonDecode(saved!.snapshotJson) as Map<String, Object?>;
@@ -76,30 +104,25 @@ void main() {
     required DateTime playedAt,
     required String winnerName,
     required int winnerIndex,
-  }) =>
-      LocalMatch(
-        playedAt: playedAt,
-        mode: LocalMatchMode.vsAi,
-        playerCount: 2,
-        players: [
-          LocalMatchPlayer(
-            name: 'Player 1',
-            colour: PlayerColour.red,
-            isAi: false,
-          ),
-          LocalMatchPlayer(
-            name: 'Player 2',
-            colour: PlayerColour.green,
-            isAi: true,
-            difficulty: AiDifficulty.easy,
-          ),
-        ],
-        winnerIndex: winnerIndex,
-        winnerName: winnerName,
-        durationSeconds: 95,
-        rulesetVersion: '1.0.0',
-        createdAt: playedAt,
-      );
+  }) => LocalMatch(
+    playedAt: playedAt,
+    mode: LocalMatchMode.vsAi,
+    playerCount: 2,
+    players: [
+      LocalMatchPlayer(name: 'Player 1', colour: PlayerColour.red, isAi: false),
+      LocalMatchPlayer(
+        name: 'Player 2',
+        colour: PlayerColour.green,
+        isAi: true,
+        difficulty: AiDifficulty.easy,
+      ),
+    ],
+    winnerIndex: winnerIndex,
+    winnerName: winnerName,
+    durationSeconds: 95,
+    rulesetVersion: '1.0.0',
+    createdAt: playedAt,
+  );
 
   /// A temp directory, deleted synchronously after the test (sync
   /// delete: the tearDown runs inside the widget-test zone, where
@@ -182,6 +205,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // M2.6: Home re-checks snapshot existence (a real ffi read)
+      // before offering resume, and that read only completes on
+      // real async time — drain it, then settle, before expecting
+      // the dialog (same runAsync rule as all other ffi work here).
+      await ffi(tester, () async {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      await tester.pumpAndSettle();
 
       expect(find.text('Resume your match?'), findsOneWidget);
       await tester.tap(find.text('Resume'));
@@ -192,8 +223,9 @@ void main() {
       });
     });
 
-    testWidgets('Discard deletes the snapshot and starts no match',
-        (tester) async {
+    testWidgets('Discard deletes the snapshot and starts no match', (
+      tester,
+    ) async {
       final (boot, outcome) = await ffi(tester, () async {
         final boot = await initializeApp(
           factory: databaseFactoryFfi,
@@ -228,6 +260,13 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // M2.6: Home re-checks snapshot existence (a real ffi read)
+      // before offering resume — drain it on real async time, then
+      // settle, before expecting the dialog (see above).
+      await ffi(tester, () async {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Discard'));
       await tester.pumpAndSettle();
@@ -237,8 +276,9 @@ void main() {
       // it (bounded) instead of racing the read against the delete.
       final gone = await ffi(tester, () async {
         for (var i = 0; i < 50; i++) {
-          if (!await boot.dependencies!.snapshots
-              .hasSnapshot(kCurrentMatchKey)) {
+          if (!await boot.dependencies!.snapshots.hasSnapshot(
+            kCurrentMatchKey,
+          )) {
             return true;
           }
           await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -251,16 +291,14 @@ void main() {
       });
     });
 
-    testWidgets('startup after recovery shows the recovery message once',
-        (tester) async {
+    testWidgets('startup after recovery shows the recovery message once', (
+      tester,
+    ) async {
       final dir = await ffi(tester, () => tempDir());
       final path = '${dir.path}/diceup.db';
       final startup = await ffi(tester, () async {
         await File(path).writeAsBytes([0, 1, 2, 3, 4, 5]);
-        return initializeApp(
-          factory: databaseFactoryFfi,
-          path: path,
-        );
+        return initializeApp(factory: databaseFactoryFfi, path: path);
       });
       expect(startup.databaseRecovered, isTrue);
 
@@ -274,8 +312,7 @@ void main() {
       });
     });
 
-    testWidgets(
-        'startup with a corrupt snapshot discards it and shows the '
+    testWidgets('startup with a corrupt snapshot discards it and shows the '
         'notice once', (tester) async {
       final dir = await ffi(tester, () => tempDir());
       final path = '${dir.path}/diceup.db';
@@ -304,8 +341,7 @@ void main() {
       expect(second.snapshotOutcome, isA<CorruptSnapshotDiscarded>());
       final stillThere = await ffi(
         tester,
-        () => second.dependencies!.snapshots
-            .hasSnapshot(kCurrentMatchKey),
+        () => second.dependencies!.snapshots.hasSnapshot(kCurrentMatchKey),
       );
       expect(stillThere, isFalse);
 
@@ -353,15 +389,12 @@ void main() {
         factory: databaseFactoryFfi,
         path: path,
       );
-      addTearDown(
-        () async => second.dependencies?.database?.close(),
-      );
+      addTearDown(() async => second.dependencies?.database?.close());
       expect(second.settings['sound_volume'], '42');
       expect(second.settings['sound_enabled'], '1');
     });
 
-    test('recovery after restart: history + statistics persist',
-        () async {
+    test('recovery after restart: history + statistics persist', () async {
       final dir = await tempDir();
       final path = '${dir.path}/diceup.db';
       final first = await initializeApp(
@@ -381,15 +414,9 @@ void main() {
         factory: databaseFactoryFfi,
         path: path,
       );
-      addTearDown(
-        () async => second.dependencies?.database?.close(),
-      );
-      expect(
-        await second.dependencies!.matches.countMatches(),
-        1,
-      );
-      final stats =
-          await second.dependencies!.statistics.getStatistics();
+      addTearDown(() async => second.dependencies?.database?.close());
+      expect(await second.dependencies!.matches.countMatches(), 1);
+      final stats = await second.dependencies!.statistics.getStatistics();
       expect(stats.matchesPlayed, 1);
       expect(stats.matchesWon, 1);
     });
@@ -398,8 +425,9 @@ void main() {
   // -- Resume (exact state) -----------------------------------------------
 
   group('resume', () {
-    testWidgets('resume restores the exact state incl. AI difficulty',
-        (tester) async {
+    testWidgets('resume restores the exact state incl. AI difficulty', (
+      tester,
+    ) async {
       final store = InMemoryStore();
       final deps = fakeDeps(store);
       // A live match: human rolled a 6 against a hard AI.
@@ -421,10 +449,8 @@ void main() {
       await tester.pumpWidget(
         scopedApp(
           deps,
-          GameScreen(
-            initialState: resumedState,
-            diceRoller: FixedDiceRoller([6], cycle: true),
-          ),
+          GameScreen(initialState: resumedState),
+          diceRoller: FixedDiceRoller([6], cycle: true),
         ),
       );
       await tester.pumpAndSettle();
@@ -434,8 +460,7 @@ void main() {
 
       // Release the first token (yard slot 0).
       final board = find.byWidgetPredicate(
-        (widget) =>
-            widget is CustomPaint && widget.painter is LudoBoardPainter,
+        (widget) => widget is CustomPaint && widget.painter is LudoBoardPainter,
       );
       await tester.ensureVisible(board);
       await tester.pumpAndSettle();
@@ -452,14 +477,8 @@ void main() {
       expect(json['currentPlayerIndex'], 0);
       expect(json['phase'], 'awaitingRoll');
       final players = json['players'] as List;
-      expect(
-        (players[1] as Map<String, Object?>)['difficulty'],
-        'hard',
-      );
-      expect(
-        (players[1] as Map<String, Object?>)['type'],
-        'ai',
-      );
+      expect((players[1] as Map<String, Object?>)['difficulty'], 'hard');
+      expect((players[1] as Map<String, Object?>)['type'], 'ai');
     });
   });
 
@@ -473,11 +492,10 @@ void main() {
       await tester.pumpWidget(
         scopedApp(
           deps,
-          GameScreen(
-            initialSetup:
-                const GameSetup(playerCount: 2, aiSeats: {}),
-            diceRoller: FixedDiceRoller([6, 6], cycle: true),
+          const GameScreen(
+            initialSetup: GameSetup(playerCount: 2, aiSeats: {}),
           ),
+          diceRoller: FixedDiceRoller([6, 6], cycle: true),
         ),
       );
       await tester.pumpAndSettle();
@@ -495,8 +513,7 @@ void main() {
       expect(json['moveCount'], 0);
 
       final board = find.byWidgetPredicate(
-        (widget) =>
-            widget is CustomPaint && widget.painter is LudoBoardPainter,
+        (widget) => widget is CustomPaint && widget.painter is LudoBoardPainter,
       );
       await tester.ensureVisible(board);
       await tester.pumpAndSettle();
@@ -531,67 +548,64 @@ void main() {
       AppDependencies deps,
       GameScreen game,
     ) async {
-      await tester.pumpWidget(
-        scopedApp(deps, _HostScreen(game: game)),
-      );
+      await tester.pumpWidget(scopedApp(deps, _HostScreen(game: game)));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Open game'));
       await tester.pumpAndSettle();
     }
 
-    testWidgets('close button (confirm) deletes the snapshot and '
-        'records nothing', (tester) async {
+    testWidgets('pause menu Main Menu (confirm) deletes the snapshot '
+        'and records nothing', (tester) async {
       final store = InMemoryStore();
       final deps = fakeDeps(store);
       await seedSnapshot(deps);
       await openGame(
         tester,
         deps,
-        const GameScreen(
-          initialSetup: GameSetup(playerCount: 2, aiSeats: {}),
-        ),
+        const GameScreen(initialSetup: GameSetup(playerCount: 2, aiSeats: {})),
       );
 
-      await tester.tap(find.byTooltip('Leave match'));
+      // M2.6: the AppBar close button is the pause button now;
+      // leaving goes through the pause menu's Main Menu.
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pumpAndSettle();
+      expect(find.text('Paused'), findsOneWidget);
+      await tester.tap(find.text('Main Menu'));
       await tester.pumpAndSettle();
       expect(find.text('Leave the match?'), findsOneWidget);
       await tester.tap(find.text('Leave'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Open game'), findsOneWidget);
-      expect(
-        await deps.snapshots.hasSnapshot(kCurrentMatchKey),
-        isFalse,
-      );
+      expect(find.text('Ready to play?'), findsOneWidget);
+      expect(await deps.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
       expect(await deps.matches.countMatches(), 0);
       final stats = await deps.statistics.getStatistics();
       expect(stats.matchesPlayed, 0);
     });
 
-    testWidgets('restart discards the snapshot and records nothing',
-        (tester) async {
+    testWidgets('restart from the pause menu discards the snapshot '
+        'and records nothing', (tester) async {
       final store = InMemoryStore();
       final deps = fakeDeps(store);
       await seedSnapshot(deps);
       await openGame(
         tester,
         deps,
-        const GameScreen(
-          initialSetup: GameSetup(playerCount: 2, aiSeats: {}),
-        ),
+        const GameScreen(initialSetup: GameSetup(playerCount: 2, aiSeats: {})),
       );
 
-      await tester.tap(find.byTooltip('Restart match'));
+      // M2.6: Restart lives in the pause menu now.
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pumpAndSettle();
+      expect(find.text('Paused'), findsOneWidget);
+      await tester.tap(find.text('Restart'));
       await tester.pumpAndSettle();
       expect(find.text('Restart match?'), findsOneWidget);
       await tester.tap(find.text('Restart'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('roll the dice to start'), findsOneWidget);
-      expect(
-        await deps.snapshots.hasSnapshot(kCurrentMatchKey),
-        isFalse,
-      );
+      expect(await deps.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
       expect(await deps.matches.countMatches(), 0);
     });
   });
@@ -602,22 +616,18 @@ void main() {
     /// A match one move from a win: Player 1 has three tokens home
     /// and the fourth one step away, with a 1 outstanding.
     GameState nearWinState() => stateWith(
-          tokenSteps: const [
-            [56, 56, 56, 55],
-            [0, 0, 0, 0],
-          ],
-          current: 0,
-          lastRoll: 1,
-          phase: TurnPhase.awaitingMove,
-        );
+      tokenSteps: const [
+        [56, 56, 56, 55],
+        [0, 0, 0, 0],
+      ],
+      current: 0,
+      lastRoll: 1,
+      phase: TurnPhase.awaitingMove,
+    );
 
-    Future<void> tapWinningToken(
-      WidgetTester tester,
-      GameState state,
-    ) async {
+    Future<void> tapWinningToken(WidgetTester tester, GameState state) async {
       final board = find.byWidgetPredicate(
-        (widget) =>
-            widget is CustomPaint && widget.painter is LudoBoardPainter,
+        (widget) => widget is CustomPaint && widget.painter is LudoBoardPainter,
       );
       await tester.ensureVisible(board);
       await tester.pumpAndSettle();
@@ -648,13 +658,16 @@ void main() {
       deps.snapshotSaver.save(state);
       await deps.snapshotSaver.flush;
 
-      await tester.pumpWidget(
-        scopedApp(deps, GameScreen(initialState: state)),
-      );
+      await tester.pumpWidget(scopedApp(deps, GameScreen(initialState: state)));
       await tester.pumpAndSettle();
       await tapWinningToken(tester, state);
       await tester.pumpAndSettle();
 
+      // M2.5: completion navigates to the results *route*, not a
+      // dialog — the game screen is gone, the results screen shows
+      // the winner.
+      expect(find.byType(ResultsScreen), findsOneWidget);
+      expect(find.byType(GameScreen), findsNothing);
       expect(find.text('Player 1 wins!'), findsOneWidget);
       expect(await deps.matches.countMatches(), 1);
       final matches = await deps.matches.listMatches();
@@ -664,15 +677,16 @@ void main() {
       final stats = await deps.statistics.getStatistics();
       expect(stats.matchesPlayed, 1);
       expect(stats.matchesWon, 1);
-      expect(
-        await deps.snapshots.hasSnapshot(kCurrentMatchKey),
-        isFalse,
-      );
+      expect(await deps.snapshots.hasSnapshot(kCurrentMatchKey), isFalse);
 
       // Play Again starts a fresh match without recording again.
-      await tester.tap(find.text('Play again'));
+      // The button sits below the fold in the test viewport.
+      final playAgain = find.text('Play Again');
+      await tester.ensureVisible(playAgain);
+      await tester.tap(playAgain);
       await tester.pumpAndSettle();
       expect(await deps.matches.countMatches(), 1);
+      expect(find.byType(GameScreen), findsOneWidget);
       expect(find.textContaining('roll the dice to start'), findsOneWidget);
     });
 
@@ -684,26 +698,24 @@ void main() {
       deps.snapshotSaver.save(state);
       await deps.snapshotSaver.flush;
 
-      await tester.pumpWidget(
-        scopedApp(deps, GameScreen(initialState: state)),
-      );
+      await tester.pumpWidget(scopedApp(deps, GameScreen(initialState: state)));
       await tester.pumpAndSettle();
       store.failNextCall();
       await tapWinningToken(tester, state);
       await tester.pumpAndSettle();
 
+      expect(find.byType(ResultsScreen), findsOneWidget);
       expect(find.text('Player 1 wins!'), findsOneWidget);
       expect(find.text(kMatchRecordFailedMessage), findsOneWidget);
       expect(await deps.matches.countMatches(), 0);
       // Defined failure handling: the snapshot is left in place so
       // the finished match stays resumable and recording is retried
       // on resume.
-      expect(
-        await deps.snapshots.hasSnapshot(kCurrentMatchKey),
-        isTrue,
-      );
+      expect(await deps.snapshots.hasSnapshot(kCurrentMatchKey), isTrue);
 
-      await tester.tap(find.text('Play again'));
+      final playAgain = find.text('Play Again');
+      await tester.ensureVisible(playAgain);
+      await tester.tap(playAgain);
       await tester.pumpAndSettle();
       expect(find.text('Roll dice'), findsOneWidget);
     });
@@ -755,11 +767,10 @@ void main() {
       expect(find.text('No matches yet'), findsOneWidget);
     });
 
-    testWidgets('unavailable database shows the unavailable state',
-        (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: HistoryScreen()),
-      );
+    testWidgets('unavailable database shows the unavailable state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: HistoryScreen()));
       await tester.pumpAndSettle();
       expect(find.text('History unavailable'), findsOneWidget);
     });
@@ -778,9 +789,9 @@ class _HostScreen extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: TextButton(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => game),
-          ),
+          onPressed: () =>
+              Navigator.of(context)
+                  .push(MaterialPageRoute<void>(builder: (_) => game)),
           child: const Text('Open game'),
         ),
       ),
@@ -793,10 +804,7 @@ class _HostScreen extends StatelessWidget {
 /// a test can prove startup degrades instead of crashing.
 class _ThrowingDatabaseFactory implements DatabaseFactory {
   @override
-  Future<Database> openDatabase(
-    String path, {
-    OpenDatabaseOptions? options,
-  }) =>
+  Future<Database> openDatabase(String path, {OpenDatabaseOptions? options}) =>
       throw StateError('Simulated database open failure.');
 
   @override
@@ -808,8 +816,7 @@ class _ThrowingDatabaseFactory implements DatabaseFactory {
       databaseFactoryFfi.databaseExists(path);
 
   @override
-  Future<String> getDatabasesPath() =>
-      databaseFactoryFfi.getDatabasesPath();
+  Future<String> getDatabasesPath() => databaseFactoryFfi.getDatabasesPath();
 
   @override
   Future<void> setDatabasesPath(String path) =>

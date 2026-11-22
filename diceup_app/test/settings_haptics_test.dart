@@ -8,11 +8,13 @@ import 'package:diceup/domain/repositories/settings_repository.dart';
 import 'package:diceup/presentation/app_dependencies_scope.dart';
 import 'package:diceup/presentation/feedback/feedback_service.dart';
 import 'package:diceup/presentation/navigation/app_routes.dart';
+import 'package:diceup/presentation/providers/app_providers.dart';
 import 'package:diceup/presentation/screens/game_screen.dart';
 import 'package:diceup/presentation/screens/settings_screen.dart';
 import 'package:diceup/presentation/widgets/ludo_board.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -26,51 +28,75 @@ void main() {
   sqfliteFfiInit();
 
   AppDependencies fakeDeps(InMemoryStore store) => AppDependencies(
-        matches: InMemoryLocalMatchRepository(store),
-        statistics: InMemoryLocalStatisticsRepository(store),
-        settings: InMemorySettingsRepository(store),
-        players: InMemoryLocalPlayerRepository(store),
-        snapshots: InMemorySnapshotRepository(store),
-      );
+    matches: InMemoryLocalMatchRepository(store),
+    statistics: InMemoryLocalStatisticsRepository(store),
+    settings: InMemorySettingsRepository(store),
+    players: InMemoryLocalPlayerRepository(store),
+    snapshots: InMemorySnapshotRepository(store),
+  );
 
   StartupResult fakeStartup(AppDependencies deps) => StartupResult(
-        dependencies: deps,
-        settings: Map<String, String>.of(kDefaultSettings),
-        snapshotOutcome: const NoSnapshot(),
-        databaseRecovered: false,
-      );
+    dependencies: deps,
+    settings: Map<String, String>.of(kDefaultSettings),
+    snapshotOutcome: const NoSnapshot(),
+    databaseRecovered: false,
+  );
 
-  Widget scopedApp(AppDependencies deps, Widget home) {
-    return AppDependenciesScope(
-      startup: fakeStartup(deps),
-      child: MaterialApp(home: home),
+  /// M3.3: also inside a [ProviderScope] with the fake startup,
+  /// so a [GameScreen] reads the provider graph (fixed dice via
+  /// [diceRoller], fake feedback, vibration flag — the only seams).
+  Widget scopedApp(
+    AppDependencies deps,
+    Widget home, {
+    DiceRoller? diceRoller,
+    FeedbackService? feedbackService,
+    bool? vibrationEnabled,
+  }) {
+    final startup = fakeStartup(deps);
+    return ProviderScope(
+      overrides: [
+        startupResultProvider.overrideWithValue(startup),
+        if (diceRoller != null)
+          diceRollerProvider.overrideWithValue(diceRoller),
+        if (feedbackService != null)
+          feedbackServiceProvider.overrideWithValue(feedbackService),
+        if (vibrationEnabled != null)
+          vibrationEnabledProvider.overrideWithValue(vibrationEnabled),
+      ],
+      child: AppDependenciesScope(
+        startup: startup,
+        child: MaterialApp(home: home),
+      ),
     );
   }
 
-  SwitchListTile vibrationTile() => find
-      .byWidgetPredicate(
-        (widget) =>
-            widget is SwitchListTile &&
-            (widget.title as Text?)?.data == 'Vibration',
-      )
-      .evaluate()
-      .single
-      .widget as SwitchListTile;
+  SwitchListTile vibrationTile() =>
+      find
+              .byWidgetPredicate(
+                (widget) =>
+                    widget is SwitchListTile &&
+                    (widget.title as Text?)?.data == 'Vibration',
+              )
+              .evaluate()
+              .single
+              .widget
+          as SwitchListTile;
 
-  SwitchListTile soundTile() => find
-      .byWidgetPredicate(
-        (widget) =>
-            widget is SwitchListTile &&
-            (widget.title as Text?)?.data == 'Sound',
-      )
-      .evaluate()
-      .single
-      .widget as SwitchListTile;
+  SwitchListTile soundTile() =>
+      find
+              .byWidgetPredicate(
+                (widget) =>
+                    widget is SwitchListTile &&
+                    (widget.title as Text?)?.data == 'Sound',
+              )
+              .evaluate()
+              .single
+              .widget
+          as SwitchListTile;
 
   Future<void> tapFirstToken(WidgetTester tester) async {
     final board = find.byWidgetPredicate(
-      (widget) =>
-          widget is CustomPaint && widget.painter is LudoBoardPainter,
+      (widget) => widget is CustomPaint && widget.painter is LudoBoardPainter,
     );
     await tester.ensureVisible(board);
     await tester.pumpAndSettle();
@@ -82,8 +108,9 @@ void main() {
   // -- Settings -----------------------------------------------------------
 
   group('settings screen', () {
-    testWidgets('loads seeded values without flashing defaults first',
-        (tester) async {
+    testWidgets('loads seeded values without flashing defaults first', (
+      tester,
+    ) async {
       final store = InMemoryStore();
       final deps = fakeDeps(store);
       await deps.settings.setSetting('vibration_enabled', '0');
@@ -96,10 +123,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(vibrationTile().value, isFalse);
-      expect(
-        tester.widget<Slider>(find.byType(Slider)).value,
-        42,
-      );
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 42);
       // Sound is Coming Soon: disabled, with the honest note.
       expect(soundTile().onChanged, isNull);
       expect(
@@ -108,27 +132,27 @@ void main() {
       );
     });
 
-    testWidgets('toggling vibration persists (fresh repository re-read)',
-        (tester) async {
+    testWidgets('toggling vibration persists (fresh repository re-read)', (
+      tester,
+    ) async {
       final store = InMemoryStore();
       final deps = fakeDeps(store);
       await tester.pumpWidget(scopedApp(deps, const SettingsScreen()));
       await tester.pumpAndSettle();
       expect(vibrationTile().value, isTrue);
 
-      await tester.tap(find.byWidgetPredicate(
-        (widget) =>
-            widget is SwitchListTile &&
-            (widget.title as Text?)?.data == 'Vibration',
-      ));
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SwitchListTile &&
+              (widget.title as Text?)?.data == 'Vibration',
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(vibrationTile().value, isFalse);
       final fresh = InMemorySettingsRepository(store);
-      expect(
-        await fresh.getSetting('vibration_enabled'),
-        '0',
-      );
+      expect(await fresh.getSetting('vibration_enabled'), '0');
     });
 
     testWidgets('volume slider persists the dragged value', (tester) async {
@@ -141,12 +165,10 @@ void main() {
       await tester.drag(find.byType(Slider), const Offset(200, 0));
       await tester.pumpAndSettle();
 
-      final value =
-          tester.widget<Slider>(find.byType(Slider)).value.round();
+      final value = tester.widget<Slider>(find.byType(Slider)).value.round();
       expect(value, isNot(42));
       expect(
-        await InMemorySettingsRepository(store)
-            .getSetting('sound_volume'),
+        await InMemorySettingsRepository(store).getSetting('sound_volume'),
         '$value',
       );
     });
@@ -169,8 +191,7 @@ void main() {
       await tester.tap(find.text('Reset'));
       await tester.pumpAndSettle();
 
-      final stored = await InMemorySettingsRepository(store)
-          .getAllSettings();
+      final stored = await InMemorySettingsRepository(store).getAllSettings();
       expect(stored['sound_enabled'], '1');
       expect(stored['vibration_enabled'], '1');
       expect(stored['sound_volume'], '100');
@@ -179,42 +200,40 @@ void main() {
       expect(vibrationTile().value, isTrue);
     });
 
-    testWidgets('unavailable database shows the unavailable state',
-        (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: SettingsScreen()),
-      );
+    testWidgets('unavailable database shows the unavailable state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
       await tester.pumpAndSettle();
       expect(find.text('Settings unavailable'), findsOneWidget);
     });
 
-    test('settings survive restart (reopen the database, values intact)',
-        () async {
-      final dir = await Directory.systemTemp.createTemp('diceup_m17_');
-      addTearDown(() {
-        if (dir.existsSync()) dir.deleteSync(recursive: true);
-      });
-      final path = '${dir.path}/diceup.db';
-      final first = await initializeApp(
-        factory: databaseFactoryFfi,
-        path: path,
-      );
-      await first.dependencies!.settings
-          .setSetting('vibration_enabled', '0');
-      await first.dependencies!.settings.setSetting('sound_volume', '33');
-      await first.dependencies!.database!.close();
+    test(
+      'settings survive restart (reopen the database, values intact)',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('diceup_m17_');
+        addTearDown(() {
+          if (dir.existsSync()) dir.deleteSync(recursive: true);
+        });
+        final path = '${dir.path}/diceup.db';
+        final first = await initializeApp(
+          factory: databaseFactoryFfi,
+          path: path,
+        );
+        await first.dependencies!.settings.setSetting('vibration_enabled', '0');
+        await first.dependencies!.settings.setSetting('sound_volume', '33');
+        await first.dependencies!.database!.close();
 
-      final second = await initializeApp(
-        factory: databaseFactoryFfi,
-        path: path,
-      );
-      addTearDown(
-        () async => second.dependencies?.database?.close(),
-      );
-      expect(second.settings['vibration_enabled'], '0');
-      expect(second.settings['sound_volume'], '33');
-      expect(second.settings['sound_enabled'], '1');
-    });
+        final second = await initializeApp(
+          factory: databaseFactoryFfi,
+          path: path,
+        );
+        addTearDown(() async => second.dependencies?.database?.close());
+        expect(second.settings['vibration_enabled'], '0');
+        expect(second.settings['sound_volume'], '33');
+        expect(second.settings['sound_enabled'], '1');
+      },
+    );
   });
 
   // -- Haptics ------------------------------------------------------------
@@ -228,12 +247,12 @@ void main() {
       await tester.pumpWidget(
         scopedApp(
           deps,
-          GameScreen(
-            initialSetup: const GameSetup(playerCount: 2, aiSeats: {}),
-            diceRoller: FixedDiceRoller([6], cycle: true),
-            feedbackService: feedback,
-            vibrationEnabled: true,
+          const GameScreen(
+            initialSetup: GameSetup(playerCount: 2, aiSeats: {}),
           ),
+          diceRoller: FixedDiceRoller([6], cycle: true),
+          feedbackService: feedback,
+          vibrationEnabled: true,
         ),
       );
       await tester.pumpAndSettle();
@@ -248,20 +267,19 @@ void main() {
       expect(feedback.calls, 1);
     });
 
-    testWidgets('vibration disabled: a move triggers nothing',
-        (tester) async {
+    testWidgets('vibration disabled: a move triggers nothing', (tester) async {
       final store = InMemoryStore();
       final deps = fakeDeps(store);
       final feedback = _FakeFeedbackService();
       await tester.pumpWidget(
         scopedApp(
           deps,
-          GameScreen(
-            initialSetup: const GameSetup(playerCount: 2, aiSeats: {}),
-            diceRoller: FixedDiceRoller([6], cycle: true),
-            feedbackService: feedback,
-            vibrationEnabled: false,
+          const GameScreen(
+            initialSetup: GameSetup(playerCount: 2, aiSeats: {}),
           ),
+          diceRoller: FixedDiceRoller([6], cycle: true),
+          feedbackService: feedback,
+          vibrationEnabled: false,
         ),
       );
       await tester.pumpAndSettle();
@@ -276,21 +294,16 @@ void main() {
       expect(feedback.calls, 0);
     });
 
-    test('HapticFeedbackService calls HapticFeedback.lightImpact',
-        () async {
+    test('HapticFeedbackService calls HapticFeedback.lightImpact', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          calls.add(call);
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            calls.add(call);
+            return null;
+          });
       addTearDown(
-        () => TestDefaultBinaryMessengerBinding
-            .instance.defaultBinaryMessenger
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(SystemChannels.platform, null),
       );
 
