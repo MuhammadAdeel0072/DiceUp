@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
+import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
 
 /// Game mode selection (SRS UI-02, FR-12).
@@ -14,6 +15,7 @@ class ModeSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = stringsOf(context);
     // Semantics (M2.9, NFR-08): each tappable mode card is one
     // labelled button — title + subtitle in a single node — so a
     // screen reader hears the mode and what it means, not an icon
@@ -28,7 +30,7 @@ class ModeSelectionScreen extends StatelessWidget {
         Navigator.of(context)
             .pushNamed(AppRoutes.offlineSetup, arguments: OfflineMode.local);
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose a mode')),
+      appBar: AppBar(title: Text(l10n.modeTitle)),
       // M2.12 (NFR-09): scrolls when the cards cannot fit
       // (320x568 with a wide font, or a large system text scale)
       // instead of overflowing — the plain Column overflowed by
@@ -42,41 +44,39 @@ class ModeSelectionScreen extends StatelessWidget {
           children: [
             Semantics(
               button: true,
-              label: 'Play vs AI. You against computer opponents (Easy, Medium, Hard).',
+              label: l10n.modeVsAiSemantics,
               onTap: goVsAi,
               excludeSemantics: true,
               child: DiceUpCard(
                 onTap: goVsAi,
-                child: const _ModeRow(
+                child: _ModeRow(
                   icon: Icons.smart_toy_outlined,
-                  title: 'Play vs AI',
-                  subtitle:
-                      'You against computer opponents (Easy, Medium, Hard).',
+                  title: l10n.modeVsAi,
+                  subtitle: l10n.modeVsAiDescription,
                 ),
               ),
             ),
             const SizedBox(height: DiceUpSpacing.md),
             Semantics(
               button: true,
-              label: 'Local multiplayer. 2–4 players sharing this device.',
+              label: l10n.modeLocalSemantics,
               onTap: goLocal,
               excludeSemantics: true,
               child: DiceUpCard(
                 onTap: goLocal,
-                child: const _ModeRow(
+                child: _ModeRow(
                   icon: Icons.people_outline,
-                  title: 'Local multiplayer',
-                  subtitle: '2–4 players sharing this device.',
+                  title: l10n.modeLocal,
+                  subtitle: l10n.modeLocalDescription,
                 ),
               ),
             ),
             const SizedBox(height: DiceUpSpacing.md),
-            const DiceUpCard(
+            DiceUpCard(
               child: _ModeRow(
                 icon: Icons.public_outlined,
-                title: 'Online multiplayer',
-                subtitle:
-                    'Rooms, friends and live matches — coming in Phase 5.',
+                title: l10n.modeOnline,
+                subtitle: l10n.modeOnlineDescription,
                 // M2.10 (M-13): no chevron — the card is not tappable
                 // and must not imply navigation.
                 showChevron: false,

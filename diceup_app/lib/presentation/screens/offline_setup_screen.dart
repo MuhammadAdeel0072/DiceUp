@@ -7,10 +7,14 @@ import 'package:flutter/services.dart';
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
+
+import 'package:diceup/l10n/app_localizations.dart';
+
 import '../../data/local/app_dependencies.dart';
 import '../../domain/ai/ai_player.dart';
 import '../../domain/engine/player_colour.dart';
 import '../../domain/engine/ruleset_config.dart';
+import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
 import '../navigation/app_routes.dart';
 
@@ -137,9 +141,9 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
 
   /// Display name for [seat]: the trimmed field text, or "Player N"
   /// when the field is empty (D-28).
-  String _displayName(int seat) {
+  String _displayName(int seat, AppLocalizations l10n) {
     final typed = _nameControllers[seat].text.trim();
-    return typed.isEmpty ? 'Player ${seat + 1}' : typed;
+    return typed.isEmpty ? l10n.playerName(seat + 1) : typed;
   }
 
   /// The ruleset the switches describe (M2.2, D-29).
@@ -170,13 +174,12 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
   /// seats stay distinct no matter how the count changes. A free
   /// colour is picked immediately. The swatch is never silently
   /// inert — the user is always told why a tap did nothing.
-  void _pickColour(int seat, PlayerColour colour) {
+  void _pickColour(int seat, PlayerColour colour, AppLocalizations l10n) {
     final taker = _colours.indexWhere((c) => c == colour);
     if (taker != -1 && taker != seat) {
       if (taker < _playerCount) {
         setState(
-          () => _error =
-              'That colour is already taken by ${_displayName(taker)}.',
+          () => _error = l10n.setupColourTaken(_displayName(taker, l10n)),
         );
         return;
       }
@@ -193,8 +196,8 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
     });
   }
 
-  void _startMatch() {
-    final names = List.generate(_playerCount, _displayName);
+  void _startMatch(AppLocalizations l10n) {
+    final names = List.generate(_playerCount, (i) => _displayName(i, l10n));
     final colours = List<PlayerColour>.generate(
       _playerCount,
       (i) => _colours[i],
@@ -211,9 +214,9 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
     // ruleset check guards the config itself.
     String? error;
     if (colours.toSet().length != colours.length) {
-      error = 'Each player needs a distinct colour.';
+      error = l10n.setupDistinctColour;
     } else if (!_hasHumanSeat) {
-      error = 'At least one seat must be human.';
+      error = l10n.setupNeedHuman;
     } else {
       try {
         ruleset.validate();
@@ -375,13 +378,14 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = stringsOf(context);
     final modeTitle = _mode == OfflineMode.vsAi
-        ? 'Play vs AI'
-        : 'Local multiplayer';
+        ? l10n.modeVsAi
+        : l10n.modeLocal;
     if (_loadingPrefill) {
       return Scaffold(
         appBar: AppBar(title: Text(modeTitle)),
-        body: const LoadingIndicator(message: 'Loading your last setup…'),
+        body: LoadingIndicator(message: l10n.setupLoadingLast),
       );
     }
     return Scaffold(
@@ -391,7 +395,10 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Players', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.setupPlayers,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: DiceUpSpacing.xs),
             SegmentedButton<int>(
               segments: const [
@@ -403,7 +410,10 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
               onSelectionChanged: (selected) => _setPlayerCount(selected.first),
             ),
             const SizedBox(height: DiceUpSpacing.lg),
-            Text('Seats', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.setupSeats,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: DiceUpSpacing.xs),
             Expanded(
               child: ListView.builder(
@@ -423,16 +433,16 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
                 ),
               ),
             if (!_hasHumanSeat)
-              const Padding(
-                padding: EdgeInsets.only(bottom: DiceUpSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.only(bottom: DiceUpSpacing.sm),
                 child: Text(
-                  'At least one seat must be human.',
+                  l10n.setupNeedHuman,
                   style: TextStyle(color: DiceUpColors.error),
                 ),
               ),
             PrimaryButton(
-              label: 'Start match',
-              onPressed: _hasHumanSeat ? _startMatch : null,
+              label: l10n.setupStartMatch,
+              onPressed: _hasHumanSeat ? () => _startMatch(l10n) : null,
             ),
           ],
         ),
@@ -444,6 +454,7 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
   /// (for AI seats) difficulty.
   Widget _buildSeatCard(int seat) {
     final isAi = _isAi[seat];
+    final l10n = stringsOf(context);
     return DiceUpCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,7 +462,7 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
           Row(
             children: [
               PlayerAvatar(
-                name: _displayName(seat),
+                name: _displayName(seat, l10n),
                 seatIndex: seat,
                 // The ring follows the seat's *chosen* colour (M2.2),
                 // not the seat-order colour — after a swap they differ.
@@ -460,7 +471,7 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
               const SizedBox(width: DiceUpSpacing.md),
               Expanded(
                 child: Text(
-                  'Player ${seat + 1}',
+                  l10n.playerName(seat + 1),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -469,13 +480,16 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
           const SizedBox(height: DiceUpSpacing.sm),
           DiceUpTextField(
             key: ValueKey('seat-$seat-name'),
-            label: 'Name',
+            label: l10n.setupNameLabel,
             controller: _nameControllers[seat],
             inputFormatters: [LengthLimitingTextInputFormatter(12)],
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: DiceUpSpacing.sm),
-          Text('Colour', style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            l10n.setupColourLabel,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: DiceUpSpacing.xs),
           Row(
             children: [
@@ -485,9 +499,9 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
           ),
           const SizedBox(height: DiceUpSpacing.sm),
           SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('Human')),
-              ButtonSegment(value: true, label: Text('AI')),
+            segments: [
+              ButtonSegment(value: false, label: Text(l10n.setupHuman)),
+              ButtonSegment(value: true, label: Text(l10n.setupAi)),
             ],
             selected: {isAi},
             onSelectionChanged: (selected) {
@@ -501,14 +515,14 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
             const SizedBox(height: DiceUpSpacing.sm),
             DropdownButtonFormField<AiDifficulty>(
               initialValue: _difficulty[seat],
-              decoration: const InputDecoration(labelText: 'AI difficulty'),
+              decoration: InputDecoration(
+                labelText: l10n.setupAiDifficultyLabel,
+              ),
               items: AiDifficulty.values
                   .map(
                     (d) => DropdownMenuItem(
                       value: d,
-                      child: Text(
-                        d.name[0].toUpperCase() + d.name.substring(1),
-                      ),
+                      child: Text(difficultyName(d, l10n)),
                     ),
                   )
                   .toList(),
@@ -528,6 +542,7 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
   /// check; a colour taken by another seat is dimmed and cannot be
   /// picked (tapping it explains why — see [_pickColour]).
   Widget _buildColourSwatch(int seat, PlayerColour colour) {
+    final l10n = stringsOf(context);
     final isSelected = _colours[seat] == colour;
     final taker = _colours.indexWhere((c) => c == colour);
     // Only a seat in the match makes a colour "taken" — a colour
@@ -540,21 +555,24 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
     // is decorative inside that node. The tooltip (visual
     // long-press hint) is unchanged.
     final swatchLabel = isSelected
-        ? 'Colour ${colour.name}, selected'
+        ? l10n.setupColourSelected(colourName(colour, l10n))
         : isTaken
-        ? 'Colour ${colour.name}, taken by ${_displayName(taker)}'
-        : 'Colour ${colour.name}';
+        ? l10n.setupColourTakenBy(
+            colourName(colour, l10n),
+            _displayName(taker, l10n),
+          )
+        : l10n.setupColourPlain(colourName(colour, l10n));
     return Semantics(
       button: true,
       selected: isSelected,
       label: swatchLabel,
-      onTap: () => _pickColour(seat, colour),
+      onTap: () => _pickColour(seat, colour, l10n),
       excludeSemantics: true,
       child: Tooltip(
-        message: 'Colour ${colour.name}',
+        message: l10n.setupColourPlain(colourName(colour, l10n)),
         child: GestureDetector(
           key: ValueKey('seat-$seat-colour-${colour.name}'),
-          onTap: () => _pickColour(seat, colour),
+          onTap: () => _pickColour(seat, colour, l10n),
           child: Padding(
             padding: const EdgeInsets.only(right: DiceUpSpacing.sm),
             child: Opacity(
@@ -584,44 +602,45 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
   /// with the stock defaults. "Continue to rank 2nd/3rd" is not
   /// offered — there are no mechanics for it (D-02).
   Widget _buildRulesetCard() {
+    final l10n = stringsOf(context);
     return DiceUpCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Rules', style: Theme.of(context).textTheme.titleMedium),
+          Text(l10n.setupRules, style: Theme.of(context).textTheme.titleMedium),
           SwitchListTile(
-            title: const Text('Release on 1'),
-            subtitle: const Text('A roll of 1 also releases a token.'),
+            title: Text(l10n.setupRuleReleaseOnOne),
+            subtitle: Text(l10n.setupRuleReleaseOnOneDescription),
             value: _releaseOnOne,
             onChanged: (value) => setState(() => _releaseOnOne = value),
           ),
           SwitchListTile(
-            title: const Text('Exact finish'),
-            subtitle: const Text('A token needs an exact roll to reach home.'),
+            title: Text(l10n.setupRuleExactFinish),
+            subtitle: Text(l10n.setupRuleExactFinishDescription),
             value: _exactFinish,
             onChanged: (value) => setState(() => _exactFinish = value),
           ),
           SwitchListTile(
-            title: const Text('Extra turn on six'),
-            subtitle: const Text('Rolling a 6 earns another roll.'),
+            title: Text(l10n.setupRuleExtraSix),
+            subtitle: Text(l10n.setupRuleExtraSixDescription),
             value: _extraTurnOnSix,
             onChanged: (value) => setState(() => _extraTurnOnSix = value),
           ),
           SwitchListTile(
-            title: const Text('Extra turn on capture'),
-            subtitle: const Text('Capturing a token earns another roll.'),
+            title: Text(l10n.setupRuleExtraCapture),
+            subtitle: Text(l10n.setupRuleExtraCaptureDescription),
             value: _extraTurnOnCapture,
             onChanged: (value) => setState(() => _extraTurnOnCapture = value),
           ),
           SwitchListTile(
-            title: const Text('Extra turn on home'),
-            subtitle: const Text('Bringing a token home earns another roll.'),
+            title: Text(l10n.setupRuleExtraHome),
+            subtitle: Text(l10n.setupRuleExtraHomeDescription),
             value: _extraTurnOnHome,
             onChanged: (value) => setState(() => _extraTurnOnHome = value),
           ),
           SwitchListTile(
-            title: const Text('Third-six limit'),
-            subtitle: const Text('Three sixes in a row forfeits the roll.'),
+            title: Text(l10n.setupRuleThirdSix),
+            subtitle: Text(l10n.setupRuleThirdSixDescription),
             value: _thirdSixLimit,
             onChanged: (value) => setState(() => _thirdSixLimit = value),
           ),

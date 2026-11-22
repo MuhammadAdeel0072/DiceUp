@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
+import '../../l10n/app_strings.dart';
 
 /// A dice face drawn with widgets — no image asset, no emoji.
 ///
@@ -134,6 +135,7 @@ class DiceWidget extends StatelessWidget {
       ),
     );
     final onTap = this.onTap;
+    final l10n = stringsOf(context);
     final tappable = onTap == null
         ? dice
         : GestureDetector(
@@ -143,7 +145,7 @@ class DiceWidget extends StatelessWidget {
             // cannot roll. The handler (not this widget) decides whether
             // the tap rolls or gets illegal-tap feedback.
             child: enabled
-                ? Tooltip(message: 'Tap to roll', child: dice)
+                ? Tooltip(message: l10n.diceTapToRoll, child: dice)
                 : dice,
           );
     // Semantics (M2.9): one labelled node for the whole dice. The
@@ -154,12 +156,10 @@ class DiceWidget extends StatelessWidget {
     // a screen-reader activation rolls (or gets the same brief
     // feedback a sighted tap gets) through the same handler.
     final label = rolling
-        ? 'Dice, rolling'
+        ? l10n.diceRolling
         : value == null
-        ? (enabled ? 'Dice, tap to roll' : 'Dice, no roll yet')
-        : (enabled
-              ? 'Dice, showing $value. Tap to roll'
-              : 'Dice, showing $value');
+        ? (enabled ? l10n.diceTapToRollLabel : l10n.diceNoRollYet)
+        : (enabled ? l10n.diceShowingTap(value!) : l10n.diceShowing(value!));
     return Semantics(
       label: label,
       button: onTap != null,

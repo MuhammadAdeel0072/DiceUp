@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:diceup/l10n/app_localizations.dart';
+
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
+import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
 
 /// Shown on the results screen when the completed match could not be
@@ -58,6 +61,7 @@ class ResultsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = stringsOf(context);
     final result = this.result ?? AppRoutes.matchResultOf(context);
     if (result == null) {
       assert(() {
@@ -68,20 +72,17 @@ class ResultsScreen extends StatelessWidget {
         return true;
       }());
       return Scaffold(
-        appBar: AppBar(title: const Text('Results')),
+        appBar: AppBar(title: Text(l10n.resultsTitle)),
         body: SafeArea(
           child: Padding(
             padding: DiceUpSpacing.screenPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'No match result to show.',
-                  textAlign: TextAlign.center,
-                ),
+                Text(l10n.resultsEmpty, textAlign: TextAlign.center),
                 const SizedBox(height: DiceUpSpacing.lg),
                 SecondaryButton(
-                  label: 'Main Menu',
+                  label: l10n.mainMenu,
                   onPressed: () => _goHome(context),
                 ),
               ],
@@ -91,7 +92,7 @@ class ResultsScreen extends StatelessWidget {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Results')),
+      appBar: AppBar(title: Text(l10n.resultsTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: DiceUpSpacing.screenPadding,
@@ -99,7 +100,7 @@ class ResultsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '${result.winnerName} wins!',
+                l10n.resultsWinnerWins(result.winnerName),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
@@ -117,19 +118,29 @@ class ResultsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _InfoRow(label: 'Mode', value: result.modeLabel),
                     _InfoRow(
-                      label: 'Players',
-                      value: '${result.players.length} players',
+                      label: l10n.labelMode,
+                      value: result.isVsAi
+                          ? l10n.modeShortVsAi
+                          : l10n.modeLocal,
                     ),
                     _InfoRow(
-                      label: 'Duration',
+                      label: l10n.labelPlayers,
+                      value: result.players.length == 1
+                          ? l10n.playersCountOne
+                          : l10n.playersCountOther(result.players.length),
+                    ),
+                    _InfoRow(
+                      label: l10n.labelDuration,
                       value: _formatDuration(result.duration),
                     ),
-                    _InfoRow(label: 'Moves', value: '${result.moveCount}'),
                     _InfoRow(
-                      label: 'Finished',
-                      value: _formatDate(result.finishedAt),
+                      label: l10n.labelMoves,
+                      value: '${result.moveCount}',
+                    ),
+                    _InfoRow(
+                      label: l10n.labelFinished,
+                      value: _formatDate(result.finishedAt, l10n),
                     ),
                   ],
                 ),
@@ -158,19 +169,19 @@ class ResultsScreen extends StatelessWidget {
                     children: [
                       const Icon(Icons.warning_amber_rounded),
                       const SizedBox(width: DiceUpSpacing.sm),
-                      Expanded(child: Text(kMatchRecordFailedMessage)),
+                      Expanded(child: Text(l10n.resultsRecordFailed)),
                     ],
                   ),
                 ),
               ],
               const SizedBox(height: DiceUpSpacing.lg),
               PrimaryButton(
-                label: 'Play Again',
+                label: l10n.resultsPlayAgain,
                 onPressed: () => _playAgain(context, result.setup),
               ),
               const SizedBox(height: DiceUpSpacing.sm),
               SecondaryButton(
-                label: 'Main Menu',
+                label: l10n.mainMenu,
                 onPressed: () => _goHome(context),
               ),
             ],
@@ -228,21 +239,8 @@ class ResultsScreen extends StatelessWidget {
 
   /// Short date without the intl package ("21 Nov 2026, 12:00") —
   /// the same format the history screen uses.
-  static String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+  static String _formatDate(DateTime date, AppLocalizations l10n) {
+    final months = monthNames(l10n);
     final local = date.toLocal();
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
@@ -289,6 +287,7 @@ class _PlayerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = stringsOf(context);
     return Row(
       children: [
         PlayerAvatar(
@@ -300,13 +299,13 @@ class _PlayerRow extends StatelessWidget {
         const SizedBox(width: DiceUpSpacing.sm),
         Expanded(
           child: Text(
-            '${player.name}${player.isAi ? ' (AI)' : ''}',
+            player.isAi ? l10n.playerWithAi(player.name) : player.name,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),
         if (isWinner)
           Text(
-            'Winner',
+            l10n.resultsWinnerBadge,
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: DiceUpColors.teal),
           ),

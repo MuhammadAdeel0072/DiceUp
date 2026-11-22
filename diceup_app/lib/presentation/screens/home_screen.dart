@@ -6,10 +6,10 @@ import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../data/local/app_startup.dart';
-import '../../data/local/database_recovery.dart';
 import '../../data/local/snapshot_recovery.dart';
 import '../../domain/engine/game_state.dart';
 import '../../domain/repositories/snapshot_repository.dart';
+import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
 import '../navigation/app_routes.dart';
 
@@ -57,19 +57,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showStartupNotices(StartupResult startup) async {
+    final l10n = stringsOf(context);
     if (startup.startupError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(kStartupDatabaseErrorMessage)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.homeDatabaseError)));
     } else if (startup.databaseRecovered) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(kDatabaseRecoveryMessage)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.homeDatabaseRecovered)));
     }
     final outcome = startup.snapshotOutcome;
     if (outcome is CorruptSnapshotDiscarded) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text(kCorruptSnapshotMessage)));
+          .showSnackBar(SnackBar(content: Text(l10n.homeSnapshotCorrupt)));
     } else if (outcome is ValidSnapshot) {
       await _offerResume(startup, outcome);
     }
@@ -99,23 +98,21 @@ class _HomeScreenState extends State<HomeScreen> {
       final stillThere = await snapshots.hasSnapshot(kCurrentMatchKey);
       if (!mounted || !stillThere) return;
     }
+    final l10n = stringsOf(context);
     final resume = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Resume your match?'),
-        content: const Text(
-          'You have a match in progress. Resume where you left '
-          'off, or discard it and start fresh.',
-        ),
+        title: Text(l10n.homeResumeTitle),
+        content: Text(l10n.homeResumeMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Discard'),
+            child: Text(l10n.homeResumeDiscard),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Resume'),
+            child: Text(l10n.homeResumeResume),
           ),
         ],
       ),
@@ -134,13 +131,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = stringsOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DiceUp'),
+        title: Text(l10n.appName),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
+            tooltip: l10n.homeSettingsTooltip,
             onPressed: () =>
                 Navigator.of(context).pushNamed(AppRoutes.settings),
           ),
@@ -171,42 +169,42 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const SizedBox(height: DiceUpSpacing.md),
                     Text(
-                      'Ready to play?',
+                      l10n.homeReadyTitle,
                       style: Theme.of(context).textTheme.displayLarge,
                     ),
                     const SizedBox(height: DiceUpSpacing.xs),
                     Text(
-                      'Classic Ludo — offline, with friends.',
+                      l10n.homeReadySubtitle,
                       style: Theme.of(context).textTheme.bodyLarge
                           ?.copyWith(color: DiceUpColors.textSecondary),
                     ),
                     const SizedBox(height: DiceUpSpacing.xl),
                     PrimaryButton(
-                      label: 'Play Offline',
+                      label: l10n.homePlayOffline,
                       onPressed: () =>
                           Navigator.of(context)
                               .pushNamed(AppRoutes.modeSelection),
                     ),
                     const SizedBox(height: DiceUpSpacing.md),
                     SecondaryButton(
-                      label: 'Play Online',
+                      label: l10n.homePlayOnline,
                       onPressed: () => _showOnlineLoginPrompt(context),
                     ),
                     const SizedBox(height: DiceUpSpacing.md),
                     SecondaryButton(
-                      label: 'Match History',
+                      label: l10n.homeMatchHistory,
                       onPressed: () =>
                           Navigator.of(context).pushNamed(AppRoutes.history),
                     ),
                     const SizedBox(height: DiceUpSpacing.md),
                     SecondaryButton(
-                      label: 'Statistics',
+                      label: l10n.homeStatistics,
                       onPressed: () =>
                           Navigator.of(context).pushNamed(AppRoutes.statistics),
                     ),
                     const Spacer(),
-                    const Text(
-                      'Offline play works without an account or internet.',
+                    Text(
+                      l10n.homeOfflineNote,
                       textAlign: TextAlign.center,
                       style: TextStyle(color: DiceUpColors.textSecondary),
                     ),
@@ -225,17 +223,16 @@ class _HomeScreenState extends State<HomeScreen> {
   /// arrives in Phase 5 — a dialog, not a transient snackbar, so the
   /// prompt cannot be missed or mistaken for navigation.
   void _showOnlineLoginPrompt(BuildContext context) {
+    final l10n = stringsOf(context);
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Play Online'),
-        content: const Text(
-          'Log in to play online — online play arrives in Phase 5.',
-        ),
+        title: Text(l10n.homePlayOnline),
+        content: Text(l10n.homeOnlineMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(l10n.ok),
           ),
         ],
       ),

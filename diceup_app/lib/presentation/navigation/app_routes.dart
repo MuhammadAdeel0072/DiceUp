@@ -254,7 +254,4 @@ class MatchResult {
 
   /// True when any seat is AI — the mode label.
   bool get isVsAi => players.any((player) => player.isAi);
-
-  /// Mode label, matching the history screen's wording.
-  String get modeLabel => isVsAi ? 'vs AI' : 'Local multiplayer';
 }

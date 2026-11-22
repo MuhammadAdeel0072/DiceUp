@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:diceup/l10n/app_localizations.dart';
+
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../domain/repositories/local_match_repository.dart';
+import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
 
 /// Local match history (SRS UI-09, FR-31).
@@ -52,26 +55,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Match History')),
+      appBar: AppBar(title: Text(stringsOf(context).homeMatchHistory)),
       body: _body(),
     );
   }
 
   Widget _body() {
+    final l10n = stringsOf(context);
     if (_unavailable) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.history,
-        title: 'History unavailable',
-        hint:
-            "Your saved data couldn't be loaded, so past matches "
-            'cannot be shown right now.',
+        title: l10n.historyUnavailableTitle,
+        hint: l10n.historyUnavailableHint,
       );
     }
     if (_loadFailed) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.error_outline,
-        title: "Couldn't load match history",
-        hint: 'Try again later.',
+        title: l10n.historyLoadFailedTitle,
+        hint: l10n.historyLoadFailedHint,
       );
     }
     final matches = _matches;
@@ -79,10 +81,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (matches.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.history,
-        title: 'No matches yet',
-        hint: 'Finished offline matches will appear here, newest first.',
+        title: l10n.historyEmptyTitle,
+        hint: l10n.historyEmptyHint,
       );
     }
     return ListView.separated(
@@ -102,22 +104,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   children: [
                     Text(
                       winner == null
-                          ? '${_modeLabel(match.mode)} · Finished'
-                          : '${_modeLabel(match.mode)} · $winner won',
+                          ? l10n.historyMatchFinished(
+                              _modeLabel(match.mode, l10n),
+                            )
+                          : l10n.historyMatchWon(
+                              _modeLabel(match.mode, l10n),
+                              winner,
+                            ),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: DiceUpSpacing.xxs),
                     Text(
-                      '${_formatDate(match.playedAt)} · '
-                      '${_formatDuration(match.durationSeconds)} · '
-                      '${match.playerCount} players',
+                      l10n.historyMatchLine(
+                        _formatDate(match.playedAt, l10n),
+                        _formatDuration(match.durationSeconds, l10n),
+                        match.playerCount == 1
+                            ? l10n.playersCountOne
+                            : l10n.playersCountOther(match.playerCount),
+                      ),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: DiceUpSpacing.sm),
-              Text('Local', style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                l10n.historyLocalBadge,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
         );
@@ -126,37 +140,44 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _showDetail(LocalMatch match) async {
+    final l10n = stringsOf(context);
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_formatDate(match.playedAt)),
+        title: Text(_formatDate(match.playedAt, l10n)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _DetailRow(label: 'Mode', value: _modeLabel(match.mode)),
             _DetailRow(
-              label: 'Players',
+              label: l10n.labelMode,
+              value: _modeLabel(match.mode, l10n),
+            ),
+            _DetailRow(
+              label: l10n.labelPlayers,
               value: match.players
-                  .map(
-                    (player) =>
-                        '${player.name}${player.isAi ? ' (AI)' : ''}'
-                        '${match.winnerName == player.name ? ' — winner' : ''}',
-                  )
+                  .map((player) {
+                    final name = player.isAi
+                        ? l10n.playerWithAi(player.name)
+                        : player.name;
+                    return match.winnerName == player.name
+                        ? '$name${l10n.winnerSuffix}'
+                        : name;
+                  })
                   .join('\n'),
             ),
             _DetailRow(
-              label: 'Winner',
-              value: match.winnerName ?? 'No winner recorded',
+              label: l10n.labelWinner,
+              value: match.winnerName ?? l10n.historyNoWinner,
             ),
             _DetailRow(
-              label: 'Duration',
-              value: _formatDuration(match.durationSeconds),
+              label: l10n.labelDuration,
+              value: _formatDuration(match.durationSeconds, l10n),
             ),
-            _DetailRow(label: 'Ruleset', value: match.rulesetVersion),
+            _DetailRow(label: l10n.labelRuleset, value: match.rulesetVersion),
             const SizedBox(height: DiceUpSpacing.sm),
             Text(
-              'Local match — offline results never affect rankings.',
+              l10n.historyLocalNote,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -164,34 +185,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(l10n.close),
           ),
         ],
       ),
     );
   }
 
-  static String _modeLabel(LocalMatchMode mode) => switch (mode) {
-    LocalMatchMode.vsAi => 'vs AI',
-    LocalMatchMode.localMultiplayer => 'Local multiplayer',
-  };
+  static String _modeLabel(LocalMatchMode mode, AppLocalizations l10n) =>
+      switch (mode) {
+        LocalMatchMode.vsAi => l10n.modeShortVsAi,
+        LocalMatchMode.localMultiplayer => l10n.modeLocal,
+      };
 
   /// Short date without the intl package: "21 Nov 2026, 12:00".
-  static String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+  static String _formatDate(DateTime date, AppLocalizations l10n) {
+    final months = monthNames(l10n);
     final local = date.toLocal();
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
@@ -199,10 +208,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         '$hour:$minute';
   }
 
-  static String _formatDuration(int? seconds) {
-    if (seconds == null) return 'Unknown length';
-    if (seconds < 60) return '$seconds s';
-    return '${seconds ~/ 60}m ${seconds % 60}s';
+  static String _formatDuration(int? seconds, AppLocalizations l10n) {
+    if (seconds == null) return l10n.historyUnknownLength;
+    if (seconds < 60) return l10n.historyDurationSeconds(seconds);
+    return l10n.historyDurationMinutesSeconds(seconds ~/ 60, seconds % 60);
   }
 }
 

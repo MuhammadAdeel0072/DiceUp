@@ -1,6 +1,6 @@
 #!/bin/sh
 # Local mirror of the CI jobs (M3.4): pub get, format, analyze, test,
-# boundaries. Run from anywhere: `sh diceup_app/tool/check.sh`
+# boundaries, strings. Run from anywhere: `sh diceup_app/tool/check.sh`
 # (or from inside diceup_app: `sh tool/check.sh`).
 # Exit code 0 = every gate passed; non-zero = the first failing gate.
 # Requires Flutter on PATH (the repo toolchain is Flutter 3.50.1).
@@ -28,5 +28,8 @@ flutter test
 
 echo "==> sh tool/check_boundaries.sh"
 sh tool/check_boundaries.sh
+
+echo "==> sh tool/check_strings.sh"
+sh tool/check_strings.sh
 
 echo "check: all gates passed"

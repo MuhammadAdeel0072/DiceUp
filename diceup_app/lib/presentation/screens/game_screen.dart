@@ -11,6 +11,7 @@ import '../../domain/engine/game_state.dart';
 import '../../domain/engine/player.dart';
 import '../../domain/offline_game_controller.dart';
 import '../../domain/usecases/match_setup.dart';
+import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
 import '../providers/app_providers.dart';
 import '../widgets/dice_widget.dart';
@@ -582,7 +583,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // area stay silent: the plan requires feedback for token taps
     // only.
     if (_tokenAt(details.localPosition, boardSide, tokens) != null) {
-      _showIllegalTapFeedback("That token can't move now");
+      _showIllegalTapFeedback(stringsOf(context).gameIllegalTokenMove);
     }
   }
 
@@ -627,22 +628,23 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (controller == null || controller.isFinished || controller.isPaused) {
       return;
     }
+    final l10n = stringsOf(context);
     final state = controller.state;
     if (!state.currentPlayer.isHuman) {
-      _showIllegalTapFeedback("It's not your turn yet.");
+      _showIllegalTapFeedback(l10n.gameDiceNotYourTurn);
       return;
     }
     if (controller.rolling) {
-      _showIllegalTapFeedback('Wait for the dice to settle.');
+      _showIllegalTapFeedback(l10n.gameDiceWaitSettle);
       return;
     }
     if (_hopController.isAnimating) {
-      _showIllegalTapFeedback('Wait for the move to finish.');
+      _showIllegalTapFeedback(l10n.gameDiceWaitMove);
       return;
     }
     if (state.phase != TurnPhase.awaitingRoll) {
       // Already rolled: the next action is a token move, not a roll.
-      _showIllegalTapFeedback('Choose a token to move.');
+      _showIllegalTapFeedback(l10n.gameDiceChooseToken);
       return;
     }
     controller.rollDice();
@@ -705,24 +707,25 @@ class _GameScreenState extends ConsumerState<GameScreen>
     }
     _pauseMenuOpen = true;
     controller.pause();
+    final l10n = stringsOf(context);
     final choice = await showDialog<_PauseChoice>(
       context: context,
       barrierDismissible: true,
       builder: (context) => AlertDialog(
-        title: const Text('Paused'),
-        content: const Text('Take a break — the match is frozen.'),
+        title: Text(l10n.gamePausedTitle),
+        content: Text(l10n.gamePausedMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(_PauseChoice.exit),
-            child: const Text('Main Menu'),
+            child: Text(l10n.mainMenu),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(_PauseChoice.restart),
-            child: const Text('Restart'),
+            child: Text(l10n.gamePauseRestart),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(_PauseChoice.resume),
-            child: const Text('Resume'),
+            child: Text(l10n.gamePauseResume),
           ),
         ],
       ),
@@ -749,11 +752,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
   /// the match was actually restarted.
   Future<bool> _confirmRestart() async {
     final controller = _controller!;
+    final l10n = stringsOf(context);
     final restart = await ConfirmationDialog.show(
       context,
-      title: 'Restart match?',
-      message: 'The current match will be discarded.',
-      confirmLabel: 'Restart',
+      title: l10n.gameRestartTitle,
+      message: l10n.gameRestartMessage,
+      confirmLabel: l10n.gameRestartConfirm,
     );
     if (!restart || !mounted) return false;
     // Restart discards the current match (D-11/D-12): its snapshot
@@ -777,13 +781,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
   /// the snapshot this exit just deleted.
   Future<bool> _confirmExit() async {
     final controller = _controller!;
+    final l10n = stringsOf(context);
     final leave = await ConfirmationDialog.show(
       context,
-      title: 'Leave the match?',
+      title: l10n.gameLeaveTitle,
       message: controller.isFinished
-          ? 'This match is over.'
-          : 'Your progress in this match will be lost.',
-      confirmLabel: 'Leave',
+          ? l10n.gameLeaveFinishedMessage
+          : l10n.gameLeaveUnfinishedMessage,
+      confirmLabel: l10n.gameLeaveConfirm,
     );
     if (!leave || !mounted) return false;
     // Clean exit (D-11/D-12): an unfinished match is deleted from
@@ -811,6 +816,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final controller = ref.watch(offlineGameControllerProvider);
     final state = controller.state;
     final current = state.currentPlayer;
+    final l10n = stringsOf(context);
     // Input stays locked while a hop renders (M2.7): the engine
     // state is already final, but a second move landing on top of
     // the hop would overlap two animations. The hop is ≤250 ms.
@@ -841,11 +847,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // nodes are faked — recorded as a follow-up, not claimed here.
     final boardLabel = controller.isFinished
         ? (controller.winner == null
-              ? 'Ludo board. Match finished'
-              : 'Ludo board. ${controller.winner!.name} won the match')
-        : "Ludo board. ${current.name}'s turn, "
-              '${controller.legalMoves.length} legal '
-              '${controller.legalMoves.length == 1 ? 'move' : 'moves'}';
+              ? l10n.gameBoardFinished
+              : l10n.gameBoardWinner(controller.winner!.name))
+        : controller.legalMoves.length == 1
+        ? l10n.gameBoardTurnOne(current.name)
+        : l10n.gameBoardTurnOther(
+            // gen-l10n orders the positional parameters
+            // alphabetically (count, name), not in message order.
+            controller.legalMoves.length,
+            current.name,
+          );
 
     // The baseline for hop detection (M2.7): the tokens and move
     // count this build renders. [_onControllerChanged] diffs
@@ -873,10 +884,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('DiceUp'),
+          title: Text(l10n.appName),
           leading: IconButton(
             icon: const Icon(Icons.pause),
-            tooltip: 'Pause',
+            tooltip: l10n.gamePauseTooltip,
             onPressed: controller.isFinished ? null : _showPauseMenu,
           ),
         ),
@@ -963,7 +974,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
                     ),
                     const SizedBox(width: DiceUpSpacing.lg),
                     PrimaryButton(
-                      label: controller.rolling ? 'Rolling…' : 'Roll dice',
+                      label: controller.rolling
+                          ? l10n.gameRolling
+                          : l10n.gameRollDice,
                       onPressed: canRoll ? controller.rollDice : null,
                     ),
                   ],
@@ -983,8 +996,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 ),
                 const SizedBox(height: DiceUpSpacing.sm),
                 Text(
-                  'Safe cells are marked with a star. '
-                  'Tokens on safe cells cannot be captured.',
+                  l10n.gameSafeCellsHint,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -1033,8 +1045,9 @@ class _TurnBanner extends StatelessWidget {
     // illegal-tap feedback channel, so it must never be hidden),
     // and the avatar contributes its own name + shape + colour
     // node (see [PlayerAvatar]).
+    final l10n = stringsOf(context);
     return Semantics(
-      label: "${player.name}'s turn",
+      label: l10n.gameTurnBanner(player.name),
       child: DiceUpCard(
         padding: compact
             ? const EdgeInsets.symmetric(
@@ -1058,7 +1071,7 @@ class _TurnBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${player.name}${player.isAi ? ' (AI)' : ''}',
+                    player.isAi ? l10n.playerWithAi(player.name) : player.name,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   Text(status, style: Theme.of(context).textTheme.bodyMedium),
@@ -1115,7 +1128,9 @@ class _PlayerChip extends StatelessWidget {
           const SizedBox(width: DiceUpSpacing.xs),
           Flexible(
             child: Text(
-              '${player.name} · Home ${player.tokensHome}/4',
+              // gen-l10n orders the positional parameters
+              // alphabetically (home, name), not in message order.
+              stringsOf(context).gamePlayerHome(player.tokensHome, player.name),
               style: Theme.of(context).textTheme.bodyMedium,
               overflow: TextOverflow.ellipsis,
             ),

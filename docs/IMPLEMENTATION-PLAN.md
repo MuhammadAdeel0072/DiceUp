@@ -967,6 +967,126 @@ first step if approved: swap the `flutter_test` import in
 `seat_ai_difficulty_test.dart` to `package:test` (it uses only
 `group`/`test`/`expect`).
 
+### M3.10 — DONE (strings externalisation, M-10/NFR-38; 2026-11-22)
+
+Strings externalisation (remediation plan §4 M3.10, §6.1 Strings row,
+§6.2 NFR-38; M-10). Game screen first, then the rest, after the M3.2
+controller extraction so the same strings were not touched twice.
+
+What was done:
+
+- `pubspec.yaml`: `flutter_localizations` (SDK) added;
+  `flutter: generate: true` added. `l10n.yaml` (new) pins the codegen:
+  `arb-dir: lib/l10n`, template `app_en.arb`, output
+  `app_localizations.dart`. Flutter 3.50 removed the synthetic
+  `flutter_gen` package (`--synthetic-package` is deprecated and cannot
+  be enabled), so the generated classes live in `lib/l10n/` next to the
+  `.arb` file and are committed like any other source file — verified
+  by probe: with the generated files removed, `flutter test`
+  cannot load the widget tests (compile error), and neither
+  `flutter pub get` nor `flutter test` regenerates them in this
+  environment, so committing them is the mechanism, not a convenience.
+  Re-run `flutter gen-l10n` after editing `app_en.arb`.
+- `lib/l10n/app_en.arb` (new): **179 keys**, every user-visible
+  string in `lib/presentation/` plus the shared components that render
+  UI copy, each with a description and typed placeholders where
+  ambiguous. All rendered strings are byte-identical to before — no
+  test was edited, weakened or reworded.
+- `lib/l10n/app_strings.dart` (new): `stringsOf(context)` — the
+  `AppLocalizations` for the context's locale, falling back to
+  `AppLocalizationsEn()` when no delegates are registered above the
+  context. The fallback exists because many widget tests pump bare
+  `MaterialApp`s without `localizationsDelegates`; English is the
+  initial language (NFR-38), so the fallback renders exactly the
+  strings the tests assert. Plus the enum→localised-name mappings
+  (`colourName`, `shapeName`, `difficultyName`, `monthNames`).
+- `lib/main.dart`: `localizationsDelegates` +
+  `supportedLocales` on both `MaterialApp`s (loading splash and ready
+  app).
+- Migrated per screen, game screen first: `game_screen.dart`
+  (pause/restart/leave dialogs, Roll button, safe-cells hint, illegal
+  tap + dice-tap feedback, board/turn-banner semantics, player chips),
+  `home_screen.dart` (resume dialog, startup snackbars, online
+  login-prompt), `mode_selection_screen.dart`, `offline_setup_screen.dart`
+  (seat cards, colour swatches + semantics, difficulty names, ruleset
+  switches, validation errors), `results_screen.dart`, `history_screen.dart`
+  (list, detail dialog, date/duration formats, month names),
+  `statistics_screen.dart`, `settings_screen.dart`, `splash_screen.dart`,
+  `dice_widget.dart` (tooltip + semantics labels), and the shared
+  components in `diceup_components.dart` (`PlayerAvatar` semantics label,
+  `ErrorView` retry action, `ConfirmationDialog` default cancel action —
+  now nullable, resolved to the localised "Cancel" in `build`).
+- The startup/record/caption messages are now rendered from the `.arb`
+  in the UI (`homeDatabaseError`, `homeDatabaseRecovered`,
+  `homeSnapshotCorrupt`, `resultsRecordFailed`,
+  `statisticsPerPlayerCaption`) with byte-identical English; the
+  data/presentation-layer constants (`kDatabaseRecoveryMessage`,
+  `kCorruptSnapshotMessage`, `kStartupDatabaseErrorMessage`,
+  `kMatchRecordFailedMessage`, `kPerPlayerWinsCaption`) stay as the
+  data layer's source of truth and the values the tests assert against
+  (`find.text(k…)`, unchanged). The guard's third check forbids
+  rendering those constants directly in `Text()`.
+- `MatchResult.modeLabel` removed (results screen renders the mode via
+  `AppLocalizations` now; it had no other reader and no test used it).
+- `tool/check_strings.sh` (new): 3 grep checks — no raw literal in
+  `Text()`, no raw literal in a title/subtitle/hint/message/label/
+  labelText/tooltip copy parameter, no data-layer message constant
+  rendered directly. Scope is `lib/presentation/` +
+  `diceup_components.dart`; generated code is outside the scope.
+  Wired into `tool/check.sh` (after the boundaries gate). The CI
+  `strings` job is NOT added to `.github/workflows/ci.yml` — workflow
+  files are blocked (Workflows 403); the local gate is the
+  enforcement until the permission is fixed.
+
+Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local only):
+`flutter test` — **579/579 passed** (baseline 579/579, no test added,
+none edited); `flutter analyze` — **0 errors, 0 warnings, 35 info**
+(baseline 0/0/33; the +2 are the generated `app_localizations.dart`
+referencing deprecated `GlobalMaterialLocalizations` /
+`GlobalCupertinoLocalizations` — the same unactionable deprecation
+family, in generated code); `dart format --output=none
+--set-exit-if-changed .` — **0 changed** (102 files);
+`tool/check_boundaries.sh` — **12/12**; `tool/check_strings.sh` —
+**3/3, exit 0**; `tool/check.sh` — **exit 0 end to end**.
+Both-ways evidence for the guard (scratch copies, deleted
+afterwards): a `const Text('Paused')` probe in `game_screen.dart`
+fails check 1 (exit 1); a `tooltip: 'Pause'` probe fails check 2
+and a `Text(kMatchRecordFailedMessage)` probe fails check 3 (exit
+1); the real tree passes again afterwards.
+
+Two implementation findings, recorded not hidden:
+
+- `gen-l10n` orders multi-parameter methods alphabetically, not in
+  message order (`gameBoardTurnOther(int count, String name)`,
+  `gamePlayerHome(int home, String name)`,
+  `statisticsSeatWins(String colour, int seat)`,
+  `avatarLabel(String colour, String name, String shape)`). The
+  analyser caught three (type errors); the fourth (`avatarLabel`,
+  all-`String`) would have silently rendered "red, Adeel token,
+  circle" — fixed by reordering, and the avatar semantics test
+  (`'Adeel, circle token, red'`) passes. The call sites carry a
+  comment noting the ordering.
+- Deliberately excluded, with reasons (see TRACEABILITY NFR-38 row):
+  the domain controller's status strings
+  (`OfflineGameController.status` — the domain layer cannot import
+  generated Flutter code, M-07, and its tests assert the exact
+  strings; externalising them needs a status-key refactor plus test
+  updates, a separate decision); the domain ruleset validation
+  messages (`InvalidRulesetConfig`, unreachable from the UI — the
+  setup toggles always leave a release roll on); the `GameSetup` /
+  `MatchSetup` `nameFor` "Player N" model defaults (asserted by
+  tests; the user-facing setup flow localises the same default via
+  `playerName`); developer-only strings (logs, `debugPrint`,
+  exception messages). The `MaterialApp` title `'DiceUp'` in
+  `lib/main.dart` stays a literal (OS task label, proper noun,
+  outside the guard's scope). The guard's allowlist is the bare
+  numerals `Text('2'/'3'/'4')` (setup player-count segments).
+
+Outstanding: the CI `strings` job (blocked on the Workflows
+permission, same wall as the `vectors`/`coverage` jobs); the
+status-key refactor for the controller status strings (needs a
+decision — it changes the controller API and its tests).
+
 ### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
 
 The theme-token half of H-10 (remediation plan §4 M2.3, §6.2

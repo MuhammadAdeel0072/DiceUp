@@ -1,3 +1,4 @@
+import 'package:diceup/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -102,6 +103,9 @@ class _DiceUpAppState extends State<DiceUpApp> {
       return MaterialApp(
         title: 'DiceUp',
         debugShowCheckedModeBanner: false,
+        // M3.10 (NFR-38): localised strings (English-only baseline).
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: DiceUpTheme.light(),
         home: const SplashScreen(),
       );
@@ -125,6 +129,9 @@ class _DiceUpAppState extends State<DiceUpApp> {
         child: MaterialApp(
           title: 'DiceUp',
           debugShowCheckedModeBanner: false,
+          // M3.10 (NFR-38): localised strings (English-only baseline).
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: DiceUpTheme.light(),
           initialRoute: AppRoutes.splash,
           routes: AppRoutes.routesFor(startup: startup),

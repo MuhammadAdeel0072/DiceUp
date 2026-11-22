@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:diceup/l10n/app_localizations.dart';
+
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../domain/engine/player_colour.dart';
 import '../../domain/repositories/local_match_repository.dart';
 import '../../domain/repositories/local_statistics_repository.dart';
+import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
 
 /// The honest caption for the per-player breakdown (M1.7, D-24).
@@ -84,23 +87,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Statistics')),
+      appBar: AppBar(title: Text(stringsOf(context).statisticsTitle)),
       body: _body(),
     );
   }
 
   Widget _body() {
+    final l10n = stringsOf(context);
     if (_unavailable) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.bar_chart_outlined,
-        title: 'Statistics unavailable',
-        hint:
-            "Your saved data couldn't be loaded, so statistics "
-            'cannot be shown right now.',
+        title: l10n.statisticsUnavailableTitle,
+        hint: l10n.statisticsUnavailableHint,
       );
     }
     if (_loadFailed) {
-      return ErrorView(message: "Couldn't load statistics", onRetry: _retry);
+      return ErrorView(message: l10n.statisticsLoadFailed, onRetry: _retry);
     }
     final statistics = _statistics;
     final matches = _matches;
@@ -114,32 +116,43 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           child: Column(
             children: [
               _StatRow(
-                label: 'Matches played',
+                label: l10n.statisticsMatchesPlayed,
                 value: statistics.matchesPlayed,
               ),
-              _StatRow(label: 'Human wins', value: statistics.matchesWon),
-              _StatRow(label: 'Matches vs AI', value: statistics.matchesVsAi),
-              _StatRow(label: 'Local matches', value: statistics.matchesLocal),
+              _StatRow(
+                label: l10n.statisticsHumanWins,
+                value: statistics.matchesWon,
+              ),
+              _StatRow(
+                label: l10n.statisticsMatchesVsAi,
+                value: statistics.matchesVsAi,
+              ),
+              _StatRow(
+                label: l10n.statisticsLocalMatches,
+                value: statistics.matchesLocal,
+              ),
             ],
           ),
         ),
         if (statistics.matchesPlayed == 0) ...[
           const SizedBox(height: DiceUpSpacing.md),
           Text(
-            'No matches yet — finish an offline match and your '
-            'totals will appear here.',
+            l10n.statisticsNoMatches,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ] else ...[
           const SizedBox(height: DiceUpSpacing.lg),
-          Text('Wins by seat', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            l10n.statisticsWinsBySeat,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: DiceUpSpacing.xs),
           Text(
-            kPerPlayerWinsCaption,
+            l10n.statisticsPerPlayerCaption,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: DiceUpSpacing.sm),
-          ..._perPlayerRows(matches),
+          ..._perPlayerRows(matches, l10n),
         ],
       ],
     );
@@ -148,7 +161,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   /// Human wins per seat from the RETAINED history only, keyed by
   /// stable seat identity (seat index + colour). AI wins are
   /// excluded: an AI victory is never a human win (D-24).
-  List<Widget> _perPlayerRows(List<LocalMatch> matches) {
+  List<Widget> _perPlayerRows(List<LocalMatch> matches, AppLocalizations l10n) {
     final wins = <_SeatIdentity, int>{};
     for (final match in matches) {
       final winner = match.winner;
@@ -160,21 +173,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       wins[seat] = (wins[seat] ?? 0) + 1;
     }
     if (wins.isEmpty) {
-      return [const Text('No human wins in your latest 500 matches yet.')];
+      return [Text(l10n.statisticsNoHumanWins)];
     }
     final seats = wins.keys.toList()
       ..sort((a, b) => a.index.compareTo(b.index));
     return [
       for (final seat in seats)
         _StatRow(
-          label: 'Seat ${seat.index + 1} · ${_colourName(seat.colour)}',
+          // gen-l10n orders the positional parameters alphabetically
+          // (colour, seat), not in message order.
+          label: l10n.statisticsSeatWins(
+            _colourName(seat.colour, l10n),
+            seat.index + 1,
+          ),
           value: wins[seat]!,
         ),
     ];
   }
 
-  static String _colourName(PlayerColour colour) {
-    final name = colour.label;
+  static String _colourName(PlayerColour colour, AppLocalizations l10n) {
+    final name = colourName(colour, l10n);
     return name[0].toUpperCase() + name.substring(1);
   }
 }
@@ -195,7 +213,10 @@ class _StatRow extends StatelessWidget {
           Expanded(
             child: Text(label, style: Theme.of(context).textTheme.titleMedium),
           ),
-          Text('$value', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            value.toString(),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ],
       ),
     );

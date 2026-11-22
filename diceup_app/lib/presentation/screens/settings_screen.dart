@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../domain/repositories/settings_repository.dart';
+import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
 
 /// Application settings (SRS FR-08, FR-32).
@@ -92,24 +93,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateSetting(String key, String value) async {
     final dependencies = AppDependenciesScope.maybeOf(context)?.dependencies;
     if (dependencies == null) return;
+    final l10n = stringsOf(context);
     setState(() => _settings = {..._settings!, key: value});
     try {
       await dependencies.settings.setSetting(key, value);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't save that setting. Try again.")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.settingsSaveFailed)));
       _retry();
     }
   }
 
   Future<void> _resetToDefaults() async {
+    final l10n = stringsOf(context);
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Reset settings?',
-      message: 'Sound, vibration and volume return to their defaults.',
-      confirmLabel: 'Reset',
+      title: l10n.settingsResetTitle,
+      message: l10n.settingsResetMessage,
+      confirmLabel: l10n.settingsResetConfirm,
     );
     if (!confirmed || !mounted) return;
     final dependencies = AppDependenciesScope.maybeOf(context)?.dependencies;
@@ -130,23 +132,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(stringsOf(context).settingsTitle)),
       body: _body(),
     );
   }
 
   Widget _body() {
+    final l10n = stringsOf(context);
     if (_unavailable) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.settings_outlined,
-        title: 'Settings unavailable',
-        hint:
-            "Your saved data couldn't be loaded, so settings "
-            'cannot be changed right now.',
+        title: l10n.settingsUnavailableTitle,
+        hint: l10n.settingsUnavailableHint,
       );
     }
     if (_loadFailed) {
-      return ErrorView(message: "Couldn't load settings", onRetry: _retry);
+      return ErrorView(message: l10n.settingsLoadFailed, onRetry: _retry);
     }
     final settings = _settings;
     if (settings == null) {
@@ -156,25 +157,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: DiceUpSpacing.screenPadding,
       children: [
         SwitchListTile(
-          title: const Text('Sound'),
-          subtitle: const Text(
-            'Coming soon — sound does not play anything yet.',
-          ),
+          title: Text(l10n.settingsSound),
+          subtitle: Text(l10n.settingsSoundComingSoon),
           value: _soundOn,
           // Disabled on purpose (D-32): no sound code exists, so
           // the toggle must not imply playback can be turned on.
           onChanged: null,
         ),
         SwitchListTile(
-          title: const Text('Vibration'),
-          subtitle: const Text('Haptic feedback on moves'),
+          title: Text(l10n.settingsVibration),
+          subtitle: Text(l10n.settingsVibrationDescription),
           value: _vibrationOn,
           onChanged: (value) =>
               _updateSetting('vibration_enabled', value ? '1' : '0'),
         ),
         const SizedBox(height: DiceUpSpacing.sm),
         Text(
-          'Sound volume: $_volume',
+          l10n.settingsVolume(_volume),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Slider(
@@ -182,18 +181,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           min: 0,
           max: 100,
           divisions: 100,
-          label: '$_volume',
+          label: _volume.toString(),
           onChanged: (value) =>
               _updateSetting('sound_volume', value.round().toString()),
         ),
         Text(
-          'Stored for when sound arrives — moving this slider '
-          'plays nothing.',
+          l10n.settingsVolumeStored,
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: DiceUpSpacing.lg),
         SecondaryButton(
-          label: 'Reset to defaults',
+          label: l10n.settingsResetDefaults,
           onPressed: _resetToDefaults,
         ),
         const SizedBox(height: DiceUpSpacing.lg),
@@ -202,8 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Sourcing it from the pubspec at runtime (package_info_plus)
           // is a later step — until then this literal is kept in sync
           // with the pubspec by the M2.10 footer test.
-          'DiceUp 0.1.0+1 — offline-first Ludo. Online play, friends and '
-          'leaderboards arrive in later phases.',
+          l10n.settingsFooter('0.1.0+1'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],

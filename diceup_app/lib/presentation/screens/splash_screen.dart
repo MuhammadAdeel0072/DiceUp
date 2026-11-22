@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../data/local/app_startup.dart';
+import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
 import '../widgets/dice_widget.dart';
 
@@ -63,6 +64,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // M2.10: text styles come from the theme's typography tokens —
     // no raw font sizes here.
     final textTheme = Theme.of(context).textTheme;
+    final l10n = stringsOf(context);
     return Scaffold(
       backgroundColor: DiceUpColors.navy,
       body: Center(
@@ -72,12 +74,12 @@ class _SplashScreenState extends State<SplashScreen> {
             const DiceWidget(value: 6, size: 96),
             const SizedBox(height: 24),
             Text(
-              'DiceUp',
+              l10n.appName,
               style: textTheme.displayLarge?.copyWith(color: Colors.white),
             ),
             const SizedBox(height: 8),
             Text(
-              'Multiplayer Ludo',
+              l10n.splashTagline,
               style: textTheme.bodyLarge?.copyWith(
                 color: const Color(0xFFCBD5E1),
               ),

@@ -1,9 +1,21 @@
+import 'package:diceup/l10n/app_localizations.dart';
+import 'package:diceup/l10n/app_localizations_en.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../domain/engine/player_colour.dart';
 import 'diceup_colors.dart';
 import 'diceup_spacing.dart';
+
+/// Localised strings for the build context's locale (M3.10, NFR-38).
+///
+/// This file cannot use `lib/l10n/app_strings.dart`'s [stringsOf]:
+/// that helper imports this file (for [PlayerShape]), so importing it
+/// back would be a cycle. The fallback is the same: English when no
+/// delegates are registered above [context] (bare-`MaterialApp`
+/// widget tests), which renders exactly the strings the tests assert.
+AppLocalizations _l10n(BuildContext context) =>
+    AppLocalizations.of(context) ?? AppLocalizationsEn();
 
 /// Reusable DiceUp components (SDD §11.5).
 ///
@@ -233,13 +245,30 @@ class PlayerAvatar extends StatelessWidget {
     // colour when given, else the seat-order colour — the same
     // source as [ringColour] ([DiceUpColors.playerColor] is ordered
     // to match [PlayerColour.values], see diceup_colors.dart).
-    final colourName =
-        (colour ?? PlayerColour.values[seatIndex % PlayerColour.values.length])
-            .label;
+    // M3.10: the shape and colour names are localised (the same
+    // mapping lives in lib/l10n/app_strings.dart for the screens;
+    // this file cannot import that helper without a cycle).
+    final colourValue =
+        colour ?? PlayerColour.values[seatIndex % PlayerColour.values.length];
+    final l10n = _l10n(context);
+    final shapeLabel = switch (shape) {
+      PlayerShape.circle => l10n.shapeCircle,
+      PlayerShape.square => l10n.shapeSquare,
+      PlayerShape.diamond => l10n.shapeDiamond,
+      PlayerShape.triangle => l10n.shapeTriangle,
+    };
+    final colourLabel = switch (colourValue) {
+      PlayerColour.red => l10n.colourRed,
+      PlayerColour.green => l10n.colourGreen,
+      PlayerColour.yellow => l10n.colourYellow,
+      PlayerColour.blue => l10n.colourBlue,
+    };
     final ringWidth = (radius * 0.15).clamp(2.0, 3.0);
     final badgeSize = radius * 0.75;
     return Semantics(
-      label: '$name, ${shape.name} token, $colourName',
+      // gen-l10n orders the positional parameters alphabetically
+      // (colour, name, shape), not in message order.
+      label: l10n.avatarLabel(colourLabel, name, shapeLabel),
       excludeSemantics: true,
       child: SizedBox(
         width: radius * 2,
@@ -336,7 +365,10 @@ class ErrorView extends StatelessWidget {
             ),
             if (onRetry != null) ...[
               const SizedBox(height: DiceUpSpacing.md),
-              SecondaryButton(label: 'Try again', onPressed: onRetry),
+              SecondaryButton(
+                label: _l10n(context).tryAgain,
+                onPressed: onRetry,
+              ),
             ],
           ],
         ),
@@ -390,20 +422,24 @@ class ConfirmationDialog extends StatelessWidget {
     required this.title,
     required this.message,
     required this.confirmLabel,
-    this.cancelLabel = 'Cancel',
+    this.cancelLabel,
   });
 
   final String title;
   final String message;
   final String confirmLabel;
-  final String cancelLabel;
+
+  /// Dismiss action label. Null renders the localised "Cancel"
+  /// (M3.10) — callers pass an explicit label only when the
+  /// dismissal means something else.
+  final String? cancelLabel;
 
   static Future<bool> show(
     BuildContext context, {
     required String title,
     required String message,
     required String confirmLabel,
-    String cancelLabel = 'Cancel',
+    String? cancelLabel,
   }) async {
     final result = await showDialog<bool>(
       context: context,
@@ -425,7 +461,7 @@ class ConfirmationDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: Text(cancelLabel),
+          child: Text(cancelLabel ?? _l10n(context).cancel),
         ),
         ElevatedButton(
           onPressed: () => Navigator.of(context).pop(true),
