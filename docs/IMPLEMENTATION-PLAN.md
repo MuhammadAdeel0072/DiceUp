@@ -1605,3 +1605,102 @@ are not covered by the inset simulation — under those the Roll
 button would need a scroll, which the scrollable column
 provides (nothing is clipped); device layout confirmation is
 M4, not claimed here.
+
+### M2.13 — DONE (iOS target + portrait lock, D-08/D-17; 2026-11-22)
+
+The platform-config pass for remediation plan §4 M2.13 + §1.2
+("orientation unrestricted as built (D-17 decided 2026-11-21:
+iPhone locked to portrait in M2.13, iPad as-is)").
+
+Correction to the brief's file paths, found while doing the
+work: the platform folders do NOT live at the repo root. The
+repo layout is `diceup_app/` (Flutter app) + `docs/`; the
+platform files are `diceup_app/ios/Runner/Info.plist`,
+`diceup_app/android/app/src/main/AndroidManifest.xml` and
+`diceup_app/ios/Runner.xcodeproj/project.pbxproj`. The staging
+directory mirrors that layout, so the two changed files were
+written to staging at `diceup_app/ios/Runner/Info.plist` and
+`diceup_app/android/app/src/main/AndroidManifest.xml` and pushed
+from there. No `ios/` or `android/` folder exists at the repo
+root, and none was created.
+
+What was there before (read from the remote at head e28fea583
+before changing anything):
+
+- `diceup_app/ios/Runner/Info.plist` —
+  `UISupportedInterfaceOrientations` (iPhone) =
+  `[UIInterfaceOrientationPortrait,
+  UIInterfaceOrientationLandscapeLeft,
+  UIInterfaceOrientationLandscapeRight]` (unrestricted);
+  `UISupportedInterfaceOrientations~ipad` = `[Portrait,
+  PortraitUpsideDown, LandscapeLeft, LandscapeRight]`.
+- `diceup_app/android/app/src/main/AndroidManifest.xml` — the
+  `.MainActivity` element carried no `android:screenOrientation`
+  attribute (unrestricted).
+- `diceup_app/ios/Runner.xcodeproj/project.pbxproj` —
+  `IPHONEOS_DEPLOYMENT_TARGET = 15.0` in all 3 build configs
+  (verified by reading the remote file; D-08 already satisfied).
+- No Dart `SystemChrome.setPreferredOrientations` lock exists
+  anywhere in `diceup_app/lib/` (grep: 0 matches) — nothing to
+  remove.
+
+What changed (config only, no Dart code touched):
+
+- Info.plist iPhone key restricted to Portrait only:
+  `UISupportedInterfaceOrientations` =
+  `[UIInterfaceOrientationPortrait]` (the LandscapeLeft and
+  LandscapeRight entries were removed; diff verified against the
+  remote content — those two lines are the only change in the
+  file, and the file still parses as a valid plist).
+- AndroidManifest `.MainActivity` gained
+  `android:screenOrientation="portrait"` (the only change in
+  the file, verified by diff against the remote content; the
+  file still parses as valid XML). Note this lock is
+  device-wide on Android, so Android tablets are locked to
+  portrait too — that asymmetry is D-17 as decided (iPad
+  as-is, Android tablet lock accepted).
+- `project.pbxproj` NOT changed and NOT included in the push:
+  the 15.0 target was already correct in all 3 configs, so
+  there was nothing to change (D-08 verified, not re-applied).
+- iPad key `UISupportedInterfaceOrientations~ipad` left
+  EXACTLY as-is (all four orientations), per D-17.
+
+Conflict resolution (D-17 vs the remediation plan's M2.13 row):
+the plan row also mentions a Dart
+`SystemChrome.setPreferredOrientations` lock. D-17 — Anti's
+decided decision, recorded in plan §D-17 — says the lock must
+be platform-native ONLY, because a Dart lock applies to ALL
+iOS devices including iPad. D-17 wins: NO Dart lock was added,
+and none exists. The plan row should be read as
+platform-native-only; this section is the record of that
+resolution.
+
+Verification (2026-11-22, after the change, on the final tree):
+`flutter test` — 537/537 passed ("All tests passed!");
+`flutter analyze` — 0 errors, 0 warnings, 32 info (all the
+pre-existing `material.dart` deprecation notices);
+`dart format --output=none --set-exit-if-changed .` — 96 files,
+0 changed. The change is config-only (no Dart file changed),
+so the suite is a regression guard, not a test of the lock
+itself: no test asserts plist/manifest values. The lock itself
+was verified by reading the pushed files back from the remote
+after the push (see below).
+
+Push: the two platform files, `docs/UI-RESEARCH.md` (the M3
+UI/UX research deliverable from the parallel research task,
+previously unpushed; it belongs on the branch), this plan
+section and the TRACEABILITY row were pushed together in one
+snapshot, "feat(platform): M2.13 iPhone portrait lock (D-17) +
+docs: UI research". [PUSH-SHA-AND-READBACK — to be filled in
+after the push lands, second snapshot.]
+
+Scoping decisions recorded: config only — no Dart code, no
+schema changes, no rule changes, no new dependencies, no
+sound; no iOS build was run (no Mac in this VM) and no
+Android build was run (no `android/` folder in staging, and
+no Android SDK here) — both are NOT RUNNABLE in this
+environment, never claimed. Device confirmation that the
+portrait lock behaves on a real iPhone/iPad is outstanding
+(M4), as is the rest of device verification. The pubspec.lock
+stash + `../.vscode/` on Anti's Windows machine (D:\DiceUp)
+are not verifiable from this environment; untouched.
