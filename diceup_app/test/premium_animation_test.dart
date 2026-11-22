@@ -22,9 +22,11 @@ import 'test_providers.dart';
 /// move visibly occupies each intermediate cell in turn. The
 /// capture return (Q6) plays only after the mover settles: lift →
 /// shrink/fade → arc to the yard → pop-in. Reduced motion (Q7)
-/// honours both OS flags ([MediaQuery.disableAnimations] and
-/// [MediaQuery.reduceMotion]) and collapses every sequence to an
-/// instant settle. Pause freeze/resume (Q2) is proven by the
+/// honours the supported OS flag ([MediaQuery.disableAnimations])
+/// and collapses every sequence to an instant settle. The iOS-only
+/// flag is not read: it does not exist
+/// on the oldest Flutter SDKs this project supports (see the
+/// `isReducedMotion` helper). Pause freeze/resume (Q2) is proven by the
 /// rewritten pause test in `test/animation_test.dart` — it pauses
 /// a six-step sequence mid-flight, pumps 5 s (frozen), resumes,
 /// and asserts completion — so it is not duplicated here.
@@ -333,8 +335,8 @@ void main() {
       expect(find.text('Roll dice'), findsOneWidget);
     });
 
-    testWidgets('reduceMotion collapses a step sequence to an '
-        'instant settle', (tester) async {
+    testWidgets('reduced motion collapses a step sequence to an '
+        'instant settle (disableAnimations)', (tester) async {
       final controller = await pumpGame(
         tester,
         state: stateWith(
@@ -345,7 +347,7 @@ void main() {
           lastRoll: 6,
           phase: TurnPhase.awaitingMove,
         ),
-        reducedMotion: (data) => data.copyWith(reduceMotion: true),
+        reducedMotion: (data) => data.copyWith(disableAnimations: true),
       );
       final all = tokensAt(const [1, 0, 0, 0], const [0, 0, 0, 0]);
       await tapBoardAt(tester, centreFor(0, 1, all));
@@ -355,8 +357,8 @@ void main() {
       expect(find.text('Roll dice'), findsOneWidget);
     });
 
-    testWidgets('reduceMotion freezes the dice face at its pre-roll '
-        'value until the roll settles', (tester) async {
+    testWidgets('reduced motion freezes the dice face at its pre-roll '
+        'value until the roll settles (disableAnimations)', (tester) async {
       final controller = await pumpGame(
         tester,
         state: stateWith(
@@ -366,7 +368,7 @@ void main() {
           ],
         ),
         dice: const [6],
-        reducedMotion: (data) => data.copyWith(reduceMotion: true),
+        reducedMotion: (data) => data.copyWith(disableAnimations: true),
       );
       await tester.tap(find.text('Roll dice'));
       // Mid-roll the face is frozen at the pre-roll value (none

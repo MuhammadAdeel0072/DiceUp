@@ -64,7 +64,7 @@
 | R19 | Material Design 3 motion tokens + duration guidance (via design-os canon; ShotCanvas "How long should a UI animation take?", Oct 2026) | https://github.com/cgallic/design-os/blob/HEAD/design_os/canon/motion-design.md and https://www.shotcanvas.app/blog/animation-duration | 2026-11-22 | Search-result text: M3 duration tokens short 50/100/150/200 ms, medium 250/300/350/400 ms, long 450–600 ms, extra-long 700–1,000 ms; "transitions that exceed 400 ms may feel too slow" (mobile standard ≈300 ms; entering 225 ms, leaving 195 ms, full-screen up to 375 ms); "No linear easing on any animation of position, scale, or size"; "duration should scale with how far something travels"; "start the response within a frame, keep most motion between 150 and 300 ms". Informs: the timing budget for every recommendation in §2 (per-cell steps, dice settle, transitions, SnackBar feedback). |
 | R20 | Game-feel / "juice" sources — agent-games CLAUDE.md; GameDev Academy "How To Improve Game Feel"; tableplace cross-game juice research (Balatro et al.) | https://github.com/inman-sebastian/agent-games/blob/HEAD/CLAUDE.md ; https://gamedevacademy.org/game-feel-tutorial/ ; https://github.com/jollygrin/tableplace/blob/HEAD/docs/research/raw-cross-game-juice.md | 2026-11-22 | Search-result text. agent-games: "Separate simulation from presentation. Resolve what happened in logic…, then animate toward that already-decided result"; "Nothing important teleports. State changes get a transition"; "Impacts need a reaction… A brief squash/stretch or knockback sells an impact… Keep it short and always return to rest"; "Anticipation and follow-through beat instant, linear motion". GameDev Academy: "Emphasize the player's success… Throw confetti… Combine all these effects"; "Add randomness… a bit of randomness can spice up repetitive gameplay". tableplace/Balatro: "Spring wobble / over-rotation on settle (±~3°)"; "Selection as a second, higher lift tier — hover ≈ translateY(-12px)/scale(1.05); selected ≈ translateY(-24px)/scale(1.08) with intensified shadow"; "Adjustable animation speed setting — juice can be dialed down… juice that can't be skipped becomes friction on the 500th hand". Informs: the governing principle of §2 (engine decides, animation performs) and the restraint rule (juice must be skippable/short). |
 | R21 | Accessibility syntheses — gamestack U4 UI/UX & feedback; accessibility-design skill; game-ui-ux skill; M3 Accessibility foundations | https://github.com/rondorkerin/gamestack/blob/HEAD/docs/research/round1-universal/U4-ui-ux-and-feedback.md ; https://github.com/rbergman/dark-matter-marketplace/blob/HEAD/plugins/game-dev/skills/accessibility-design/SKILL.md ; https://github.com/manthan-13521/gesturekart-ai-racing/blob/HEAD/GAME%20UI:UX%20SKILL/game-ui-ux-skill.md ; https://github.com/fluttely/material_design/blob/HEAD/documentation/material_design/en_US/foundations/Accessibility.md | 2026-11-22 | Search-result text: "Every color-encoded signal… must have a redundant shape or label signal" (WCAG 1.4.1; ~8% of males colour-vision deficient); "WCAG contrast ratios (4.5:1 body text, 3:1 large UI) are the minimum floor"; "Fitts's Law… Android HIG: 48×48 dp"; "primary actions in bottom 60–70% of screen (comfortable thumb reach)"; "Touch targets: minimum 44×44 pt (iOS) or 48×48 dp (Material), with at least 8 dp between adjacent targets. Pad the invisible tap area past the visible icon"; "Provide a reduced-motion / reduced-flash toggle that kills screen shake, camera kick, and strobing". Informs: DiceUp's existing decisions (D-09, D-21, D-27) are aligned with the genre consensus; the remaining gap is reduced-motion handling (§2.7). |
-| R22 | Reduce-motion in Flutter — Flutter API docs (`MediaQueryData.disableAnimations` / `reduceMotion`); colin.flutter "flutter_animate and Reduced Motion"; reduce-motion skill | https://api.flutter.dev/flutter/widgets/MediaQueryData/reduceMotion.html ; https://colinchflutter.github.io/2026-06-26/22-00-00-507612-flutter-animate-reduced-motion-accessibility/ ; https://github.com/almasumdev/awesome-mobile-accessibility-agent-skills/blob/HEAD/.github/skills/motion/reduce-motion/SKILL.md | 2026-11-22 | Search-result text: `disableAnimations` "is read directly from the engine… it is used by framework-level animation APIs such as AnimationController"; `reduceMotion` (iOS Reduce Motion) "does not set this flag" and must be read separately — "you should check this property and adjust behavior accordingly; for example, by preferring a fade over movement"; recommended pattern: "Disable parallax… Replace slide/zoom transitions with crossfade… Shorten durations… keep timing for feedback (e.g. button press) but prefer < 100 ms". Informs: the concrete implementation note in §2.7 — DiceUp must check *both* flags, and `AnimationController` behaviour under `disableAnimations` needs a test, not an assumption. |
+| R22 | Reduce-motion in Flutter — Flutter API docs (`MediaQueryData.disableAnimations` / `reduceMotion`); colin.flutter "flutter_animate and Reduced Motion"; reduce-motion skill | https://api.flutter.dev/flutter/widgets/MediaQueryData/reduceMotion.html ; https://colinchflutter.github.io/2026-06-26/22-00-00-507612-flutter-animate-reduced-motion-accessibility/ ; https://github.com/almasumdev/awesome-mobile-accessibility-agent-skills/blob/HEAD/.github/skills/motion/reduce-motion/SKILL.md | 2026-11-22 | Search-result text: `disableAnimations` "is read directly from the engine… it is used by framework-level animation APIs such as AnimationController"; `reduceMotion` (iOS Reduce Motion) "does not set this flag" and must be read separately — "you should check this property and adjust behavior accordingly; for example, by preferring a fade over movement"; recommended pattern: "Disable parallax… Replace slide/zoom transitions with crossfade… Shorten durations… keep timing for feedback (e.g. button press) but prefer < 100 ms". Informs: the concrete implementation note in §2.7 — DiceUp must check *both* flags, and `AnimationController` behaviour under `disableAnimations` needs a test, not an assumption. 2026-11-23 correction: `reduceMotion` does not exist on the oldest supported SDKs, so the app checks `disableAnimations` only (see `isReducedMotion`); the "check both flags" instruction no longer applies. |
 | R23 | Ludo web implementation styling — dojoVader/ludo (DeepWiki) | https://deepwiki.com/dojoVader/ludo/4.2-styling-system | 2026-11-22 | Search-result text: pawn focus = "blinking animation + cursor pointer" per colour; dice focus = "container border animation" when rollable; "Pawn Movement: top .1s linear, left .1s linear"; "dice.throw: opacity reduced to 0.3" after rolling; player list with a dynamic arrow indicator for the current player. Informs: the two cheapest turn signals in the genre — a blinking/pulsing legal token and an animated border on the rollable dice — both directly portable to DiceUp's existing pulse + dice opacity. (Its 100 ms *linear* pawn movement is explicitly not copied: linear motion on position violates the M3 rule in R19.) |
 
 ### Sources searched but not usable
@@ -417,10 +417,12 @@ converges on one answer.
   shape or label"; 48 dp touch targets with ≥8 dp gaps; primary
   actions in the bottom 60–70% (thumb reach); reduced motion = replace
   slide/zoom with crossfade, shorten feedback to <100 ms, keep
-  functional indicators; Flutter exposes *two* flags —
+  functional indicators; newer Flutter exposes *two* flags —
   `MediaQuery.disableAnimations` (Android "Remove animations") and
-  `MediaQueryData.reduceMotion` (iOS Reduce Motion) — which must both
-  be checked.
+  `MediaQueryData.reduceMotion` (iOS Reduce Motion) — but the
+  project checks only `disableAnimations`: `reduceMotion` does
+  not exist on the oldest supported SDKs (2026-11-23 fix; see
+  `isReducedMotion`).
 - **DiceUp today:** already strong here — 48 dp controls, 14 sp
   floor, shape + colour + name identity, full-cell token hit areas,
   board 280–480 dp clamp, short-screen compaction (M2.12), one
@@ -428,8 +430,8 @@ converges on one answer.
   narrow and specific.
 - **Adaptation (adapted):**
   1. **Reduced motion (the main gap — adapted from R22):** gate the
-     new animations on `MediaQuery.disableAnimationsOf(context)` *and*
-     `MediaQuery.of(context).reduceMotion`. When either is set: token
+     new animations on `isReducedMotion(context)`
+     (`MediaQuery.disableAnimationsOf(context)`). When it is set: token
      steps become instant jumps (state is already final, so nothing
      breaks); the dice skips wind-up/tumble/shake and shows the
      settled face (R12's rule, verbatim); capture becomes a fade, not
@@ -617,9 +619,10 @@ these as specified.
   yard → pop-in. The mover gets a slightly larger settle on a capturing
   move (small emphasis only — it must not upstage the step sequence).
 - **Q7 — Animation-speed setting: NO new in-app setting this phase.** The
-  OS reduced-motion flags (both `disableAnimations` and `reduceMotion`)
-  are sufficient; honour them everywhere. A custom speed dial is a
-  follow-up.
+  OS reduced-motion flag (`disableAnimations`)
+  is sufficient; honour it everywhere. A custom speed dial is a
+  follow-up. (`reduceMotion` is not available on the oldest supported
+  SDKs — see §2.7.)
 - **Q8 — "Home n/4" counts on results: YES.** A small `MatchResult`
   addition is acceptable (display data derived from the final state, no
   schema change). Last-moved ring on the results screen: NO (the match

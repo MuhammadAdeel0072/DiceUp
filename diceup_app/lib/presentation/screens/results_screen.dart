@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:diceup/l10n/app_localizations.dart';
 
+import '../../core/accessibility/reduced_motion.dart';
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_shadows.dart';
@@ -100,8 +101,7 @@ class _ResultsScreenState extends State<ResultsScreen>
     _entranceStarted = true;
     // Reduced motion (§2.7.1): the entrance jumps to its end state
     // instead of animating in.
-    if (MediaQuery.disableAnimationsOf(context) ||
-        MediaQuery.of(context).reduceMotion) {
+    if (isReducedMotion(context)) {
       _entranceController.value = 1.0;
     } else {
       _entranceController.forward();
@@ -113,10 +113,6 @@ class _ResultsScreenState extends State<ResultsScreen>
     _entranceController.dispose();
     super.dispose();
   }
-
-  bool _reducedMotion(BuildContext context) =>
-      MediaQuery.disableAnimationsOf(context) ||
-      MediaQuery.of(context).reduceMotion;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +146,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         ),
       );
     }
-    final reduced = _reducedMotion(context);
+    final reduced = isReducedMotion(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.resultsTitle)),
       body: SafeArea(

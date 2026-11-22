@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/accessibility/reduced_motion.dart';
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_shadows.dart';
@@ -122,7 +123,7 @@ MatchSetup _matchSetupOf(GameSetup setup) => MatchSetup(
 /// the M2.7 hop used to cancel on pause, superseded here), and are
 /// disposed with the screen; input is locked while the tumble or a
 /// move/capture sequence is in flight. With reduced motion
-/// ([MediaQuery.disableAnimations] or [MediaQuery.reduceMotion])
+/// ([MediaQuery.disableAnimations])
 /// every sequence collapses to an instant settle: the engine state
 /// is already final, so nothing breaks. The engine decides, the
 /// animation performs — an animation can never change the game.
@@ -538,7 +539,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     }
     _captureFromToken = capturedFrom;
     _captureToToken = capturedTo;
-    if (_reducedMotion(context)) {
+    if (isReducedMotion(context)) {
       _lastMovedController.stop();
       _lastMovedTokenId = to.id;
       return;
@@ -638,7 +639,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     // id cannot be read from it here.
     _lastMovedTokenId = _sequenceMoverId;
     _sequenceMoverId = null;
-    if (_lastMovedTokenId != null && !_reducedMotion(context)) {
+    if (_lastMovedTokenId != null && !isReducedMotion(context)) {
       _lastMovedController.forward(from: 0.0);
     }
     if (mounted) setState(() {});
@@ -716,7 +717,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _shakeController.stop();
       return;
     }
-    final reduced = _reducedMotion(context);
+    final reduced = isReducedMotion(context);
     if (controller.rolling) {
       // Reduced motion: no wind-up, tumble or shake — the dice
       // face stays frozen at the pre-roll value (see [_diceFace])
@@ -784,15 +785,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
         controller.state.phase != TurnPhase.finished;
   }
 
-  /// Reduced motion (M3 premium, research §2.7.1/R22): either the
-  /// Android "Remove animations" flag ([MediaQuery.disableAnimations])
-  /// or iOS Reduce Motion ([MediaQuery.reduceMotion]) collapses
-  /// every sequence to an instant settle. Both flags are checked —
-  /// they are independent settings on the two platforms.
-  bool _reducedMotion(BuildContext context) =>
-      MediaQuery.disableAnimationsOf(context) ||
-      MediaQuery.of(context).reduceMotion;
-
   /// The dice face shown mid-tumble (M2.7): the tumble value cycles
   /// 1..6 as the 540 ms controller runs. Only read while rolling —
   /// once the roll settles the screen shows the engine value.
@@ -806,7 +798,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final controller = _controller;
     if (controller == null) return null;
     if (controller.rolling) {
-      return _reducedMotion(context) ? _preRollFace : _tumbleFace;
+      return isReducedMotion(context) ? _preRollFace : _tumbleFace;
     }
     return controller.displayedRoll;
   }
@@ -902,7 +894,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   /// motion (the ring is information, not motion, so it stays).
   double get _lastMovedOpacity {
     if (_lastMovedTokenId == null) return 0.0;
-    if (_reducedMotion(context)) return 1.0;
+    if (isReducedMotion(context)) return 1.0;
     return 1.0 - _lastMovedController.value;
   }
 
@@ -1486,7 +1478,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                     AnimatedBuilder(
                       animation: _diceAnimation,
                       builder: (context, _) {
-                        final reduced = _reducedMotion(context);
+                        final reduced = isReducedMotion(context);
                         final motion = reduced
                             ? (
                                 scale: 1.0,
