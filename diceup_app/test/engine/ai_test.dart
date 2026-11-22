@@ -199,6 +199,10 @@ void main() {
     });
 
     test('Hard decides within the 500 ms budget (NFR-04)', () {
+      // Aggregate smoke check only (M3.8): this proves 1,000 calls
+      // finish in under 500 ms *in total*. It is NOT the NFR-04
+      // evidence — a single slow call could hide inside the total.
+      // The per-call evidence is the p95 test below.
       final game = gameWith(
         tokenSteps: const [
           [10, 30, 5, 0],
@@ -214,6 +218,44 @@ void main() {
       }
       stopwatch.stop();
       expect(stopwatch.elapsedMilliseconds, lessThan(500));
+    });
+
+    test('Hard decides a single move within 500 ms (p95)', () {
+      // NFR-04 per-call (M3.8, M-09): repeat one Hard decision
+      // over the same 200 seeded positions as the
+      // difficulty-sanity group (Random(1234)), record EACH
+      // call's time, and assert the 95th percentile is under
+      // 500 ms. Positions with no legal move are skipped, exactly
+      // as in the sanity group.
+      final rng = Random(1234);
+      final durationsUs = <int>[];
+      for (var i = 0; i < 200; i++) {
+        List<int> randomSteps() => List.generate(
+          4,
+          (_) => rng.nextInt(57), // 0..56, biased by pure chance
+        );
+        final state = stateWith(
+          tokenSteps: [randomSteps(), randomSteps()],
+          lastRoll: 1 + rng.nextInt(6),
+          phase: TurnPhase.awaitingMove,
+        );
+        final game = LudoGame.fromState(
+          state,
+          diceRoller: FixedDiceRoller(const [1]),
+        );
+        final legal = game.legalMoves();
+        if (legal.isEmpty) continue;
+        final ai = aiFromState(state, 0, AiDifficulty.hard, seed: 5);
+        final stopwatch = Stopwatch()..start();
+        ai.chooseMove(legal, state, _board);
+        stopwatch.stop();
+        durationsUs.add(stopwatch.elapsedMicroseconds);
+      }
+      // The percentile is meaningless on a handful of samples.
+      expect(durationsUs.length, greaterThan(50));
+      durationsUs.sort();
+      final p95Index = (durationsUs.length * 0.95).ceil() - 1;
+      expect(durationsUs[p95Index], lessThan(500 * 1000));
     });
   });
 

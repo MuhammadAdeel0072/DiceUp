@@ -905,6 +905,68 @@ Deliberately left for later (not this milestone):
   SRS §7.1, and `docs/ruleset.md` §5.1 records it again.
 - No device claims; no iOS/Android build run.
 
+### M3.8 — DONE (NFR-04 per-call + NFR-02 repaint, M-09; 2026-11-22)
+
+**NFR-04 per-call test + NFR-02 repaint fix (M-09).**
+- NFR-04: new test "Hard decides a single move within 500 ms (p95)" in
+  `diceup_app/test/engine/ai_test.dart` — one Hard decision over the 200
+  seeded positions (`Random(1234)`), each call timed, p95 asserted
+  < 500 ms. Measured on the VM host: n=200, median 50 µs,
+  **p95 = 0.12 ms**, max 62.9 ms (first-call warmup). The old aggregate
+  test ("Hard decides within the 500 ms budget (NFR-04)") is kept as a
+  smoke check only (1,000 calls in 74 ms).
+- NFR-02: M2.7's `RepaintBoundary` + content-based `shouldRepaint`
+  verified in place (7 tests in `test/ludo_board_test.dart`, wrap test
+  in `test/animation_test.dart`). The missing half was the dice-tick
+  rebuild assertion: the first version of the new test failed, exposing
+  that `OfflineGameController.rollDice()` notified listeners on every
+  90 ms tumble tick, rebuilding the whole screen including the board.
+  Fix: the intermediate `_notify()` was removed
+  (`lib/domain/offline_game_controller.dart`); the timer, 6×90 ms
+  schedule, 540 ms settle, and intermediate `_displayedRoll`
+  bookkeeping are unchanged — the screen renders its own tumble face
+  while rolling, so nothing visible changed on those ticks. New test
+  "a dice-tumble tick does not rebuild the board" in
+  `test/animation_test.dart` (painter identity across tumble pumps)
+  passes.
+- Verification: `flutter test` 579/579, `flutter analyze` 0/0/33 info
+  (pre-existing), `dart format` clean, `tool/check_boundaries.sh`
+  12/12.
+- Outstanding: the 50 fps number itself is device-only (DevTools frame
+  timing on the reference device) — M4 item, not measured here.
+
+### M3.9 — DONE (dart test story, M-06 / H-02a; 2026-11-22)
+
+`dart test` story (M-06 / H-02a). Option A verified and corrected: the M0
+pubspec comment ("`dart test` fails, exit 65") was inaccurate as a blanket
+statement. Bare `dart test` was re-run: with a standalone Dart SDK it fails
+at version solving on `flutter_test` from the SDK (exit 65, reproduced);
+with the Flutter-bundled `dart` the pure-Dart engine tests pass
+(`test/engine/rules_test.dart` 27/27, rules+AI+snapshot 48/48, including
+from a clean checkout with no `.dart_tool/`). The whole `test/engine/`
+directory does NOT pass under `dart test` (exit 1): `seat_ai_difficulty_test.dart`
+imports `package:flutter_test` and fails to load (`dart:ui` is not available
+on the plain Dart VM), although it only uses `group`/`test`/`expect`.
+Fixes (comment/doc only): corrected the `pubspec.yaml` comment to the
+verified truth, added a header note to `test/engine/test_helpers.dart`
+(imported by all engine tests), added a "Running tests" section to
+`docs/README.md`. Canonical runner remains `flutter test`.
+Verification: `flutter test` — **579/579 passed**; `flutter test test/engine/` —
+**52/52 passed**; `flutter analyze` 0 errors / 0 warnings / 33 info
+(pre-existing material.dart notices); `dart format` clean;
+`tool/check_boundaries.sh` 12/12.
+
+Option B (pure-Dart package split, `packages/diceup_engine/`) recorded as
+DEFERRED — decision needed from Anti. New evidence weakens its payoff:
+`dart test` already runs the pure engine tests with Flutter installed, so
+the split would buy only a Flutter-free/standalone-Dart runner and CI
+variant, at the cost of a second pubspec, a package boundary to police,
+and re-verification while CI pushes are blocked (Workflows 403). Do the
+split only if Anti wants a Flutter-free engine runner. Possible trivial
+first step if approved: swap the `flutter_test` import in
+`seat_ai_difficulty_test.dart` to `package:test` (it uses only
+`group`/`test`/`expect`).
+
 ### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
 
 The theme-token half of H-10 (remediation plan §4 M2.3, §6.2

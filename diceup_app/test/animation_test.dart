@@ -380,6 +380,41 @@ void main() {
     });
   });
 
+  group('dice-tick repaint isolation (M3.8, NFR-02)', () {
+    testWidgets('a dice-tumble tick does not rebuild the board', (
+      tester,
+    ) async {
+      // M2.7 wired the dice tumble to its own AnimatedBuilder
+      // around the DiceWidget and the board to a separate
+      // AnimatedBuilder (pulse + hop) inside a RepaintBoundary —
+      // so a tumble tick must rebuild the dice subtree only. The
+      // board's AnimatedBuilder builds a fresh LudoBoardPainter
+      // on every rebuild, so the painter instance is the rebuild
+      // detector: identical across ticks means the board was not
+      // rebuilt. The changing dice face proves ticks happened.
+      final controller = await pumpGame(tester, dice: const [6]);
+      await tester.ensureVisible(find.text('Roll dice'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Roll dice'));
+      // First tumble tick: the roll has started and the face is
+      // cycling; capture the board painter as the baseline.
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(controller.rolling, isTrue);
+      final firstPainter = boardPainter(tester);
+      final firstFace = diceFace(tester);
+      // More ticks: the dice face advances...
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(controller.rolling, isTrue);
+      expect(diceFace(tester), isNot(firstFace));
+      // ...but the board's CustomPaint is the very same widget.
+      expect(identical(boardPainter(tester), firstPainter), isTrue);
+      // Let the tumble settle so the test leaves a clean state.
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(controller.rolling, isFalse);
+    });
+  });
+
   group('pause + dispose interaction (M2.7, M2.6)', () {
     testWidgets('pause mid-tumble freezes the displayed face; resume '
         'settles on the engine value', (tester) async {

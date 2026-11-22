@@ -556,8 +556,14 @@ class OfflineGameController {
         timer.cancel();
         _settleRoll();
       } else {
+        // The intermediate face is bookkeeping only (M3.8, NFR-02):
+        // while rolling, the screen renders its own tumble face
+        // from its AnimationController, not this value — so no
+        // listener can see a visible change here, and notifying
+        // would rebuild the whole screen (including the board
+        // widget) on every 90 ms tick for nothing. The roll-start
+        // and settle notifications bracket the tumble.
         _displayedRoll = _random.nextInt(6) + 1;
-        _notify();
       }
     });
   }
