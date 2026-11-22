@@ -78,16 +78,18 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   /// The entrance choreography (M3 premium, §2.6.1): ~500 ms,
   /// headline → avatar → cards, staggered via [Interval]s in
   /// [build]. Finite, so `pumpAndSettle` terminates.
   late final AnimationController _entranceController;
   bool _entranceStarted = false;
+  bool _confettiSuppressed = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -99,9 +101,11 @@ class _ResultsScreenState extends State<ResultsScreen>
     super.didChangeDependencies();
     if (_entranceStarted) return;
     _entranceStarted = true;
+    final reducedMotion = isReducedMotion(context);
+    _confettiSuppressed = reducedMotion;
     // Reduced motion (§2.7.1): the entrance jumps to its end state
     // instead of animating in.
-    if (isReducedMotion(context)) {
+    if (reducedMotion) {
       _entranceController.value = 1.0;
     } else {
       _entranceController.forward();
@@ -109,7 +113,18 @@ class _ResultsScreenState extends State<ResultsScreen>
   }
 
   @override
+  void didChangeAccessibilityFeatures() {
+    if (!mounted) return;
+    if (isReducedMotion(context)) {
+      _confettiSuppressed = true;
+      _entranceController.value = 1.0;
+    }
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _entranceController.dispose();
     super.dispose();
   }
@@ -259,7 +274,7 @@ class _ResultsScreenState extends State<ResultsScreen>
             // One-shot hand-drawn confetti (M3 premium, §2.6.3/Q5):
             // ~1.2 s, fires once on entry, never loops, no package.
             // Skipped entirely under reduced motion (§2.7.1).
-            if (!reduced)
+            if (!reduced && !_confettiSuppressed)
               const Positioned.fill(
                 child: IgnorePointer(child: _ConfettiOverlay()),
               ),

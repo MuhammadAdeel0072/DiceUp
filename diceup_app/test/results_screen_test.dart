@@ -342,6 +342,37 @@ void main() {
       );
     });
 
+    testWidgets('iOS Reduce Motion skips the entrance and confetti', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(reduceMotion: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+
+      final store = InMemoryStore();
+      final deps = fakeDeps(store);
+      await pumpRoutesApp(tester, deps, ResultsScreen(result: sampleResult()));
+
+      final headlineFade = find
+          .ancestor(
+            of: find.text('Adeel wins!'),
+            matching: find.byType(Opacity),
+          )
+          .first;
+      expect(tester.widget<Opacity>(headlineFade).opacity, 1.0);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is CustomPaint &&
+              widget.painter != null &&
+              widget.painter.runtimeType.toString() == '_ConfettiPainter',
+        ),
+        findsNothing,
+      );
+    });
+
     testWidgets('record failure shows the notice, success does not', (
       tester,
     ) async {

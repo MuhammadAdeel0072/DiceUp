@@ -123,7 +123,7 @@ MatchSetup _matchSetupOf(GameSetup setup) => MatchSetup(
 /// the M2.7 hop used to cancel on pause, superseded here), and are
 /// disposed with the screen; input is locked while the tumble or a
 /// move/capture sequence is in flight. With reduced motion
-/// ([MediaQuery.disableAnimations])
+/// (Android's `disableAnimations` or iOS's Reduce Motion feature)
 /// every sequence collapses to an instant settle: the engine state
 /// is already final, so nothing breaks. The engine decides, the
 /// animation performs — an animation can never change the game.
@@ -201,7 +201,7 @@ class GameScreen extends ConsumerStatefulWidget {
 /// untouched. Taller screens render the full layout exactly as
 /// before, dice at 64 dp.
 class _GameScreenState extends ConsumerState<GameScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   /// The provider-owned controller this screen observes. Set in
   /// [didChangeDependencies] from
   /// [offlineGameControllerProvider]; the screen removes its
@@ -354,6 +354,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _diceTumbleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 540),
@@ -434,6 +435,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.removeListener(_onControllerChanged);
     _diceTumbleController.dispose();
     _stepController.dispose();
@@ -442,6 +444,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
     _shakeController.dispose();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() {
+    if (!mounted) return;
+    if (isReducedMotion(context)) {
+      _cancelSequence();
+      _diceTumbleController.stop();
+    }
+    setState(() {});
   }
 
   /// The controller changed (a roll settled, a move applied, a

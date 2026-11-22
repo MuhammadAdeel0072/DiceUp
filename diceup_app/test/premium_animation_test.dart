@@ -22,11 +22,9 @@ import 'test_providers.dart';
 /// move visibly occupies each intermediate cell in turn. The
 /// capture return (Q6) plays only after the mover settles: lift →
 /// shrink/fade → arc to the yard → pop-in. Reduced motion (Q7)
-/// honours the supported OS flag ([MediaQuery.disableAnimations])
-/// and collapses every sequence to an instant settle. The iOS-only
-/// flag is not read: it does not exist
-/// on the oldest Flutter SDKs this project supports (see the
-/// `isReducedMotion` helper). Pause freeze/resume (Q2) is proven by the
+/// honours Android's [MediaQuery.disableAnimations] and iOS's Reduce
+/// Motion accessibility feature, collapsing every sequence to an
+/// instant settle. Pause freeze/resume (Q2) is proven by the
 /// rewritten pause test in `test/animation_test.dart` — it pauses
 /// a six-step sequence mid-flight, pumps 5 s (frozen), resumes,
 /// and asserts completion — so it is not duplicated here.
@@ -69,12 +67,18 @@ void main() {
   int diceFace(WidgetTester tester) =>
       tester.widget<DiceWidget>(find.byType(DiceWidget)).value ?? -1;
 
+  void enableReduceMotion(WidgetTester tester) {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(reduceMotion: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+  }
+
   /// Pumps a [GameScreen] from an exact [GameState] under a
   /// [ProviderScope] with a fixed dice roller and degraded play
   /// (no repositories — nothing is persisted). The viewport is
   /// tall (800x1400) so the whole column fits with no scrolling.
-  /// [reducedMotion] wraps the screen in a [MediaQuery] with the
-  /// given OS flag set, so reduced-motion behaviour is provable
+  /// [reducedMotion] wraps the screen in a [MediaQuery] with its
+  /// animation flag overridden, so Android's setting is testable
   /// without changing the platform value.
   Future<OfflineGameController> pumpGame(
     WidgetTester tester, {
@@ -335,8 +339,9 @@ void main() {
       expect(find.text('Roll dice'), findsOneWidget);
     });
 
-    testWidgets('reduced motion collapses a step sequence to an '
-        'instant settle (disableAnimations)', (tester) async {
+    testWidgets('iOS Reduce Motion collapses a step sequence to an '
+        'instant settle', (tester) async {
+      enableReduceMotion(tester);
       final controller = await pumpGame(
         tester,
         state: stateWith(
@@ -347,7 +352,6 @@ void main() {
           lastRoll: 6,
           phase: TurnPhase.awaitingMove,
         ),
-        reducedMotion: (data) => data.copyWith(disableAnimations: true),
       );
       final all = tokensAt(const [1, 0, 0, 0], const [0, 0, 0, 0]);
       await tapBoardAt(tester, centreFor(0, 1, all));

@@ -1295,12 +1295,12 @@ presentation of already-decided state changed.
    (M3 durations). Shadow tokens formalised in the design system
    (`DiceUpShadows.raised` for board/dice, `lifted` for a token
    mid-hop). OS reduced-motion flag honoured everywhere (Q7 — NO
-   new in-app setting): `MediaQuery.disableAnimations` collapses
+   new in-app setting): `isReducedMotion` combines Android's
+   `MediaQuery.disableAnimations` with iOS's separate
+   `AccessibilityFeatures.reduceMotion`. Either setting collapses
    steps/capture/dice to an instant settle, freezes the dice face
    at its pre-roll value, skips confetti, and jumps the results
-   entrance to its end state. (The iOS-only `reduceMotion` flag is
-   not read — it does not exist on the oldest supported SDKs;
-   2026-11-23 SDK-compatibility fix, see `isReducedMotion`.)
+   entrance to its end state.
 7. **Pause (Q2 + D-10).** Step/capture sequences FREEZE on pause
    and RESUME from where they paused — superseding the old
    hop-cancel on pause. The input lock is the sequence flag
@@ -1366,40 +1366,32 @@ replacement worker's diagnosis, from the hung run's log
   (300 s targeted, 900 s full suite).
 
 **SDK-compatibility fix (2026-11-23).** After the M3.7 push
-(`31b7aea`), Anti pulled onto Windows and `flutter build apk
---debug` failed with real compilation errors:
-`MediaQuery.of(context).reduceMotion` does not exist on his
-installed Flutter SDK (`game_screen.dart:794`,
-`results_screen.dart:104`, `results_screen.dart:119`). The
-project declares Dart `sdk: ^3.13.4` and no Flutter pin, and
-`MediaQueryData.reduceMotion` is a recent addition (present in
-the VM's Flutter 3.50.1, absent from Anti's SDK). Fix: one
-shared helper, `isReducedMotion` in
-`lib/core/accessibility/reduced_motion.dart`, reading only
-`MediaQuery.disableAnimationsOf(context)` (Android "Remove
-animations", available since Flutter 3.13, and already used at
-the same sites — it compiled on Anti's SDK). Reduced-motion
-support is preserved, not removed. Honest limitation recorded
-in the helper: on SDKs without `reduceMotion`, the iOS Reduce
-Motion flag cannot be read through MediaQuery at all — restore
-the check in that one place if the minimum Flutter is ever
-raised to a release that has it; no `dynamic` probing. The two
-`reduceMotion: true` test cases in
-`test/premium_animation_test.dart` were converted to drive the
-behaviour through `MediaQueryData(disableAnimations: true)`
-(same assertions; the converted step-collapse case now
-duplicates the existing `disableAnimations` step-collapse case)
-and renamed to describe the supported API. Sweep (req 5): the
-only other `MediaQueryData` members accessed anywhere in
-`lib/`/`test/` are `size` and `disableAnimations`; no
-`AccessibilityFeatures` member is read; `Color.withValues`
-(Flutter 3.22+) is used in 10 places but is proven compatible —
-Anti's build reported only the three `reduceMotion` errors in
-the very same files. `reduceMotion` was the only too-new API.
-The Android build itself is still unverified in this VM (no
-Android SDK); Anti must re-run `flutter build apk --debug` on
-Windows. The Maven DNS/dependency-download failure is a
-separate Gradle network issue, untouched by this fix.
+(`31b7aea`), the Windows `flutter build apk --debug` exposed three
+compile errors because `MediaQueryData.reduceMotion` is not present
+in the installed Flutter SDK. The project declares Dart
+`sdk: ^3.13.4` but no explicit Flutter version. Flutter exposes
+Android "Remove animations" through `MediaQuery.disableAnimations`
+and iOS Reduce Motion separately through
+`PlatformDispatcher.accessibilityFeatures.reduceMotion`; the latter
+is not a `MediaQueryData` property. On the local Flutter 3.47.5 /
+Dart 3.13.4 SDK, that `dart:ui` feature is available even though the
+MediaQuery getter is not. The shared
+`lib/core/accessibility/reduced_motion.dart` helper checks both
+without dynamic probing. The iOS setting collapses game sequences
+and dice animation and skips the results entrance/confetti. Tests
+exercise the Android `disableAnimations` path and use
+`FakeAccessibilityFeatures(reduceMotion: true)` for iOS. The
+baseline analyzer found three unsupported production getters and
+two invalid test named parameters; no other unsupported Flutter
+APIs were reported. `Color.withValues` is used in 10 places and
+was not reported as an error. Verification on Windows (Flutter
+3.47.5 / Dart 3.13.4): `flutter analyze` — no issues;
+`flutter test test/premium_animation_test.dart
+test/results_screen_test.dart` — 20 passed; and
+`flutter build apk --debug` — succeeded, producing
+`build/app/outputs/flutter-apk/app-debug.apk`. The reported Maven
+DNS/dependency-download failure is separate from the source
+compilation errors; it did not recur during this verified build.
 
 **Verification (2026-11-22, Flutter 3.50.1 / Dart 3.14.1, local
 only):** `flutter test` — **591/591 passed** (579 at M3.10 + 7
@@ -1457,10 +1449,9 @@ no existing test asserted those three; `ludo_board_test.dart` —
 parameters); `premium_animation_test.dart` — new, 7 tests:
 multi-cell step order at exact segment boundaries, capture
 sequencing + settle scale, reduced-motion capture collapse,
-dice settle + input lock, reduced-motion step collapse
-(`disableAnimations` — the two `reduceMotion` cases were converted
-to `disableAnimations` in the 2026-11-23 SDK-compatibility fix),
-reduced-motion dice-face freeze.
+dice settle + input lock, Android `disableAnimations` and iOS `reduceMotion` step collapse,
+reduced-motion dice-face freeze, and reduced-motion results entrance
+and confetti suppression.
 
 **Deliberately NOT done (per the brief / Q decisions):**
 auto-move on a single legal move (Q3 — NO), destination ghost

@@ -44,6 +44,16 @@ Status values: `not started` | `in progress` | `implemented` |
 | NFR-38, M-10 | — | Strings externalisation (M3.10) | `lib/l10n/app_en.arb` (179 keys) + `lib/l10n/app_localizations.dart` / `app_localizations_en.dart` (generated, committed — Flutter 3.50 has no synthetic `flutter_gen` package) + `lib/l10n/app_strings.dart` (`stringsOf` with English fallback for bare-`MaterialApp` tests, enum→name mappings) + `l10n.yaml`; `pubspec.yaml` (`flutter_localizations`, `generate: true`); `lib/main.dart` (`localizationsDelegates` + `supportedLocales` on both `MaterialApp`s); all `lib/presentation/` screens + widgets + `lib/core/design_system/diceup_components.dart` render via `AppLocalizations`; `tool/check_strings.sh` (3 grep checks) wired into `tool/check.sh` | `tool/check_strings.sh` (3/3, verified both ways: a `Text('Paused')` probe fails check 1, a `tooltip: 'Pause'` probe fails check 2, a `Text(kMatchRecordFailedMessage)` probe fails check 3 — scratch copies, deleted) + the full suite (`flutter test` 579/579, widget tests assert the same rendered strings via `AppLocalizations`, no test edited) | implemented — M3.10 DONE (see IMPLEMENTATION-PLAN §M3.10): `flutter test` 579/579; `flutter analyze` 0 errors / 0 warnings / 35 info (baseline 33; the +2 are the generated file's `GlobalMaterialLocalizations`/`GlobalCupertinoLocalizations` deprecation notices, same unactionable family); `dart format` 0 changed; boundaries 12/12; `tool/check.sh` exit 0. Deliberately excluded, with reasons: the domain controller's status strings (`OfflineGameController.status` — domain cannot import generated Flutter code, M-07, and its tests assert the exact strings; needs a status-key refactor + test updates, a separate decision, not claimed here); the domain ruleset validation messages (unreachable from the UI); the `GameSetup`/`MatchSetup` `nameFor` "Player N" model defaults (asserted by tests; the setup flow localises the same default); developer-only strings (logs, `debugPrint`, exceptions). The CI `strings` job is not added — workflow files are blocked (Workflows 403), same wall as the `vectors`/`coverage` jobs. |
 | NFR-23 | 3.2 | Offline availability | manual: airplane-mode run | — | not started (offline by construction; device run pending) |
 
+## Reduced-motion SDK compatibility (2026-11-23)
+
+This note supersedes the earlier premium-animation summary above:
+Android uses `MediaQuery.disableAnimations`; iOS Reduce Motion uses
+`PlatformDispatcher.accessibilityFeatures.reduceMotion`, not a
+`MediaQueryData` property. The shared `isReducedMotion` helper checks
+both. On Windows with Flutter 3.47.5 / Dart 3.13.4, analysis passed,
+the two focused test files passed 20/20, and
+`flutter build apk --debug` produced the debug APK.
+
 ## Phases 4–8 — not started
 
 All FR-01…FR-10 (accounts/auth), FR-42…FR-59 (online multiplayer),
