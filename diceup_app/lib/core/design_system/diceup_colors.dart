@@ -13,9 +13,7 @@ import '../../domain/engine/player_colour.dart';
 abstract final class DiceUpColors {
   // Brand — taken from the SDD document palette.
   static const Color navy = Color(0xFF1B2A4E);
-  static const Color navyDark = Color(0xFF121D36);
   static const Color teal = Color(0xFF0E7C7B);
-  static const Color tealDark = Color(0xFF0A5E5D);
   static const Color amber = Color(0xFFD97706);
   static const Color amberLight = Color(0xFFFEF3C7);
 
@@ -31,9 +29,7 @@ abstract final class DiceUpColors {
   static const Color textOnDark = Colors.white;
 
   // Feedback.
-  static const Color success = Color(0xFF15803D);
   static const Color error = Color(0xFFB91C1C);
-  static const Color errorBackground = Color(0xFFFEE2E2);
 
   // Ludo player colours (order: Red, Green, Yellow, Blue).
   static const List<Color> playerColors = [

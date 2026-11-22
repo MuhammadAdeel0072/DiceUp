@@ -6,10 +6,13 @@ import 'diceup_typography.dart';
 
 /// DiceUp Material 3 theme (SDD §11.1).
 ///
-/// Light theme is the Phase 2 baseline. A dark theme follows the same
-/// tokens (navy surfaces, teal accents) and is added with the settings
-/// screen; no widget hard-codes a light-only colour — widgets read the
-/// theme or [DiceUpColors] tokens.
+/// Light theme is the Phase 2 baseline. There is no dark theme:
+/// the earlier comment promising one ("added with the settings
+/// screen") was removed in M2.14 (L-04) — implementing a dark theme
+/// is more than a small fix and is not approved M2.14 scope, so the
+/// comment was deleted rather than left promising work that does
+/// not exist. No widget hard-codes a light-only colour — widgets
+/// read the theme or [DiceUpColors] tokens.
 abstract final class DiceUpTheme {
   static ThemeData light() {
     final scheme = ColorScheme.fromSeed(

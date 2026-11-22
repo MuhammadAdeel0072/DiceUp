@@ -1691,8 +1691,13 @@ UI/UX research deliverable from the parallel research task,
 previously unpushed; it belongs on the branch), this plan
 section and the TRACEABILITY row were pushed together in one
 snapshot, "feat(platform): M2.13 iPhone portrait lock (D-17) +
-docs: UI research". [PUSH-SHA-AND-READBACK — to be filled in
-after the push lands, second snapshot.]
+docs: UI research". Push landed as `5eda724473a7b7d33a5b1979537e102fee83ecca`
+(verified live via `list_commits`; remote head `5eda72447`), and the pushed
+files were read back at that head: iPhone
+`UISupportedInterfaceOrientations` = [`UIInterfaceOrientationPortrait`]
+only, iPad key all four orientations unchanged, `.MainActivity`
+`android:screenOrientation="portrait"` present. Sync record entry 24 (5
+paths).
 
 Scoping decisions recorded: config only — no Dart code, no
 schema changes, no rule changes, no new dependencies, no
@@ -1704,3 +1709,111 @@ portrait lock behaves on a real iPhone/iPad is outstanding
 (M4), as is the rest of device verification. The pubspec.lock
 stash + `../.vscode/` on Anti's Windows machine (D:\DiceUp)
 are not verifiable from this environment; untouched.
+
+### M2.14 — DONE (small fixes: Roboto fallback, dark-theme comment, dead tokens; L-01, L-04; 2026-11-22)
+
+The small-fixes pass for remediation plan §4 M2.14 + §3.3
+L-01/L-04. Three items, each resolved in the smallest way that
+is honest about what the app actually ships.
+
+**1. Roboto — named the actual fallback instead of bundling
+(L-04).** What was found: `diceup_typography.dart` named
+`fontFamily: 'Roboto'` on all eight text styles
+(`_fontFamily = 'Roboto'`), but no Roboto file was ever
+bundled — `pubspec.yaml` has no `fonts:` section and no font
+assets exist in the repo. On Android the name resolved to the
+system Roboto, so it looked correct there; on iOS it resolved
+to Flutter's system fallback font, so the name promised a font
+the app did not ship. The file's own header comment even
+contradicted the code, claiming the app "uses the platform
+default font family deliberately" while the code named Roboto.
+What was decided: name the actual fallback — i.e. name no font
+at all. The `_fontFamily` constant and all eight `fontFamily:`
+entries were removed, so text renders in Flutter's platform
+default (Roboto on Android, the system fallback font on iOS).
+Bundling Roboto was rejected, not overlooked: it would need
+binary `.ttf` files in the repo, which the snapshot-push route
+cannot carry (UTF-8 text only), so a bundled-font commit could
+not be pushed this way. The `google_fonts` package was also
+rejected: it downloads fonts at runtime, a network dependency
+at first run that conflicts with the offline-by-construction
+property (NFR-23), for a cosmetic gain. Both rejections and the
+before/after state are recorded in the `diceup_typography.dart`
+header comment, so a future bundled-font decision starts from
+this record rather than re-discovering it. Observable change:
+none intended — the rendered font on each platform is the same
+as before (Android Roboto, iOS fallback); what changed is that
+the code no longer claims otherwise. New test
+`test/design_system_test.dart` (2 tests) pins it: every style
+in `DiceUpTypography.textTheme` has `fontFamily == null`, and
+the applied `DiceUpTheme.light().textTheme` adds no font choice
+of its own — its family equals a stock `ThemeData.light()`
+textTheme's, because `ThemeData` fills an unspecified family
+from Flutter's own Material defaults (`'Roboto'`); that is the
+framework's default, identical to a stock Material app, not an
+app choice. (An earlier draft of the second test asserted
+`fontFamily == null` on the applied theme and failed: the
+framework fills `'Roboto'` in. The test was corrected, not the
+code — the app names no font either way.)
+
+**2. Dark-theme comment — removed, theme NOT implemented
+(L-04).** What was found: the `diceup_theme.dart` header said
+"A dark theme follows the same tokens (navy surfaces, teal
+accents) and is added with the settings screen". No dark theme
+exists anywhere in the app — no `ThemeData.dark()`, no
+brightness switch, no settings toggle for it — and the settings
+screen never gained one. What was decided: remove the comment
+rather than implement the theme. Implementing a real dark theme
+(new colour scheme, per-widget dark variants, a settings toggle
+with persistence, tests) is more than a small fix and is not
+approved M2.14 scope, so the honest fix is to stop promising
+it. The replacement comment records that the theme was
+deliberately not implemented and why. The two tokens the
+comment pointed at (`navyDark`, `tealDark` — the dark theme's
+intended surfaces/accents) were dead and were removed with the
+other dead tokens below, which is consistent: nothing in the
+app references a dark palette any more.
+
+**3. Dead design tokens — removed (L-01).** Each token below
+was verified unused by grepping the whole app (`lib/`,
+`test/`, `tool/`) plus `docs/` before removal — definition
+only, zero references — and removal is enforced going forward
+by compilation itself: any remaining reference would fail the
+build. Removed from `diceup_colors.dart`: `navyDark`
+(`0xFF121D36`), `tealDark` (`0xFF0A5E5D`), `success`
+(`0xFF15803D`), `errorBackground` (`0xFFFEE2E2`). Removed from
+`diceup_spacing.dart`: `xxl` (48 — a duplicate of the live
+`minTouchTarget = 48`), `radiusXl` (24), `radiusSm` (8) and
+its only consumer `radiusSmBorder`, which was itself unused
+(no call site) and could not survive `radiusSm`'s removal.
+Deliberately kept: every other token in both files is
+referenced — `amberLight` (board star cells), `surfaceMuted`
+(game screen), `radiusMd`/`radiusLg` + `radiusMdBorder`/
+`radiusLgBorder` (theme + components). Nothing else from
+L-01 was touched in this pass: `cupertino_icons` is still in
+`pubspec.yaml` (still unused — removal is a dependency change,
+out of M2.14's token scope, and is recorded here rather than
+done silently), and the L-01 bug items (`didChangeDependencies`
+init, `gameSetupOf` loud failure) were already fixed in
+earlier milestones (M2.1/M2.5), not re-done here.
+
+Verification (2026-11-22, after the change, on the final
+tree): `flutter test` — 539/539 passed ("All tests passed!";
+537 baseline + 2 new in `test/design_system_test.dart`);
+`flutter analyze` — 0 errors, 0 warnings, 33 info (the 32
+pre-existing `material.dart` deprecation notices plus 1 of the
+same kind from the new test file's `material.dart` import,
+which it needs for `ThemeData` — same pattern as every other
+test file); `dart format --output=none --set-exit-if-changed .`
+— 97 files, 0 changed (one formatting fix applied to the new
+test file during verification, then re-checked clean; the new
+test file re-run green, 2/2, after the format fix).
+
+Scoping decisions recorded: no new dependency, no binary
+assets, no schema changes, no rule changes, no sound, no
+dark theme, no device claims. The pubspec.lock stash +
+`../.vscode/` on Anti's Windows machine (D:\DiceUp) are not
+verifiable from this environment; untouched. M2.13's staged
+platform files (`diceup_app/ios/`, `diceup_app/android/`)
+were not touched. No push was made by this worker — manifest
+prepared for the coordinator (see report).
