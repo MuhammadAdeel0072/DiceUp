@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:diceup/l10n/app_localizations.dart';
 
+import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../domain/engine/player_colour.dart';
@@ -109,52 +110,81 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (statistics == null || matches == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    return ListView(
-      padding: DiceUpSpacing.screenPadding,
-      children: [
-        DiceUpCard(
-          child: Column(
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: DiceUpSpacing.maxContentWidth,
+          ),
+          child: ListView(
+            padding: DiceUpSpacing.screenPadding,
             children: [
-              _StatRow(
-                label: l10n.statisticsMatchesPlayed,
-                value: statistics.matchesPlayed,
+              // Lifetime totals as a 2x2 stat grid (REDESIGN-PLAN.md
+              // §3.7): large numerals, one tile per total. The totals
+              // still come from the persisted lifetime row, never
+              // from the retained history (see the class doc).
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: StatTile(
+                      label: l10n.statisticsMatchesPlayed,
+                      value: '${statistics.matchesPlayed}',
+                      icon: Icons.casino_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: DiceUpSpacing.sm),
+                  Expanded(
+                    child: StatTile(
+                      label: l10n.statisticsHumanWins,
+                      value: '${statistics.matchesWon}',
+                      icon: Icons.emoji_events_outlined,
+                    ),
+                  ),
+                ],
               ),
-              _StatRow(
-                label: l10n.statisticsHumanWins,
-                value: statistics.matchesWon,
+              const SizedBox(height: DiceUpSpacing.sm),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: StatTile(
+                      label: l10n.statisticsMatchesVsAi,
+                      value: '${statistics.matchesVsAi}',
+                      icon: Icons.smart_toy_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: DiceUpSpacing.sm),
+                  Expanded(
+                    child: StatTile(
+                      label: l10n.statisticsLocalMatches,
+                      value: '${statistics.matchesLocal}',
+                      icon: Icons.people_outline,
+                    ),
+                  ),
+                ],
               ),
-              _StatRow(
-                label: l10n.statisticsMatchesVsAi,
-                value: statistics.matchesVsAi,
-              ),
-              _StatRow(
-                label: l10n.statisticsLocalMatches,
-                value: statistics.matchesLocal,
-              ),
+              if (statistics.matchesPlayed == 0) ...[
+                const SizedBox(height: DiceUpSpacing.md),
+                Text(
+                  l10n.statisticsNoMatches,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ] else ...[
+                const SizedBox(height: DiceUpSpacing.lg),
+                SectionHeading(
+                  title: l10n.statisticsWinsBySeat,
+                  subtitle: l10n.statisticsPerPlayerCaption,
+                ),
+                const SizedBox(height: DiceUpSpacing.xs),
+                DiceUpCard(
+                  child: Column(children: _perPlayerRows(matches, l10n)),
+                ),
+              ],
             ],
           ),
         ),
-        if (statistics.matchesPlayed == 0) ...[
-          const SizedBox(height: DiceUpSpacing.md),
-          Text(
-            l10n.statisticsNoMatches,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ] else ...[
-          const SizedBox(height: DiceUpSpacing.lg),
-          Text(
-            l10n.statisticsWinsBySeat,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: DiceUpSpacing.xs),
-          Text(
-            l10n.statisticsPerPlayerCaption,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: DiceUpSpacing.sm),
-          ..._perPlayerRows(matches, l10n),
-        ],
-      ],
+      ),
     );
   }
 
@@ -179,7 +209,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       ..sort((a, b) => a.index.compareTo(b.index));
     return [
       for (final seat in seats)
-        _StatRow(
+        _SeatRow(
+          seat: seat,
           // gen-l10n orders the positional parameters alphabetically
           // (colour, seat), not in message order.
           label: l10n.statisticsSeatWins(
@@ -197,10 +228,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 }
 
-/// One label/value row of the statistics card.
-class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value});
+/// One per-seat row of the wins-by-seat breakdown: the seat's shape
+/// marker in its colour (never colour alone, D-27/NFR-08) next to
+/// the label, with the win count at the end of the row.
+class _SeatRow extends StatelessWidget {
+  const _SeatRow({
+    required this.seat,
+    required this.label,
+    required this.value,
+  });
 
+  final _SeatIdentity seat;
   final String label;
   final int value;
 
@@ -210,6 +248,12 @@ class _StatRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: DiceUpSpacing.xs),
       child: Row(
         children: [
+          PlayerShapeMarker(
+            shape: PlayerShape.forSeat(seat.index),
+            color: DiceUpColors.forColour(seat.colour),
+            size: 16,
+          ),
+          const SizedBox(width: DiceUpSpacing.sm),
           Expanded(
             child: Text(label, style: Theme.of(context).textTheme.titleMedium),
           ),

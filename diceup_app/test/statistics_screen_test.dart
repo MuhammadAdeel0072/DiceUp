@@ -1,3 +1,4 @@
+import 'package:diceup/core/design_system/diceup_components.dart';
 import 'package:diceup/data/local/app_dependencies.dart';
 import 'package:diceup/data/local/app_startup.dart';
 import 'package:diceup/data/local/snapshot_recovery.dart';
@@ -41,12 +42,28 @@ void main() {
     );
   }
 
-  /// The value shown beside [label] in a statistics row: the
-  /// label's ancestor [Row] holds exactly one value text.
+  /// The value shown beside [label] in a per-seat breakdown row:
+  /// the label's ancestor [Row] holds exactly one value text.
   void expectStat(String label, String value) {
     final row = find.ancestor(of: find.text(label), matching: find.byType(Row));
     expect(
       find.descendant(of: row, matching: find.text(value)),
+      findsOneWidget,
+      reason: 'expected $label to show $value',
+    );
+  }
+
+  /// The value shown in the [StatTile] for a lifetime total
+  /// [label]: the label's ancestor tile holds exactly one value
+  /// text. (Stage 3C: the four totals moved from label/value rows
+  /// into a 2x2 [StatTile] grid — same numbers, new presentation.)
+  void expectStatTile(String label, String value) {
+    final tile = find.ancestor(
+      of: find.text(label),
+      matching: find.byType(StatTile),
+    );
+    expect(
+      find.descendant(of: tile, matching: find.text(value)),
       findsOneWidget,
       reason: 'expected $label to show $value',
     );
@@ -101,10 +118,10 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       await tester.pumpAndSettle();
 
-      expectStat('Matches played', '2');
-      expectStat('Human wins', '1');
-      expectStat('Matches vs AI', '2');
-      expectStat('Local matches', '0');
+      expectStatTile('Matches played', '2');
+      expectStatTile('Human wins', '1');
+      expectStatTile('Matches vs AI', '2');
+      expectStatTile('Local matches', '0');
     });
 
     testWidgets('AI victories do not inflate human wins or the '
@@ -135,10 +152,10 @@ void main() {
       await tester.pumpWidget(scopedApp(deps, const StatisticsScreen()));
       await tester.pumpAndSettle();
 
-      expectStat('Matches played', '3');
-      expectStat('Human wins', '1');
-      expectStat('Matches vs AI', '2');
-      expectStat('Local matches', '1');
+      expectStatTile('Matches played', '3');
+      expectStatTile('Human wins', '1');
+      expectStatTile('Matches vs AI', '2');
+      expectStatTile('Local matches', '1');
       // The AI winner's seat never appears in the human breakdown.
       expect(find.text('Seat 1 · Red'), findsOneWidget);
       expect(find.text('Seat 2 · Green'), findsNothing);
@@ -196,8 +213,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Lifetime totals come from the cached row, not the retained 500.
-      expectStat('Matches played', '700');
-      expectStat('Human wins', '700');
+      expectStatTile('Matches played', '700');
+      expectStatTile('Human wins', '700');
       expect(
         find.text('Per-player wins from your latest 500 matches.'),
         findsOneWidget,
@@ -213,10 +230,10 @@ void main() {
       await tester.pumpWidget(scopedApp(deps, const StatisticsScreen()));
       await tester.pumpAndSettle();
 
-      expectStat('Matches played', '0');
-      expectStat('Human wins', '0');
-      expectStat('Matches vs AI', '0');
-      expectStat('Local matches', '0');
+      expectStatTile('Matches played', '0');
+      expectStatTile('Human wins', '0');
+      expectStatTile('Matches vs AI', '0');
+      expectStatTile('Local matches', '0');
       expect(find.textContaining('No matches yet'), findsOneWidget);
       expect(find.text('Wins by seat'), findsNothing);
     });
@@ -232,7 +249,7 @@ void main() {
 
       await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
-      expectStat('Matches played', '0');
+      expectStatTile('Matches played', '0');
     });
 
     testWidgets('unavailable database shows the unavailable state', (

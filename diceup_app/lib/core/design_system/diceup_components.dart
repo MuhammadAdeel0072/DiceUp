@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../domain/engine/player_colour.dart';
 import 'diceup_colors.dart';
 import 'diceup_spacing.dart';
+import 'diceup_typography.dart';
 
 /// Localised strings for the build context's locale (M3.10, NFR-38).
 ///
@@ -414,6 +415,126 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// Section heading (redesign Stage 2, REDESIGN-PLAN.md §3.3/§4):
+/// the visible group label for the setup "Players / Seats / House
+/// rules" sections, settings groups and results groups. A title in
+/// [DiceUpTypography.sectionHeading] with an optional [subtitle] in
+/// the caption style — never a bare `titleMedium` label, so sections
+/// stop blending into the cards below them. Exposed as a semantics
+/// header so a screen reader announces it as a heading.
+class SectionHeading extends StatelessWidget {
+  const SectionHeading({super.key, required this.title, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      header: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: DiceUpTypography.sectionHeading),
+          if (subtitle != null) ...[
+            const SizedBox(height: DiceUpSpacing.xxs),
+            Text(subtitle!, style: DiceUpTypography.caption),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Statistic tile (redesign Stage 2, REDESIGN-PLAN.md §3.6/§3.7):
+/// one large numeral ([DiceUpTypography.displayNumeral]) with a
+/// caption label underneath, in a [DiceUpCard]. Used for the
+/// statistics 2x2 totals grid and the results info stat row. The
+/// [value] is a preformatted string (e.g. "12", "04:32") so the
+/// tile never formats numbers itself; [icon] is an optional
+/// Material/Cupertino glyph, never emoji.
+class StatTile extends StatelessWidget {
+  const StatTile({
+    super.key,
+    required this.label,
+    required this.value,
+    this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return DiceUpCard(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 24, color: DiceUpColors.teal),
+            const SizedBox(height: DiceUpSpacing.xs),
+          ],
+          Text(
+            value,
+            style: DiceUpTypography.displayNumeral,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: DiceUpSpacing.xxs),
+          Text(
+            label,
+            style: DiceUpTypography.caption,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared dialog shell (redesign Stage 2, REDESIGN-PLAN.md §4/F7):
+/// every dialog in the app goes through this wrapper so dialogs
+/// share the ivory surface and 16 dp radius from [DiceUpTheme]'s
+/// dialog theme instead of each screen building its own stock
+/// [AlertDialog]. The title is navy (theme), the content is
+/// [content] as given, and [actions] are the caller's buttons —
+/// primary as [ElevatedButton], secondary as [TextButton] — in
+/// that order, so there is never more than one primary action.
+/// [ConfirmationDialog] is built on this; the pause menu and the
+/// resume/detail dialogs move to it in Stage 3.
+class DiceUpDialog extends StatelessWidget {
+  const DiceUpDialog({
+    super.key,
+    required this.title,
+    required this.content,
+    this.actions = const [],
+  });
+
+  final String title;
+  final Widget content;
+  final List<Widget> actions;
+
+  static Future<T?> show<T>(
+    BuildContext context, {
+    required String title,
+    required Widget content,
+    List<Widget> actions = const [],
+  }) {
+    return showDialog<T>(
+      context: context,
+      builder: (context) =>
+          DiceUpDialog(title: title, content: content, actions: actions),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(title: Text(title), content: content, actions: actions);
+  }
+}
+
 /// Confirmation dialog for destructive or important actions
 /// (exit a match, restart, leave a room, delete an account).
 class ConfirmationDialog extends StatelessWidget {
@@ -455,8 +576,8 @@ class ConfirmationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(title),
+    return DiceUpDialog(
+      title: title,
       content: Text(message),
       actions: [
         TextButton(

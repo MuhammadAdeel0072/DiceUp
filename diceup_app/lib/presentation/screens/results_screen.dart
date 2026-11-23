@@ -144,18 +144,25 @@ class _ResultsScreenState extends State<ResultsScreen>
       return Scaffold(
         appBar: AppBar(title: Text(l10n.resultsTitle)),
         body: SafeArea(
-          child: Padding(
-            padding: DiceUpSpacing.screenPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(l10n.resultsEmpty, textAlign: TextAlign.center),
-                const SizedBox(height: DiceUpSpacing.lg),
-                SecondaryButton(
-                  label: l10n.mainMenu,
-                  onPressed: () => _goHome(context),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: DiceUpSpacing.maxContentWidth,
+              ),
+              child: Padding(
+                padding: DiceUpSpacing.screenPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(l10n.resultsEmpty, textAlign: TextAlign.center),
+                    const SizedBox(height: DiceUpSpacing.lg),
+                    SecondaryButton(
+                      label: l10n.mainMenu,
+                      onPressed: () => _goHome(context),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -167,108 +174,153 @@ class _ResultsScreenState extends State<ResultsScreen>
       body: SafeArea(
         child: Stack(
           children: [
-            SingleChildScrollView(
-              padding: DiceUpSpacing.screenPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _Entrance(
-                    controller: _entranceController,
-                    interval: const Interval(0.0, 0.6),
-                    slideUp: true,
-                    child: Text(
-                      l10n.resultsWinnerWins(result.winnerName),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                  ),
-                  const SizedBox(height: DiceUpSpacing.md),
-                  Center(
-                    child: _WinnerAvatar(
-                      result: result,
-                      entrance: _entranceController,
-                    ),
-                  ),
-                  const SizedBox(height: DiceUpSpacing.lg),
-                  _Entrance(
-                    controller: _entranceController,
-                    interval: const Interval(0.4, 1.0),
-                    child: DiceUpCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _InfoRow(
-                            label: l10n.labelMode,
-                            value: result.isVsAi
-                                ? l10n.modeShortVsAi
-                                : l10n.modeLocal,
-                          ),
-                          _InfoRow(
-                            label: l10n.labelPlayers,
-                            value: result.players.length == 1
-                                ? l10n.playersCountOne
-                                : l10n.playersCountOther(result.players.length),
-                          ),
-                          _InfoRow(
-                            label: l10n.labelDuration,
-                            value: _formatDuration(result.duration),
-                          ),
-                          _InfoRow(
-                            label: l10n.labelMoves,
-                            value: '${result.moveCount}',
-                          ),
-                          _InfoRow(
-                            label: l10n.labelFinished,
-                            value: _formatDate(result.finishedAt, l10n),
-                          ),
-                        ],
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: DiceUpSpacing.maxContentWidth,
+                ),
+                child: SingleChildScrollView(
+                  padding: DiceUpSpacing.screenPadding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Entrance(
+                        controller: _entranceController,
+                        interval: const Interval(0.0, 0.6),
+                        slideUp: true,
+                        child: Text(
+                          l10n.resultsWinnerWins(result.winnerName),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: DiceUpSpacing.md),
-                  _Entrance(
-                    controller: _entranceController,
-                    interval: const Interval(0.4, 1.0),
-                    child: DiceUpCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (final player in result.players) ...[
-                            _PlayerRow(
-                              player: player,
-                              isWinner: player.seat == result.winnerSeat,
+                      const SizedBox(height: DiceUpSpacing.md),
+                      // Winner's stage (REDESIGN-PLAN.md §3.6): the
+                      // mark sits on the navy table field so the
+                      // white-disc avatar reads as an object on the
+                      // table, not as another card on ivory.
+                      Container(
+                        padding: DiceUpSpacing.screenPadding,
+                        decoration: const BoxDecoration(
+                          color: DiceUpColors.table,
+                          borderRadius: DiceUpSpacing.radiusLgBorder,
+                          boxShadow: DiceUpShadows.table,
+                        ),
+                        child: Center(
+                          child: _WinnerAvatar(
+                            result: result,
+                            entrance: _entranceController,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: DiceUpSpacing.lg),
+                      _Entrance(
+                        controller: _entranceController,
+                        interval: const Interval(0.4, 1.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: StatTile(
+                                label: l10n.labelDuration,
+                                value: _formatDuration(result.duration),
+                              ),
                             ),
-                            if (player != result.players.last)
-                              const SizedBox(height: DiceUpSpacing.sm),
+                            const SizedBox(width: DiceUpSpacing.sm),
+                            Expanded(
+                              child: StatTile(
+                                label: l10n.labelMoves,
+                                value: '${result.moveCount}',
+                              ),
+                            ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  if (result.completionFailed) ...[
-                    const SizedBox(height: DiceUpSpacing.md),
-                    DiceUpCard(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.warning_amber_rounded),
-                          const SizedBox(width: DiceUpSpacing.sm),
-                          Expanded(child: Text(l10n.resultsRecordFailed)),
-                        ],
+                      const SizedBox(height: DiceUpSpacing.md),
+                      _Entrance(
+                        controller: _entranceController,
+                        interval: const Interval(0.4, 1.0),
+                        child: DiceUpCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _InfoRow(
+                                label: l10n.labelMode,
+                                value: result.isVsAi
+                                    ? l10n.modeShortVsAi
+                                    : l10n.modeLocal,
+                              ),
+                              _InfoRow(
+                                label: l10n.labelPlayers,
+                                value: result.players.length == 1
+                                    ? l10n.playersCountOne
+                                    : l10n.playersCountOther(
+                                        result.players.length,
+                                      ),
+                              ),
+                              _InfoRow(
+                                label: l10n.labelFinished,
+                                value: _formatDate(result.finishedAt, l10n),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: DiceUpSpacing.lg),
-                  PrimaryButton(
-                    label: l10n.resultsPlayAgain,
-                    onPressed: () => _playAgain(context, result.setup),
+                      const SizedBox(height: DiceUpSpacing.md),
+                      _Entrance(
+                        controller: _entranceController,
+                        interval: const Interval(0.4, 1.0),
+                        child: DiceUpCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final player in result.players) ...[
+                                _PlayerRow(
+                                  player: player,
+                                  isWinner: player.seat == result.winnerSeat,
+                                ),
+                                if (player != result.players.last)
+                                  const SizedBox(height: DiceUpSpacing.sm),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (result.completionFailed) ...[
+                        const SizedBox(height: DiceUpSpacing.md),
+                        DiceUpCard(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                color: DiceUpColors.error,
+                              ),
+                              const SizedBox(width: DiceUpSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  l10n.resultsRecordFailed,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(color: DiceUpColors.error),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: DiceUpSpacing.lg),
+                      PrimaryButton(
+                        label: l10n.resultsPlayAgain,
+                        onPressed: () => _playAgain(context, result.setup),
+                      ),
+                      const SizedBox(height: DiceUpSpacing.sm),
+                      SecondaryButton(
+                        label: l10n.mainMenu,
+                        onPressed: () => _goHome(context),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: DiceUpSpacing.sm),
-                  SecondaryButton(
-                    label: l10n.mainMenu,
-                    onPressed: () => _goHome(context),
-                  ),
-                ],
+                ),
               ),
             ),
             // One-shot hand-drawn confetti (M3 premium, §2.6.3/Q5):
@@ -514,10 +566,7 @@ class _ConfettiPiece {
       DiceUpColors.navy,
       DiceUpColors.teal,
       DiceUpColors.amber,
-      Color(0xFFE5484D),
-      Color(0xFF2FA866),
-      Color(0xFFF5B301),
-      Color(0xFF2F6FED),
+      ...DiceUpColors.playerColors,
     ];
     return _ConfettiPiece(
       x: random.nextDouble(),

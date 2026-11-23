@@ -827,7 +827,11 @@ Future<void> _tapWinningToken(WidgetTester tester) async {
   ];
   final centre = boardTokenCenter(
     const BoardToken(id: '0:3', seatIndex: 0, stepsTaken: 55),
-    const Size(480, 480),
+    // The rendered board size, not an assumed 480 dp: the game
+    // screen's board is height-aware (Stage 2 redesign, F8), so
+    // at the default 800x600 viewport it renders smaller than
+    // 480 dp and a 480-based centre would miss the token.
+    tester.getSize(board),
     tokens,
   );
   await tester.tapAt(origin + centre);

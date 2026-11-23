@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_shadows.dart';
 import '../../core/design_system/diceup_spacing.dart';
+import '../../core/design_system/diceup_typography.dart';
 import '../../data/local/app_startup.dart';
 import '../../data/local/snapshot_recovery.dart';
 import '../../domain/engine/game_state.dart';
@@ -31,6 +33,16 @@ import '../navigation/app_routes.dart';
 /// first interactive screen, so the choice is made where the user
 /// can act on it. Resume navigates to the game with the restored
 /// state; Discard deletes the snapshot and starts no match.
+///
+/// Presentation (redesign Stage 3A, REDESIGN-PLAN.md §3.1): a navy
+/// brand panel — the four seat shapes in their on-dark player
+/// colours, the "Ready to play?" headline and the tagline in white
+/// on the table field, one restrained gold rule — then a single
+/// primary Play action, History and Statistics as a secondary row,
+/// the online entry as a quiet muted row (never a primary-styled
+/// button), and the offline footnote in the caption style. Content
+/// centres in a [DiceUpSpacing.maxContentWidth] column on wide
+/// screens. Navigation, resume and settings behaviour are unchanged.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -99,11 +111,13 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted || !stillThere) return;
     }
     final l10n = stringsOf(context);
+    // DiceUpDialog shell (redesign Stage 2, F7): same copy, same
+    // non-dismissible barrier, same Discard/Resume actions.
     final resume = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.homeResumeTitle),
+      builder: (context) => DiceUpDialog(
+        title: l10n.homeResumeTitle,
         content: Text(l10n.homeResumeMessage),
         actions: [
           TextButton(
@@ -154,61 +168,83 @@ class _HomeScreenState extends State<HomeScreen> {
         // as tall as the viewport (minus the scroll padding), so
         // the Spacer still pins the footnote to the bottom and
         // nothing moves on screens where everything already fit.
+        // The Align + maxContentWidth centre the column on wide
+        // screens (tablets) instead of stretching it full-width.
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
             padding: DiceUpSpacing.screenPadding,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight:
-                    constraints.maxHeight -
-                    DiceUpSpacing.screenPadding.vertical,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: DiceUpSpacing.md),
-                    Text(
-                      l10n.homeReadyTitle,
-                      style: Theme.of(context).textTheme.displayLarge,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: DiceUpSpacing.maxContentWidth,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        constraints.maxHeight -
+                        DiceUpSpacing.screenPadding.vertical,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _BrandHeader(
+                          title: l10n.homeReadyTitle,
+                          subtitle: l10n.homeReadySubtitle,
+                        ),
+                        const SizedBox(height: DiceUpSpacing.xl),
+                        PrimaryButton(
+                          label: l10n.homePlayOffline,
+                          onPressed: () =>
+                              Navigator.of(context)
+                                  .pushNamed(AppRoutes.modeSelection),
+                        ),
+                        const SizedBox(height: DiceUpSpacing.md),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SecondaryButton(
+                                label: l10n.homeMatchHistory,
+                                onPressed: () =>
+                                    Navigator.of(context)
+                                        .pushNamed(AppRoutes.history),
+                              ),
+                            ),
+                            const SizedBox(width: DiceUpSpacing.md),
+                            Expanded(
+                              child: SecondaryButton(
+                                label: l10n.homeStatistics,
+                                onPressed: () =>
+                                    Navigator.of(context)
+                                        .pushNamed(AppRoutes.statistics),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: DiceUpSpacing.md),
+                        // The online entry stays honest (M-13) and
+                        // visually quiet: a muted text row, never a
+                        // primary- or secondary-styled button, so it
+                        // never reads as a playable mode. It still
+                        // opens the login-prompt dialog on tap.
+                        TextButton.icon(
+                          icon: const Icon(Icons.public_outlined, size: 20),
+                          label: Text(l10n.homePlayOnline),
+                          style: TextButton.styleFrom(
+                            foregroundColor: DiceUpColors.textSecondary,
+                          ),
+                          onPressed: () => _showOnlineLoginPrompt(context),
+                        ),
+                        const Spacer(),
+                        Text(
+                          l10n.homeOfflineNote,
+                          textAlign: TextAlign.center,
+                          style: DiceUpTypography.caption,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: DiceUpSpacing.xs),
-                    Text(
-                      l10n.homeReadySubtitle,
-                      style: Theme.of(context).textTheme.bodyLarge
-                          ?.copyWith(color: DiceUpColors.textSecondary),
-                    ),
-                    const SizedBox(height: DiceUpSpacing.xl),
-                    PrimaryButton(
-                      label: l10n.homePlayOffline,
-                      onPressed: () =>
-                          Navigator.of(context)
-                              .pushNamed(AppRoutes.modeSelection),
-                    ),
-                    const SizedBox(height: DiceUpSpacing.md),
-                    SecondaryButton(
-                      label: l10n.homePlayOnline,
-                      onPressed: () => _showOnlineLoginPrompt(context),
-                    ),
-                    const SizedBox(height: DiceUpSpacing.md),
-                    SecondaryButton(
-                      label: l10n.homeMatchHistory,
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed(AppRoutes.history),
-                    ),
-                    const SizedBox(height: DiceUpSpacing.md),
-                    SecondaryButton(
-                      label: l10n.homeStatistics,
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed(AppRoutes.statistics),
-                    ),
-                    const Spacer(),
-                    Text(
-                      l10n.homeOfflineNote,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: DiceUpColors.textSecondary),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -224,15 +260,82 @@ class _HomeScreenState extends State<HomeScreen> {
   /// prompt cannot be missed or mistaken for navigation.
   void _showOnlineLoginPrompt(BuildContext context) {
     final l10n = stringsOf(context);
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.homePlayOnline),
-        content: Text(l10n.homeOnlineMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.ok),
+    DiceUpDialog.show<void>(
+      context,
+      title: l10n.homePlayOnline,
+      content: Text(l10n.homeOnlineMessage),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.ok),
+        ),
+      ],
+    );
+  }
+}
+
+/// The Home brand header (redesign Stage 3A): the navy table field
+/// as a panel, with the four seat shapes in their on-dark player
+/// colours (shape + colour, never colour alone — D-27), the headline
+/// and tagline in white, and a single restrained gold rule. No new
+/// asset, no gradient, no glow — typography and the seat shapes
+/// carry the brand moment. The shapes are decorative: the headline
+/// already names the screen for a screen reader.
+class _BrandHeader extends StatelessWidget {
+  const _BrandHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(DiceUpSpacing.lg),
+      decoration: BoxDecoration(
+        color: DiceUpColors.table,
+        borderRadius: DiceUpSpacing.radiusLgBorder,
+        boxShadow: DiceUpShadows.table,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ExcludeSemantics(
+            child: Row(
+              children: [
+                for (var seat = 0; seat < 4; seat++) ...[
+                  if (seat > 0) const SizedBox(width: DiceUpSpacing.xs),
+                  PlayerShapeMarker(
+                    shape: PlayerShape.forSeat(seat),
+                    color: DiceUpColors.playerColorOnDark(seat),
+                    size: 20,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: DiceUpSpacing.md),
+          Semantics(
+            header: true,
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.displayLarge
+                  ?.copyWith(color: DiceUpColors.textOnDark),
+            ),
+          ),
+          const SizedBox(height: DiceUpSpacing.xs),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodyLarge
+                ?.copyWith(color: DiceUpColors.textOnDark),
+          ),
+          const SizedBox(height: DiceUpSpacing.md),
+          Container(
+            width: 48,
+            height: 3,
+            decoration: const BoxDecoration(
+              color: DiceUpColors.gold,
+              borderRadius: DiceUpSpacing.radiusSmBorder,
+            ),
           ),
         ],
       ),

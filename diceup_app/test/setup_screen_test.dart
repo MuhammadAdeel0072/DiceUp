@@ -178,14 +178,19 @@ void main() {
   }
 
   /// Toggles a ruleset switch by its title (M2.2). The ruleset card
-  /// is the last list item, so it is not built until the list scrolls
-  /// (ListView.builder only builds visible cards) — scroll first.
+  /// is the last list item. It is built — the setup ListView's
+  /// cacheExtent keeps the whole bounded form in the tree — but a
+  /// default finder skips it: sliver children outside the paint
+  /// extent are "offstage" to finders, so the lookup needs
+  /// `skipOffstage: false`. `ensureVisible` then scrolls it into
+  /// view; no fixed drag is needed, and none is reliable against
+  /// the seat cards' height, which changes with the player count
+  /// (Stage 5: the fixed -600 drag passed only via route-push luck).
   Future<void> toggleRule(WidgetTester tester, String title) async {
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
-    await tester.pumpAndSettle();
     final tile = find.byWidgetPredicate(
       (widget) =>
           widget is SwitchListTile && (widget.title as Text?)?.data == title,
+      skipOffstage: false,
     );
     await tester.ensureVisible(tile);
     await tester.pumpAndSettle();

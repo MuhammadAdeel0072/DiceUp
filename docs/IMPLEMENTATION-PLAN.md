@@ -407,6 +407,46 @@ location fact.
   `docs/`; the move has not happened, so M0 records the current truth
   (repo root, `e11ef1b`) and the `docs/` move stays pending Anti.
 
+### M1.1–M1.6 — DONE (records added in M4.5 from cited evidence; 2026-11-23)
+
+No DONE sections existed in this plan for M1.1–M1.6; their evidence lived
+in `docs/TRACEABILITY.md` rows and in later plan sections (M4 entry report
+§4). These records are docs-only, written from that cited evidence — no work
+was re-done in M4.5.
+
+- **M1.1 Snapshot hardening** — strict `fromJson` FIRST, before any snapshot
+  was ever persisted: rejects outright (`FormatException`, corrupt snapshot
+  deleted, notice shown — D-22); embeds the full ruleset + difficulty +
+  `startedAt`; `formatVersion: 1`; no move history (D-23). Evidence:
+  TRACEABILITY FR-29–31 row, "verified (flutter test 349/349; M1.3–M1.7)";
+  entry report §11 code verification (strict validation, exact notice text).
+- **M1.2 Interfaces + fakes** — 5 domain repository interfaces + 5 in-memory
+  fakes + contract tests. Evidence: entry report §4 (present in tree);
+  `test/repositories/repository_contract_test.dart`,
+  `test/repositories/in_memory_fakes_test.dart`.
+- **M1.3 sqflite schema v1** — exactly 5 tables per SDD §9.1 verbatim,
+  sqflite (D-26), schema v1, no FKs by design. Evidence: entry report §4/§11
+  code verification; TRACEABILITY NFR-30 row.
+- **M1.4 SQLite implementations** — `lib/data/local/` + `sqflite_common_ffi`
+  data tests; `recordMatch` transaction rollback at all four writes;
+  `clearHistory` / `resetToDefaults` rollback. Evidence: TRACEABILITY NFR-30
+  row, "verified (flutter test 349/349; M1.4)".
+- **M1.5 Corrupt-DB recovery (NFR-35)** — `openDatabaseWithRecovery`, exact
+  reset message, recreate only on genuine open/read failure; a single failed
+  query does NOT trigger recovery; a mid-match failure does NOT trigger
+  recovery. Evidence: TRACEABILITY NFR-35 row, "verified (flutter test
+  349/349; M1.5)"; `test/data/local/database_recovery_test.dart`.
+- **M1.6 Wiring** — real splash load (no 900 ms fake delay); snapshot saved
+  after every completed move; completion `recordMatch()` in one transaction;
+  Resume/Discard with the exact copy; 500-match cap; Home's resume offer
+  re-checks snapshot existence. Evidence: TRACEABILITY FR-29–31 row;
+  `test/app_lifecycle_test.dart`; M2.5/M2.6 cite M1.6/M1.1.
+
+Verification for all six (last measured at M1.7, 2026-11-22, Flutter 3.50.1):
+`flutter test` 349/349 passed; `flutter analyze` 0/0/21 info. Superseded by
+the redesign verification full-suite run 684/684 on the current tree
+(2026-11-23); formal M4.2 re-proof still to be recorded.
+
 ### M1.7 — DONE (persisted settings + statistics UI, haptics D-32; 2026-11-22)
 
 The last M1 milestone. No schema, repository-interface, engine or AI
@@ -464,6 +504,33 @@ milestone. The settings screen loads/saves the three persisted toggles
 + volume and reset; reading/displaying `last_*` there is out of scope.
 Sound remains a named follow-up (D-32): disabled toggle + volume
 storage only, nothing plays.
+
+### M3.1–M3.2 — DONE (records added in M4.5 from cited evidence; 2026-11-23)
+
+No DONE sections existed in this plan for M3.1–M3.2; their evidence lived
+in the code, the characterisation tests, and the M3.3 section that builds on
+them (M4 entry report §4). These records are docs-only, written from that
+cited evidence — no work was re-done in M4.5.
+
+- **M3.1 Use cases** — `StartOfflineMatch` / `RollDice` / `ApplyMove` as
+  plain Dart, persistence inside the use cases. Evidence: all three use cases
+  present with tests (`test/usecases/start_offline_match_test.dart`,
+  `roll_dice_test.dart`, `apply_move_test.dart`); M3.3 wires them through
+  providers (degraded `applyMove == null` covered by
+  `riverpod_composition_root_test.dart`).
+- **M3.2 `OfflineGameController` extraction** — characterisation tests
+  written first (`test/game_screen_characterization_test.dart`, pins
+  pre-extraction behaviour incl. the 700–1,199 ms pacing bounds and the exact
+  status strings); behaviour bit-identical after extraction; exactly one seam
+  mechanism (the provider override — the optional-constructor-override seam
+  is gone, M3.3). Evidence: characterisation tests pass unchanged through
+  M3.3 (417/417) and in every later full-suite run, incl. 684/684 on the
+  current tree. **Open follow-up (pre-existing M3.2 finding, NOT fixed):**
+  `LudoGame.fromState` uses the default stock ruleset, not the restored
+  state's embedded ruleset — a resumed match with custom ruleset options
+  plays under stock rules, and Play Again after a resume loses the custom
+  ruleset. Needs a decision (OD-M4-03) before it is touched; recorded here
+  so it is not fixed silently.
 
 ### M3.3 — DONE (Riverpod composition root, D-06; 2026-11-22)
 
@@ -1471,6 +1538,25 @@ reference device (D-14) is still owed; CI jobs (`vectors`,
 `coverage`, `strings`) still blocked on the Workflows
 permission; device screen-reader + layout confirmation stays
 M4.
+
+### M2.1–M2.2 — DONE (records added in M4.5 from cited evidence; 2026-11-23)
+
+No DONE sections existed in this plan for M2.1–M2.2; their evidence lived
+in `docs/TRACEABILITY.md` rows and in later plan sections (M4 entry report
+§4). These records are docs-only, written from that cited evidence — no work
+was re-done in M4.5.
+
+- **M2.1 `didChangeDependencies` fix (L-01)** — setup init moved to
+  `initState` + guard; rotation/keyboard must not wipe selections. Evidence:
+  probe test `test/zz_probe_test.dart` pins it (setup state retention,
+  M2.1/L-01); M2.14 notes the L-01 bug items were already fixed in earlier
+  milestones (M2.1/M2.5), not re-done.
+- **M2.2 Setup options (H-08)** — player names (1–12 chars, trim, empty →
+  "Player N", duplicates allowed — D-28), per-seat colour picker, ruleset
+  section (curated subset — D-29); validation incl. ≥1 human (FR-14).
+  Evidence: TRACEABILITY UI-02/FR-12–14/FR-41 row, "implemented (partial)";
+  `test/setup_screen_test.dart` (incl. 13th-character behaviour + charset
+  pinning, which M4.1 is to verify behaviourally per entry report §7/D-28).
 
 ### M2.3 — DONE (theme tokens, NFR-08; 2026-11-22)
 
@@ -2725,3 +2811,161 @@ verifiable from this environment; untouched. M2.13's staged
 platform files (`diceup_app/ios/`, `diceup_app/android/`)
 were not touched. No push was made by this worker — manifest
 prepared for the coordinator (see report).
+
+### Premium redesign — DONE (Stages 1–5 + a36eba4c re-sync; 2026-11-23)
+
+Visual / presentation redesign of the existing offline Ludo app, per
+`docs/REDESIGN-PLAN.md` (Stage 1 audit + plan; Stages 2–5 implementation).
+Direction: a quiet, confident game table — deep navy / indigo table
+environment, ivory board and surfaces, restrained gold accents, teal stays
+the action colour. No engine rule change, no AI behaviour/pacing change
+(700–1,199 ms, D-31), no controller/status-string change, no navigation
+change, no new dependency, no sound (D-32), no dark theme, no continue-to-rank
+(D-02), all 32 decisions D-01…D-32 preserved.
+
+- **Stage 2 (design system):** environment palette (navy table field, warm
+  ivory surfaces, restrained gold), deepened player colours, `textSecondary`
+  passing 4.5:1 on both background and `surfaceMuted`, display-numeral +
+  caption styles (no style below 14 sp), radius steps (chips 8, cards 12/16,
+  dialog 16, board frame), `maxContentWidth`, one new `table` shadow token,
+  theme rebuilt from the new tokens (dialogs 16 dp radius + ivory surface),
+  `SectionHeading` / `StatTile` / `DiceUpDialog` components.
+- **Stage 3A (Home + Mode):** brand header + clear Play hierarchy on Home;
+  mode cards visually distinct (teal vs AI, navy for Local), online card
+  stays visibly inert (muted, no chevron, no tap).
+- **Stage 3B (Gameplay):** navy game field, ivory board with frame + table
+  shadow, home-path/start fills raised toward full colour, coherent turn
+  system (banner edge + filled current chip + on-board ring/shape cue),
+  dice row as the action zone (larger rest state, distinct active/inert
+  states, steady teal rollable border — no looping pulse, `pumpAndSettle`
+  constraint), chips as a compact turn strip with "Home n/4", illegal-tap
+  shake kept (~150 ms), board + dice row pinned as the stable first paint.
+- **Stage 3C (Setup / Results / Settings / Statistics / History):** setup
+  grouped into Players / Seats / House rules with a stronger selected-colour
+  state; results restraint + hierarchy (winner's mark staged on a navy field,
+  info as a stat row, "Home n/4" kept); settings/statistics/history same
+  tokens, no reinvention (statistics 2×2 stat grid, "latest 500 matches"
+  caption verbatim). Splash explicitly untouched (spinner/`pumpAndSettle`
+  coupling, M2.10 follow-up).
+- **Stage 5 (verification):** first full run 678 passed / 5 failed (all
+  redesign-caused), fixed with evidence; final verdict GREEN.
+
+**a36eba4c re-sync (REDESIGN-PLAN.md §10).** Remote head moved from
+`19e07264` to `a36eba4c` ("fix(a11y): preserve iOS reduced motion", Anti +
+Copilot, 2026-11-22 20:57 UTC) while the redesign was in flight; the push
+was correctly stopped (pushing the 27-file manifest would have silently
+reverted `a36eba4c` in `game_screen.dart`, `results_screen.dart`,
+`results_screen_test.dart`). `a36eba4c` was merged into staging with both
+sides preserved. **SDK-compat verdict: CLEARED.** `a36eba4c` reads iOS Reduce
+Motion via `WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.reduceMotion`
+(`dart:ui.AccessibilityFeatures.reduceMotion`, in the engine since at least
+3.13.0) — NOT `MediaQueryData.reduceMotion` (the API that broke Anti's
+Windows build). Anti's SDK is 3.47.5 per the `a36eba4c` docs, with analysis
+passing, the two focused test files passing 20/20, and `flutter build apk
+--debug` producing the debug APK on it. Adopted wholesale from `a36eba4c`:
+`lib/core/accessibility/reduced_motion.dart`,
+`test/premium_animation_test.dart` (now 8 tests: the iOS
+`enableReduceMotion()` case added, `disableAnimations` cases kept),
+`docs/IMPLEMENTATION-PLAN.md`, `docs/TRACEABILITY.md`,
+`docs/UI-RESEARCH.md`. Merged (both sides preserved):
+`lib/presentation/screens/game_screen.dart` (observer mixin +
+`didChangeAccessibilityFeatures()` cancelling sequences / stopping the dice
+tumble), `lib/presentation/screens/results_screen.dart` (observer mixin +
+`_confettiSuppressed` + entrance jump + confetti gate),
+`test/results_screen_test.dart` (new test "iOS Reduce Motion skips the
+entrance and confetti").
+
+**Verification (2026-11-23, Flutter 3.50.1 / Dart 3.14.1 in this VM,
+measured):** `dart format` 108 files 0 changed; `flutter analyze` 0 errors /
+0 warnings / 39 infos (baseline unchanged); full `flutter test` **684/684**
+(683 redesign baseline + the 1 genuinely new `a36eba4c` test;
+`premium_animation_test.dart` stays at 7 — `a36eba4c` renamed one test there,
+it did not add one); `test/results_screen_test.dart` standalone 13/13
+including the new test; `tool/check.sh` all gates passed (exit 0: pub get,
+format, analyze `--no-fatal-infos`, full test 684/684, boundaries, strings).
+`flutter build apk --debug` still cannot run in this VM (no Android SDK);
+Anti re-runs it on Windows after the push.
+
+**Push manifest:** `~/workspace/scratch/diceup-push-manifests/redesign-resync-manifest`
+(32 NUL-separated paths: 17 `diceup_app/lib/`, 11 `diceup_app/test/`, 4
+`docs/`). Commit message prepared: "feat(ui): premium game UI/UX redesign —
+navy table, ivory surfaces, gold accents; all screens + design system (incl.
+a36eba4c iOS reduced-motion re-sync)". **Push BLOCKED, not failed:** first
+attempt stopped (head had moved to `a36eba4c`); second attempt's GitHub write
+approval card (presented 04:47 PKT) expired untapped after 30 min (05:17
+PKT) while Anti slept — nothing pushed, remote still `a36eba4c`, sync record
+still 34 entries at `19e07264`. Next step: fresh push attempt with the same
+manifest after re-verifying head is still `a36eba4c`; Anti must tap the card
+within 30 min; then append sync entry 35 manually. M4 fixes, if any, land as
+a separate later push — they are NOT in the 32-file manifest.
+
+**Known residuals from the redesign verification (carried into
+M4-RELEASE-READINESS.md §2, K-01–K-03):** `cacheExtent: 3000` info at
+`offline_setup_screen.dart:451` (info-only; do not migrate to
+`scrollCacheExtent` blindly — SDK floor vs Anti's older SDK unverified);
+Settings duplicate "Sound"/"Vibration" text (screen-reader double
+announcement; needs a copy decision); `mode_selection_screen.dart` has no
+`SafeArea` (cosmetic). Device verification outstanding; VM test-runner
+fragility (run suites sequentially).
+
+## 9. M4 — Final verification, stabilisation & release readiness
+
+### M4 entry — CONDITIONAL (2026-11-23; docs/M4-ENTRY-REPORT.md, 481 lines)
+
+Step 1 read-only entry audit, 2026-11-23 ~02:45–03:00 PKT. Verdict:
+**CONDITIONAL — do not start M4.1–M4.5 until Anti decides sequencing.**
+M0–M3 substance evidenced; but the staging tree was one commit behind remote
+HEAD (`a36eba4c` not yet synced) and the redesign was rewriting the
+presentation layer, so verification passes would have measured a moving
+baseline. **Anti chose Option B** (redesign finishes → re-sync staging to
+remote head `a36eba4c` → freeze baseline → run M4 once). Executed: the
+redesign finished and the re-sync is done (see Premium redesign above).
+Entry-gate items E-01 (behind remote HEAD) and E-02 (moving baseline) are
+therefore resolved; E-03 (stale PR #1 body) remains — refresh at the next
+review point. E-04 (helper comment) is resolved by the merge: the merged
+`reduced_motion.dart` comment names the dart:ui route. E-05 (FR-40 doc
+correction: `ai_player.dart:22` still says 600–1,200 ms; implemented delay
+is 700–1,199 ms per D-31) is recorded in TRACEABILITY.md; the code-comment
+fix itself is a code edit for the M4 fix pass, not a docs edit. E-07
+(`releaseOnSix` riding on the engine default), E-08 (suite/vector-count
+inconsistencies — vectors corrected 25 → 26 in M4.5 by file read; boundaries
+12 per script vs "13/13" in the redesign final-report summary still
+unreconciled, M4.4 to confirm), E-09 (M3.10 exclusions — OD-M4-08), E-10
+(explicit must-move case), E-11 (this section + the M1.1–M1.6 / M2.1–M2.2 /
+M3.1–M3.2 records above), E-12 (D-08 remediation residuals) are carried
+into M4-RELEASE-READINESS.md §5/§6.
+
+### M4.1–M4.4 — running (M4 coordinator)
+
+M4.1 functional verification (incl. the NFR-12 1,000-match simulation —
+blocked on OD-M4-01; D-01 re-verification — OD-M4-02 "14" clarification
+outstanding; explicit must-move case; `releaseOnSix` pinning), M4.2
+persistence/recovery verification (incl. OD-M4-03 `fromState`
+custom-ruleset), M4.3 device/UI/accessibility/performance verification
+(needs Anti + OPPO F9 + a named iPhone reference device — OD-M4-04), and
+M4.4 quality verification (full suite + coverage re-run on the frozen
+baseline; reconcile the boundaries count) are being run by the M4
+coordinator at the time of writing. Their results are recorded in their own
+deliverables, not in this section.
+
+### M4.5 — DONE (release-readiness + documentation; 2026-11-23)
+
+This worker. Deliverables: `docs/M4-RELEASE-READINESS.md` (new — the §9.5/§13
+release checklist, 68 items: 47 verified · 18 pending · 3 blocked; verdict
+**NOT RELEASE-READY on current evidence**), `docs/TRACEABILITY.md` (surgical
+updates — see M4-RELEASE-READINESS.md §4), and this plan (surgical updates —
+the M1.1–M1.6 / M2.1–M2.2 / M3.1–M3.2 records, the Premium redesign section,
+and this §9). No code edited, no test/build/commit/push/merge run. No SRS/SDD
+baseline version changed. Nothing marked complete without evidence.
+
+**What remains for a release (summary; detail in M4-RELEASE-READINESS.md):**
+Android debug + release builds for the current tree (pending — no Android SDK
+in this VM, Anti's Windows step); first iOS build (pending — no macOS/Xcode in
+this VM, D-18); app size ≤100 MB (pending — no APK to measure); NFR-12
+simulation (blocked — OD-M4-01 decision); airplane-mode device pass and all
+device measurements (pending — M4.3, Anti + devices); CI execution (blocked —
+GitHub App lacks Workflows: Read and write, 403; do not bypass); the push
+itself (blocked — needs Anti awake to tap the approval card within 30 min);
+PR #1 body refresh (pending — Anti's review). PR #1 stays open / draft /
+unmerged; Anti merges it himself after personal review (D-19). M4 completion
+does not authorize merging PR #1.

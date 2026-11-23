@@ -22,15 +22,42 @@ abstract final class DiceUpSpacing {
   /// Minimum touch-target size (SRS NFR-08).
   static const double minTouchTarget = 48;
 
-  // Border radii.
+  /// Maximum content width for centred-column layouts at >= 600 dp
+  /// widths (tablets portrait, REDESIGN-PLAN.md §4/§5): cards and
+  /// the board column centre inside this width instead of stretching
+  /// full-width. The board itself still caps at 480 dp.
+  static const double maxContentWidth = 560;
+
+  // Border radii (redesign Stage 2: the full 8/12/16 steps, so
+  // dialogs, chips and the board frame stop improvising).
+  /// Small radius: chips, small controls.
+  static const double radiusSm = 8;
+
   static const double radiusMd = 12;
   static const double radiusLg = 16;
 
+  /// Dialog radius: matches the card system (16 dp), so dialogs stop
+  /// looking stock next to 16 dp cards (F7).
+  static const double radiusDialog = 16;
+
+  /// Board-frame radius: the rounded outer edge of the board as an
+  /// object on the table field.
+  static const double radiusBoard = 20;
+
+  static const BorderRadius radiusSmBorder = BorderRadius.all(
+    Radius.circular(radiusSm),
+  );
   static const BorderRadius radiusMdBorder = BorderRadius.all(
     Radius.circular(radiusMd),
   );
   static const BorderRadius radiusLgBorder = BorderRadius.all(
     Radius.circular(radiusLg),
+  );
+  static const BorderRadius radiusDialogBorder = BorderRadius.all(
+    Radius.circular(radiusDialog),
+  );
+  static const BorderRadius radiusBoardBorder = BorderRadius.all(
+    Radius.circular(radiusBoard),
   );
 
   // Common paddings.

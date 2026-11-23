@@ -188,18 +188,22 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
-/// Layout (M2.12, NFR-09): on short screens (viewport height
+/// Layout (M2.12, NFR-09; Stage 2 redesign, F8): on short screens (viewport height
 /// < 600 dp — the 320x568 worst case) the chrome around the board
 /// compacts so the board + dice row + Roll button are visible at
 /// first paint without scrolling: the turn banner uses tighter
 /// card padding and a smaller avatar (its status then wraps to two
 /// lines instead of three), the gaps above/below the board shrink
-/// from 16 to 8 dp, and the dice renders at 56 dp instead of 64 dp
+/// from 16 to 4 dp, and the dice renders at 56 dp instead of 64 dp
 /// (still above the 48 dp control minimum). Nothing else changes
 /// — the board side keeps its width rule ([_boardSide]: 280 dp at
 /// 320 dp wide, the plan §6.1 criterion) and the column padding is
 /// untouched. Taller screens render the full layout exactly as
-/// before, dice at 64 dp.
+/// before, dice at 64 dp. Since Stage 2 the board + dice row are
+/// pinned at the top of a fixed column (only the player chips +
+/// safe-cells hint below them scroll), and the board side is also
+/// height-aware so the dice row stays above the fold on short/wide
+/// viewports.
 class _GameScreenState extends ConsumerState<GameScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   /// The provider-owned controller this screen observes. Set in
@@ -1198,9 +1202,13 @@ class _GameScreenState extends ConsumerState<GameScreen>
   /// plain dismissal) resumes it, Restart/Exit ask confirmation
   /// and resume it when cancelled, and a confirmed Restart/Exit
   /// acts and never resumes afterwards. The menu is a dialog, not
-  /// a bottom sheet — the same [AlertDialog] shape as the
-  /// confirmation dialogs, so the 48 dp action buttons and the
-  /// back-button behaviour match the rest of the app.
+  /// a bottom sheet — the [DiceUpDialog] shell (Stage 2 redesign,
+  /// §3.5: ivory surface, 16 dp radius, Resume as the single
+  /// primary action, Restart/Main Menu as quiet secondary actions)
+  /// — so the 48 dp action buttons and the back-button behaviour
+  /// match the rest of the app. The menu also shows the current
+  /// standings (display of existing state only, no new data) — the
+  /// one place a player can read without time pressure.
   Future<void> _showPauseMenu() async {
     final controller = _controller;
     if (controller == null ||
@@ -1212,27 +1220,68 @@ class _GameScreenState extends ConsumerState<GameScreen>
     _pauseMenuOpen = true;
     controller.pause();
     final l10n = stringsOf(context);
-    final choice = await showDialog<_PauseChoice>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.gamePausedTitle),
-        content: Text(l10n.gamePausedMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_PauseChoice.exit),
-            child: Text(l10n.mainMenu),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_PauseChoice.restart),
-            child: Text(l10n.gamePauseRestart),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(_PauseChoice.resume),
-            child: Text(l10n.gamePauseResume),
-          ),
+    final players = controller.state.players;
+    final currentIndex = controller.state.currentPlayerIndex;
+    final choice = await DiceUpDialog.show<_PauseChoice>(
+      context,
+      title: l10n.gamePausedTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.gamePausedMessage),
+          const SizedBox(height: DiceUpSpacing.md),
+          for (final player in players)
+            Padding(
+              padding: const EdgeInsets.only(bottom: DiceUpSpacing.xs),
+              child: Row(
+                children: [
+                  PlayerAvatar(
+                    name: player.name,
+                    seatIndex: player.index,
+                    colour: player.colour,
+                    radius: 12,
+                  ),
+                  const SizedBox(width: DiceUpSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      // gen-l10n orders the positional parameters
+                      // alphabetically (home, name), not in message
+                      // order.
+                      stringsOf(context)
+                          .gamePlayerHome(player.tokensHome, player.name),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // The current player's shape marker: the turn
+                  // cue in the standings, shape + colour, never
+                  // colour alone.
+                  if (player.index == currentIndex)
+                    PlayerShapeMarker(
+                      shape: PlayerShape.forSeat(player.index),
+                      color: DiceUpColors.forColour(player.colour),
+                      size: 14,
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_PauseChoice.exit),
+          child: Text(l10n.mainMenu),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_PauseChoice.restart),
+          child: Text(l10n.gamePauseRestart),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(_PauseChoice.resume),
+          child: Text(l10n.gamePauseResume),
+        ),
+      ],
     );
     _pauseMenuOpen = false;
     if (!mounted) return;
@@ -1389,6 +1438,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
         unawaited(_showPauseMenu());
       },
       child: Scaffold(
+        // Stage 2 redesign (§3.4, F1/F2): the game screen sits on
+        // the deep navy `table` field, so the ivory board and the
+        // four player colours read as objects on a table. The
+        // AppBar keeps the theme navy; the field is an
+        // environment, not a dark theme.
+        backgroundColor: DiceUpColors.table,
         appBar: AppBar(
           title: Text(l10n.appName),
           leading: IconButton(
@@ -1398,167 +1453,272 @@ class _GameScreenState extends ConsumerState<GameScreen>
           ),
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: DiceUpSpacing.screenPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _TurnBanner(
-                  player: current,
-                  status: controller.status,
-                  compact: isShortScreen,
-                ),
-                SizedBox(
-                  height: isShortScreen ? DiceUpSpacing.xs : DiceUpSpacing.md,
-                ),
-                Center(
-                  child: Semantics(
-                    label: boardLabel,
-                    child: GestureDetector(
-                      onTapDown: (details) => _onBoardTap(details, boardSide),
-                      // The board repaints on its own (M2.7): the
-                      // pulse, steps, capture, ring fade and shake
-                      // animate inside the [RepaintBoundary], so a
-                      // tick repaints the board and nothing else.
-                      // The painted board itself contributes no
-                      // semantics nodes (CustomPaint draws, it does
-                      // not label) — the Semantics wrapper above is
-                      // the board's only node, so nothing decorative
-                      // leaks through. The board carries the raised
-                      // shadow token (M3 premium, §2.7.4).
-                      child: RepaintBoundary(
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            boxShadow: DiceUpShadows.raised,
-                          ),
-                          child: SizedBox(
-                            width: boardSide,
-                            height: boardSide,
-                            child: AnimatedBuilder(
-                              animation: _boardAnimation,
-                              builder: (context, _) => CustomPaint(
-                                painter: LudoBoardPainter(
-                                  tokens: _boardTokens(),
-                                  legalTokenIds: controller.legalMoves
-                                      .map(
-                                        (m) =>
-                                            '${m.playerIndex}:${m.tokenIndex}',
-                                      )
-                                      .toSet(),
-                                  currentSeat: state.currentPlayerIndex,
-                                  pulse: _pulseValue,
-                                  hopTokenId: _stepTokenId,
-                                  hopCenter: _stepCenter,
-                                  hopScale: _stepScale,
-                                  captureTokenId: _captureActive
-                                      ? _captureTokenId
-                                      : null,
-                                  captureCenter: _captureCenter,
-                                  captureScale: _captureScale,
-                                  captureOpacity: _captureOpacity,
-                                  lastMovedTokenId: _lastMovedTokenId,
-                                  lastMovedOpacity: _lastMovedOpacity,
-                                  shakeTokenId: _shakeTokenId,
-                                  shakeOffset: _shakeOffset,
+          // Pinned first paint (Stage 2, F8): the board + dice
+          // row are the stable top of a fixed column — the whole
+          // column no longer scrolls the board away. Only the
+          // player chips + safe-cells hint below the dice row
+          // scroll, in their own [Expanded] area. The column is
+          // centred in a [DiceUpSpacing.maxContentWidth] column
+          // on wide screens, and the board side is height-aware
+          // ([_boardSide]) so the dice row stays above the fold
+          // even on short/wide viewports (e.g. 800x600).
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final contentWidth = constraints.maxWidth > 560
+                  ? 560.0
+                  : constraints.maxWidth;
+              return Center(
+                child: SizedBox(
+                  width: contentWidth,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: DiceUpSpacing.md,
+                      vertical: isShortScreen
+                          ? DiceUpSpacing.xxs
+                          : DiceUpSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _TurnBanner(
+                          player: current,
+                          status: controller.status,
+                          compact: isShortScreen,
+                        ),
+                        SizedBox(
+                          height: isShortScreen
+                              ? DiceUpSpacing.xxs
+                              : DiceUpSpacing.sm,
+                        ),
+                        Center(
+                          child: Semantics(
+                            label: boardLabel,
+                            child: GestureDetector(
+                              onTapDown: (details) =>
+                                  _onBoardTap(details, boardSide),
+                              // The board repaints on its own (M2.7): the
+                              // pulse, steps, capture, ring fade and shake
+                              // animate inside the [RepaintBoundary], so a
+                              // tick repaints the board and nothing else.
+                              // The painted board itself contributes no
+                              // semantics nodes (CustomPaint draws, it does
+                              // not label) — the Semantics wrapper above is
+                              // the board's only node, so nothing decorative
+                              // leaks through. The board sits in an ivory
+                              // frame (Stage 2, F2: radiusBoard + the
+                              // `table` shadow) so it reads as a physical
+                              // object on the navy field.
+                              child: RepaintBoundary(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius:
+                                        DiceUpSpacing.radiusBoardBorder,
+                                    border: Border.all(
+                                      color: DiceUpColors.ivory,
+                                      width: 2,
+                                    ),
+                                    boxShadow: DiceUpShadows.table,
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: DiceUpSpacing.radiusLgBorder,
+                                    child: SizedBox(
+                                      width: boardSide,
+                                      height: boardSide,
+                                      child: AnimatedBuilder(
+                                        animation: _boardAnimation,
+                                        builder: (context, _) => CustomPaint(
+                                          painter: LudoBoardPainter(
+                                            tokens: _boardTokens(),
+                                            legalTokenIds: controller.legalMoves
+                                                .map(
+                                                  (m) =>
+                                                      '${m.playerIndex}:${m.tokenIndex}',
+                                                )
+                                                .toSet(),
+                                            currentSeat:
+                                                state.currentPlayerIndex,
+                                            pulse: _pulseValue,
+                                            hopTokenId: _stepTokenId,
+                                            hopCenter: _stepCenter,
+                                            hopScale: _stepScale,
+                                            captureTokenId: _captureActive
+                                                ? _captureTokenId
+                                                : null,
+                                            captureCenter: _captureCenter,
+                                            captureScale: _captureScale,
+                                            captureOpacity: _captureOpacity,
+                                            lastMovedTokenId: _lastMovedTokenId,
+                                            lastMovedOpacity: _lastMovedOpacity,
+                                            shakeTokenId: _shakeTokenId,
+                                            shakeOffset: _shakeOffset,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
+                        SizedBox(
+                          height: isShortScreen
+                              ? DiceUpSpacing.xxs
+                              : DiceUpSpacing.sm,
+                        ),
+                        // The dice row is the action zone (Stage 2,
+                        // F4): the dice and the single primary Roll
+                        // action sit together on an ivory tray, so
+                        // the rollable dice + Roll button read as
+                        // one action, not two equal affordances.
+                        Center(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isShortScreen
+                                  ? DiceUpSpacing.xs
+                                  : DiceUpSpacing.md,
+                              vertical: DiceUpSpacing.xxs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: DiceUpColors.surface,
+                              borderRadius: DiceUpSpacing.radiusLgBorder,
+                              border: Border.all(color: DiceUpColors.border),
+                              boxShadow: DiceUpShadows.raised,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // The dice face comes from the tumble while
+                                // rolling (M2.7) — or stays frozen at the
+                                // pre-roll face under reduced motion (M3,
+                                // §2.7.1); once the roll settles the dice
+                                // shows the engine value. The dice is
+                                // tappable (M2.8): tapping it rolls exactly
+                                // as the Roll button does, under the same
+                                // guards — and a tap that cannot roll gets
+                                // brief feedback instead of silence. The
+                                // wind-up / shake / settle motion (M3,
+                                // §2.4) and the illegal-tap shake (M3,
+                                // §2.5.4) are transforms around the dice
+                                // widget itself, so the widget is untouched.
+                                AnimatedBuilder(
+                                  animation: _diceAnimation,
+                                  builder: (context, _) {
+                                    final reduced = isReducedMotion(context);
+                                    final motion = reduced
+                                        ? (
+                                            scale: 1.0,
+                                            rotation: 0.0,
+                                            translate: Offset.zero,
+                                          )
+                                        : _diceMotion();
+                                    final shake = _shakeDice
+                                        ? _shakeOffset
+                                        : Offset.zero;
+                                    return Transform.translate(
+                                      offset: motion.translate + shake,
+                                      child: Transform.rotate(
+                                        angle: motion.rotation,
+                                        child: Transform.scale(
+                                          scale: motion.scale,
+                                          child: DiceWidget(
+                                            value: _diceFace,
+                                            // Short screens (M2.12): 56 dp dice, still
+                                            // above the 48 dp control minimum.
+                                            size: isShortScreen ? 56 : 64,
+                                            rolling:
+                                                controller.rolling && !reduced,
+                                            enabled: canRoll,
+                                            onTap: _onDiceTap,
+                                            showRollableBorder: canRoll,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                SizedBox(
+                                  width: isShortScreen
+                                      ? DiceUpSpacing.sm
+                                      : DiceUpSpacing.md,
+                                ),
+                                PrimaryButton(
+                                  label: controller.rolling
+                                      ? l10n.gameRolling
+                                      : l10n.gameRollDice,
+                                  onPressed: canRoll
+                                      ? controller.rollDice
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: isShortScreen
+                              ? DiceUpSpacing.xxs
+                              : DiceUpSpacing.xs,
+                        ),
+                        // Player chips + hint scroll below the dice
+                        // row when they cannot fit (Stage 2, F8):
+                        // the board and dice row never scroll away.
+                        // The safe-cells hint lives here, below the
+                        // fold on short screens — reference text,
+                        // not first-paint gameplay. White text on
+                        // the navy field (the theme's bodySmall is
+                        // slate-on-light and would be unreadable
+                        // here).
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Wrap(
+                                  spacing: DiceUpSpacing.sm,
+                                  runSpacing: DiceUpSpacing.sm,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    for (final player in state.players)
+                                      _PlayerChip(
+                                        player: player,
+                                        isCurrent:
+                                            player.index ==
+                                            state.currentPlayerIndex,
+                                        // AI thinking (M3 premium, Q10): the
+                                        // three-dot pulse in the current AI
+                                        // player's chip is the primary "the game
+                                        // has not stalled" indicator — the banner
+                                        // spinner is gone.
+                                        thinking:
+                                            player.index ==
+                                                state.currentPlayerIndex &&
+                                            _isAiThinking(controller),
+                                        thinkingPulse: _pulseValue,
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: DiceUpSpacing.sm),
+                                Text(
+                                  l10n.gameSafeCellsHint,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.white,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: DiceUpSpacing.xs),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: isShortScreen ? DiceUpSpacing.xs : DiceUpSpacing.md,
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // The dice face comes from the tumble while
-                    // rolling (M2.7) — or stays frozen at the
-                    // pre-roll face under reduced motion (M3, §2.7.1);
-                    // once the roll settles the dice shows the engine
-                    // value. The dice is tappable (M2.8): tapping it
-                    // rolls exactly as the Roll button does, under
-                    // the same guards — and a tap that cannot roll
-                    // gets brief feedback instead of silence. The
-                    // wind-up / shake / settle motion (M3, §2.4)
-                    // and the illegal-tap shake (M3, §2.5.4) are
-                    // transforms around the dice widget itself, so
-                    // the widget is untouched.
-                    AnimatedBuilder(
-                      animation: _diceAnimation,
-                      builder: (context, _) {
-                        final reduced = isReducedMotion(context);
-                        final motion = reduced
-                            ? (
-                                scale: 1.0,
-                                rotation: 0.0,
-                                translate: Offset.zero,
-                              )
-                            : _diceMotion();
-                        final shake = _shakeDice ? _shakeOffset : Offset.zero;
-                        return Transform.translate(
-                          offset: motion.translate + shake,
-                          child: Transform.rotate(
-                            angle: motion.rotation,
-                            child: Transform.scale(
-                              scale: motion.scale,
-                              child: DiceWidget(
-                                value: _diceFace,
-                                // Short screens (M2.12): 56 dp dice, still
-                                // above the 48 dp control minimum.
-                                size: isShortScreen ? 56 : 64,
-                                rolling: controller.rolling && !reduced,
-                                enabled: canRoll,
-                                onTap: _onDiceTap,
-                                showRollableBorder: canRoll,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: DiceUpSpacing.lg),
-                    PrimaryButton(
-                      label: controller.rolling
-                          ? l10n.gameRolling
-                          : l10n.gameRollDice,
-                      onPressed: canRoll ? controller.rollDice : null,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: DiceUpSpacing.md),
-                Wrap(
-                  spacing: DiceUpSpacing.sm,
-                  runSpacing: DiceUpSpacing.sm,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    for (final player in state.players)
-                      _PlayerChip(
-                        player: player,
-                        isCurrent: player.index == state.currentPlayerIndex,
-                        // AI thinking (M3 premium, Q10): the
-                        // three-dot pulse in the current AI
-                        // player's chip is the primary "the game
-                        // has not stalled" indicator — the banner
-                        // spinner is gone.
-                        thinking:
-                            player.index == state.currentPlayerIndex &&
-                            _isAiThinking(controller),
-                        thinkingPulse: _pulseValue,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: DiceUpSpacing.sm),
-                Text(
-                  l10n.gameSafeCellsHint,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
@@ -1566,11 +1726,26 @@ class _GameScreenState extends ConsumerState<GameScreen>
   }
 
   double _boardSide(BuildContext context) {
+    final media = MediaQuery.of(context);
     final width =
-        MediaQuery.of(context).size.width -
+        media.size.width -
         DiceUpSpacing.md * 2 -
         DiceUpSpacing.md; // screen + safe-area padding
-    return width.clamp(280.0, 480.0);
+    final widthSide = width.clamp(280.0, 480.0);
+    // Height-aware (Stage 2, F8): on short or wide viewports the
+    // width rule alone would push the dice row below the fold
+    // (e.g. a 480 dp board at 800x600). The reserve covers the
+    // AppBar + banner + dice tray + gaps/padding, so the board
+    // shrinks instead of the dice row scrolling away; on phones
+    // the width rule still binds, so the pinned sizes in
+    // `test/layout_320_test.dart` are unchanged. The reserve is
+    // smaller on short screens (compact banner/tray/gaps, 272)
+    // than on tall ones (328): at 360x640 the tall reserve still
+    // leaves the pinned 312 dp board, while at 800x600 it leaves
+    // a 272 dp board and the dice row above the fold.
+    final isShort = media.size.height < 600;
+    final heightSide = media.size.height - (isShort ? 272 : 328);
+    return math.min(widthSide, heightSide).clamp(240.0, 480.0).toDouble();
   }
 }
 
@@ -1607,39 +1782,74 @@ class _TurnBanner extends StatelessWidget {
     // actions ("Green (AI) rolled 4, …"). A spinner that outlives
     // its turn reads as a bug; the dots stop the moment the AI acts.
     final l10n = stringsOf(context);
+    // Stage 2 turn system (F3): the banner is the turn banner,
+    // not a generic card. A 6 dp accent bar in the current
+    // player's full colour runs down its left edge — the same
+    // colour as the avatar ring — so the banner, the yard glow
+    // and the chip turn badge all answer "whose turn" together.
+    // The bar is never the lone cue: the avatar (white disc, navy
+    // initial, colour ring, shape marker — D-27) and the name
+    // carry the identity with it.
+    final accent = DiceUpColors.forColour(player.colour);
     return Semantics(
       label: l10n.gameTurnBanner(player.name),
-      child: DiceUpCard(
-        padding: compact
-            ? const EdgeInsets.symmetric(
-                horizontal: DiceUpSpacing.md,
-                vertical: DiceUpSpacing.xs,
-              )
-            : DiceUpSpacing.cardPadding,
-        child: Row(
-          children: [
-            PlayerAvatar(
-              name: player.name,
-              seatIndex: player.index,
-              // The ring follows the player's *chosen* colour (M2.2),
-              // not the seat-order colour — after a swap they differ.
-              colour: player.colour,
-              radius: compact ? 16 : 20,
-            ),
-            SizedBox(width: compact ? DiceUpSpacing.sm : DiceUpSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    player.isAi ? l10n.playerWithAi(player.name) : player.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  Text(status, style: Theme.of(context).textTheme.bodyMedium),
-                ],
+      // M2.9: the children stay separate nodes (see the note
+      // above). Without `explicitChildNodes` the framework merges
+      // the avatar label, name and status into this node's label
+      // ("<name>'s turn\n<avatar label>\n<name>\n<status>"), so the
+      // exact "<name>'s turn" node the banner is announced as
+      // disappears.
+      explicitChildNodes: true,
+      // Stage 4 polish: the accent bar crossfades to the new
+      // player's colour on a turn change (200 ms, instant under
+      // reduced motion) instead of snapping — the banner visibly
+      // hands over. The avatar, name and status still carry the
+      // identity with it; the bar is never the lone cue.
+      child: AnimatedContainer(
+        duration: isReducedMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: DiceUpColors.surface,
+          borderRadius: DiceUpSpacing.radiusLgBorder,
+          border: Border(left: BorderSide(color: accent, width: 6)),
+          boxShadow: DiceUpShadows.raised,
+        ),
+        child: Padding(
+          padding: compact
+              ? const EdgeInsets.symmetric(
+                  horizontal: DiceUpSpacing.md,
+                  vertical: DiceUpSpacing.xxs,
+                )
+              : DiceUpSpacing.cardPadding,
+          child: Row(
+            children: [
+              PlayerAvatar(
+                name: player.name,
+                seatIndex: player.index,
+                // The ring follows the player's *chosen* colour (M2.2),
+                // not the seat-order colour — after a swap they differ.
+                colour: player.colour,
+                radius: compact ? 16 : 20,
               ),
-            ),
-          ],
+              SizedBox(width: compact ? DiceUpSpacing.sm : DiceUpSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      player.isAi
+                          ? l10n.playerWithAi(player.name)
+                          : player.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(status, style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1667,19 +1877,38 @@ class _PlayerChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // Stage 2 turn system (F3): the current chip is unmistakable
+    // at a glance. It sits on the ivory surface with a 2.5 dp
+    // border in the player's full colour, a raised shadow, and a
+    // teal turn badge carrying the player's shape in white — so
+    // the current seat is marked by border + badge + shape, never
+    // by colour alone (yellow's border is 2.38:1 on ivory and
+    // would fail as a lone cue). Other chips stay on the muted
+    // ivory surface with a thin neutral border.
+    final playerColour = DiceUpColors.forColour(player.colour);
+    // Stage 4 polish: the current-state treatment (player-colour
+    // border, raised shadow, ivory surface) crossfades in/out on
+    // a turn change (200 ms, instant under reduced motion)
+    // instead of snapping — the strip visibly hands the turn over.
+    // Border + badge + shape still mark the current seat together,
+    // never colour alone.
+    return AnimatedContainer(
+      duration: isReducedMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
       padding: const EdgeInsets.symmetric(
         horizontal: DiceUpSpacing.sm,
         vertical: DiceUpSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: isCurrent
-            ? DiceUpColors.teal.withValues(alpha: 0.12)
-            : DiceUpColors.surfaceMuted,
+        color: isCurrent ? DiceUpColors.surface : DiceUpColors.surfaceMuted,
         borderRadius: DiceUpSpacing.radiusMdBorder,
         border: Border.all(
-          color: isCurrent ? DiceUpColors.teal : DiceUpColors.border,
+          color: isCurrent ? playerColour : DiceUpColors.border,
+          width: isCurrent ? 2.5 : 1,
         ),
+        boxShadow: isCurrent ? DiceUpShadows.raised : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1703,6 +1932,28 @@ class _PlayerChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (isCurrent) ...[
+            const SizedBox(width: DiceUpSpacing.xs),
+            // Turn badge: the player's shape in white on teal —
+            // the action colour, shared with the banner accent,
+            // the yard glow and the on-board token ring.
+            ExcludeSemantics(
+              child: Container(
+                width: 20,
+                height: 20,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: DiceUpColors.teal,
+                  borderRadius: DiceUpSpacing.radiusSmBorder,
+                ),
+                child: PlayerShapeMarker(
+                  shape: PlayerShape.forSeat(player.index),
+                  color: Colors.white,
+                  size: 12,
+                ),
+              ),
+            ),
+          ],
           if (thinking) ...[
             const SizedBox(width: DiceUpSpacing.xs),
             // Decorative only: the status line already narrates the

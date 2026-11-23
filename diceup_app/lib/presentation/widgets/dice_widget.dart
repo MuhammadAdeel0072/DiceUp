@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/accessibility/reduced_motion.dart';
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_shadows.dart';
+import '../../core/design_system/diceup_spacing.dart';
 import '../../l10n/app_strings.dart';
 
 /// A dice face drawn with widgets — no image asset, no emoji.
@@ -63,16 +65,17 @@ class DiceWidget extends StatelessWidget {
   /// Null renders a plain, untappable dice.
   final VoidCallback? onTap;
 
-  /// Rollable affordance (M3 premium, research §2.4.4): when a
-  /// roll is available the dice carries a teal border, so the dice
-  /// has a visible "your turn" state that does not depend on
-  /// reading the banner. It is a steady border, not an oscillating
-  /// one: an oscillating border needs a continuously repeating
-  /// ticker, and a running ticker makes `pumpAndSettle` (which the
-  /// game-screen suite uses throughout) never terminate — the same
-  /// reason the legal-move pulse is one-shot (see game_screen).
-  /// A slow repeating border is the named revisit if the harness
-  /// ever moves off `pumpAndSettle`.
+  /// Rollable affordance (M3 premium, research §2.4.4; restyled
+  /// in the Stage 2 redesign, F4): when a roll is available the
+  /// dice carries a 2.5 dp teal border and the lifted shadow, so
+  /// the dice has a visible "your turn" state that does not depend
+  /// on reading the banner. It is a steady border, not an
+  /// oscillating one: an oscillating border needs a continuously
+  /// repeating ticker, and a running ticker makes `pumpAndSettle`
+  /// (which the game-screen suite uses throughout) never
+  /// terminate — the same reason the legal-move pulse is one-shot
+  /// (see game_screen). A slow repeating border is the named
+  /// revisit if the harness ever moves off `pumpAndSettle`.
   final bool showRollableBorder;
 
   static const _pipLayouts = <int, List<Alignment>>{
@@ -105,23 +108,49 @@ class DiceWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pips = value == null ? const <Alignment>[] : _pipLayouts[value]!;
+    // Dice states (Stage 2 redesign, F4): the dice must feel
+    // rollable from its rest state alone — no looping pulse is
+    // allowed (a repeating ticker breaks `pumpAndSettle`, see the
+    // [showRollableBorder] doc), so the states themselves carry
+    // the meaning. Rollable: white face, lifted shadow, 2.5 dp
+    // teal border. Rolling: the same lifted treatment at 0.6
+    // opacity while the tumble runs. Inert: a muted ivory face,
+    // the raised shadow and a thin border at 0.45 opacity — flat
+    // and clearly not tappable, never a dimmed teal that could
+    // read as "almost rollable".
+    final rollable = showRollableBorder && !rolling;
     final dice = AnimatedOpacity(
       // Rolling dims the dice while the tumble runs; a dice that
       // cannot be rolled right now (AI turn, paused, finished) is
       // dimmed further so it reads as disabled, not tappable.
       opacity: rolling ? 0.6 : (enabled ? 1.0 : 0.45),
       duration: const Duration(milliseconds: 120),
-      child: Container(
+      // Stage 4 polish: the face itself crossfades between its
+      // states (border width/colour, shadow, face colour) instead
+      // of snapping when the turn changes — the dice visibly
+      // settles into "your turn" or "not yours". 150 ms, inside
+      // the 100–250 ms UI-feedback budget; instant under reduced
+      // motion. The 540 ms tumble budget and the steady (never
+      // oscillating) rollable border are untouched.
+      child: AnimatedContainer(
+        duration: isReducedMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(size * 0.18),
+          color: enabled || rolling ? Colors.white : DiceUpColors.surfaceMuted,
+          borderRadius: DiceUpSpacing.radiusMdBorder,
           border: Border.all(
-            color: showRollableBorder ? DiceUpColors.teal : DiceUpColors.border,
-            width: showRollableBorder ? 2.0 : 1.5,
+            color: rollable || rolling
+                ? DiceUpColors.teal
+                : DiceUpColors.border,
+            width: rollable ? 2.5 : 1.5,
           ),
-          boxShadow: DiceUpShadows.raised,
+          boxShadow: rollable || rolling
+              ? DiceUpShadows.lifted
+              : DiceUpShadows.raised,
         ),
         child: Stack(
           children: pips

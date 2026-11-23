@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:diceup/l10n/app_localizations.dart';
 
+import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
+import '../../core/design_system/diceup_typography.dart';
 import '../../domain/repositories/local_match_repository.dart';
 import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
@@ -87,108 +89,176 @@ class _HistoryScreenState extends State<HistoryScreen> {
         hint: l10n.historyEmptyHint,
       );
     }
-    return ListView.separated(
-      padding: DiceUpSpacing.screenPadding,
-      itemCount: matches.length,
-      separatorBuilder: (_, _) => const SizedBox(height: DiceUpSpacing.sm),
-      itemBuilder: (context, index) {
-        final match = matches[index];
-        final winner = match.winnerName;
-        return DiceUpCard(
-          onTap: () => _showDetail(match),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: DiceUpSpacing.maxContentWidth,
+          ),
+          child: ListView.separated(
+            padding: DiceUpSpacing.screenPadding,
+            itemCount: matches.length,
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: DiceUpSpacing.sm),
+            itemBuilder: (context, index) {
+              final match = matches[index];
+              final winner = match.winner;
+              return DiceUpCard(
+                onTap: () => _showDetail(match),
+                child: Row(
                   children: [
-                    Text(
-                      winner == null
-                          ? l10n.historyMatchFinished(
-                              _modeLabel(match.mode, l10n),
-                            )
-                          : l10n.historyMatchWon(
-                              _modeLabel(match.mode, l10n),
-                              winner,
-                            ),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: DiceUpSpacing.xxs),
-                    Text(
-                      l10n.historyMatchLine(
-                        _formatDate(match.playedAt, l10n),
-                        _formatDuration(match.durationSeconds, l10n),
-                        match.playerCount == 1
-                            ? l10n.playersCountOne
-                            : l10n.playersCountOther(match.playerCount),
+                    // Winner avatar (D-27 white disc): the winner is
+                    // recognisable by name, colour ring and shape,
+                    // never by colour alone. A match with no winner
+                    // keeps a neutral placeholder so rows align.
+                    if (winner != null)
+                      PlayerAvatar(
+                        name: winner.name,
+                        seatIndex: match.winnerIndex!,
+                        colour: winner.colour,
+                      )
+                    else
+                      Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: DiceUpColors.border,
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.person_outline,
+                          size: 20,
+                          color: DiceUpColors.textSecondary,
+                        ),
                       ),
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    const SizedBox(width: DiceUpSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            winner == null
+                                ? l10n.historyMatchFinished(
+                                    _modeLabel(match.mode, l10n),
+                                  )
+                                : l10n.historyMatchWon(
+                                    _modeLabel(match.mode, l10n),
+                                    winner.name,
+                                  ),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: DiceUpSpacing.xxs),
+                          Text(
+                            l10n.historyMatchLine(
+                              _formatDate(match.playedAt, l10n),
+                              _formatDuration(match.durationSeconds, l10n),
+                              match.playerCount == 1
+                                  ? l10n.playersCountOne
+                                  : l10n.playersCountOther(match.playerCount),
+                            ),
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: DiceUpSpacing.sm),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DiceUpSpacing.xs,
+                        vertical: DiceUpSpacing.xxs,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: DiceUpColors.surfaceMuted,
+                        borderRadius: DiceUpSpacing.radiusSmBorder,
+                      ),
+                      child: Text(
+                        l10n.historyLocalBadge,
+                        style: DiceUpTypography.caption,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: DiceUpSpacing.sm),
-              Text(
-                l10n.historyLocalBadge,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
   Future<void> _showDetail(LocalMatch match) async {
     final l10n = stringsOf(context);
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_formatDate(match.playedAt, l10n)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _DetailRow(
-              label: l10n.labelMode,
-              value: _modeLabel(match.mode, l10n),
+    final winner = match.winner;
+    await DiceUpDialog.show<void>(
+      context,
+      title: _formatDate(match.playedAt, l10n),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (winner != null) ...[
+            Row(
+              children: [
+                PlayerAvatar(
+                  name: winner.name,
+                  seatIndex: match.winnerIndex!,
+                  colour: winner.colour,
+                  radius: 16,
+                ),
+                const SizedBox(width: DiceUpSpacing.sm),
+                Expanded(
+                  child: Text(
+                    winner.isAi ? l10n.playerWithAi(winner.name) : winner.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
             ),
-            _DetailRow(
-              label: l10n.labelPlayers,
-              value: match.players
-                  .map((player) {
-                    final name = player.isAi
-                        ? l10n.playerWithAi(player.name)
-                        : player.name;
-                    return match.winnerName == player.name
-                        ? '$name${l10n.winnerSuffix}'
-                        : name;
-                  })
-                  .join('\n'),
-            ),
-            _DetailRow(
-              label: l10n.labelWinner,
-              value: match.winnerName ?? l10n.historyNoWinner,
-            ),
-            _DetailRow(
-              label: l10n.labelDuration,
-              value: _formatDuration(match.durationSeconds, l10n),
-            ),
-            _DetailRow(label: l10n.labelRuleset, value: match.rulesetVersion),
             const SizedBox(height: DiceUpSpacing.sm),
-            Text(
-              l10n.historyLocalNote,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.close),
+          _DetailRow(
+            label: l10n.labelMode,
+            value: _modeLabel(match.mode, l10n),
+          ),
+          _DetailRow(
+            label: l10n.labelPlayers,
+            value: match.players
+                .map((player) {
+                  final name = player.isAi
+                      ? l10n.playerWithAi(player.name)
+                      : player.name;
+                  return match.winnerName == player.name
+                      ? '$name${l10n.winnerSuffix}'
+                      : name;
+                })
+                .join('\n'),
+          ),
+          _DetailRow(
+            label: l10n.labelWinner,
+            value: match.winnerName ?? l10n.historyNoWinner,
+          ),
+          _DetailRow(
+            label: l10n.labelDuration,
+            value: _formatDuration(match.durationSeconds, l10n),
+          ),
+          _DetailRow(label: l10n.labelRuleset, value: match.rulesetVersion),
+          const SizedBox(height: DiceUpSpacing.sm),
+          Text(
+            l10n.historyLocalNote,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.close),
+        ),
+      ],
     );
   }
 

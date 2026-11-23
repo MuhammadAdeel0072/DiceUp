@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/accessibility/reduced_motion.dart';
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
+import '../../core/design_system/diceup_typography.dart';
 
 import 'package:diceup/l10n/app_localizations.dart';
 
@@ -197,6 +199,9 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
   }
 
   void _startMatch(AppLocalizations l10n) {
+    // Dismiss the keyboard: the match starts from the game screen,
+    // and a lingering keyboard would cover its first paint (F10).
+    FocusScope.of(context).unfocus();
     final names = List.generate(_playerCount, (i) => _displayName(i, l10n));
     final colours = List<PlayerColour>.generate(
       _playerCount,
@@ -390,71 +395,147 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
     }
     return Scaffold(
       appBar: AppBar(title: Text(modeTitle)),
-      body: Padding(
-        padding: DiceUpSpacing.screenPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              l10n.setupPlayers,
-              style: Theme.of(context).textTheme.titleMedium,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: DiceUpSpacing.maxContentWidth,
             ),
-            const SizedBox(height: DiceUpSpacing.xs),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 2, label: Text('2')),
-                ButtonSegment(value: 3, label: Text('3')),
-                ButtonSegment(value: 4, label: Text('4')),
-              ],
-              selected: {_playerCount},
-              onSelectionChanged: (selected) => _setPlayerCount(selected.first),
-            ),
-            const SizedBox(height: DiceUpSpacing.lg),
-            Text(
-              l10n.setupSeats,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: DiceUpSpacing.xs),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _playerCount + 1,
-                itemBuilder: (context, index) {
-                  if (index == _playerCount) return _buildRulesetCard();
-                  return _buildSeatCard(index);
-                },
+            child: Padding(
+              padding: DiceUpSpacing.screenPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Players stays OUTSIDE the scrolling list: the
+                  // control must always be in the tree, not only
+                  // while it is on screen — a sliver drops a child
+                  // that sends no keep-alive notification once it
+                  // scrolls out of the cache extent, and the count
+                  // is the one control the screen always needs.
+                  SectionHeading(title: l10n.setupPlayers),
+                  const SizedBox(height: DiceUpSpacing.xs),
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 2, label: Text('2')),
+                      ButtonSegment(value: 3, label: Text('3')),
+                      ButtonSegment(value: 4, label: Text('4')),
+                    ],
+                    selected: {_playerCount},
+                    onSelectionChanged: (selected) =>
+                        _setPlayerCount(selected.first),
+                  ),
+                  const SizedBox(height: DiceUpSpacing.lg),
+                  Expanded(
+                    child: ListView(
+                      // The list is short and bounded (at most four
+                      // seat cards plus the ruleset card, ~2,600 dp
+                      // worst case), so the whole form stays built:
+                      // a below-fold control — the seat-1 AI
+                      // difficulty dropdown, the ruleset switches —
+                      // must exist as an element without scrolling
+                      // first. With the default 250 dp cache extent
+                      // the sliver drops a child just past the first
+                      // paint — the seat-1 card starts a few dp past
+                      // the initial cache window at 800x600 — so a
+                      // finder for it came back empty until the list
+                      // happened to scroll (the scripted results test
+                      // failed exactly there: `ensureVisible` on the
+                      // difficulty dropdown found no element).
+                      // Building the whole bounded list costs a few
+                      // dozen widgets. Note the cache alone does not
+                      // make the controls findable: default finders
+                      // skip sliver children outside the paint extent
+                      // ("offstage"), so a lookup for a below-fold
+                      // control also needs `skipOffstage: false`
+                      // until it has been scrolled into view.
+                      cacheExtent: 3000,
+                      children: [
+                        SectionHeading(title: l10n.setupSeats),
+                        const SizedBox(height: DiceUpSpacing.xs),
+                        for (int i = 0; i < _playerCount; i++) ...[
+                          _buildSeatCard(i),
+                          const SizedBox(height: DiceUpSpacing.sm),
+                        ],
+                        const SizedBox(height: DiceUpSpacing.sm),
+                        SectionHeading(title: l10n.setupRules),
+                        const SizedBox(height: DiceUpSpacing.xs),
+                        _buildRulesetCard(),
+                        const SizedBox(height: DiceUpSpacing.sm),
+                      ],
+                    ),
+                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: DiceUpSpacing.sm),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 20,
+                            color: DiceUpColors.error,
+                          ),
+                          const SizedBox(width: DiceUpSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: DiceUpColors.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!_hasHumanSeat)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: DiceUpSpacing.sm),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 20,
+                            color: DiceUpColors.error,
+                          ),
+                          const SizedBox(width: DiceUpSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              l10n.setupNeedHuman,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: DiceUpColors.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  PrimaryButton(
+                    label: l10n.setupStartMatch,
+                    onPressed: _hasHumanSeat ? () => _startMatch(l10n) : null,
+                  ),
+                ],
               ),
             ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: DiceUpSpacing.sm),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: DiceUpColors.error),
-                ),
-              ),
-            if (!_hasHumanSeat)
-              Padding(
-                padding: const EdgeInsets.only(bottom: DiceUpSpacing.sm),
-                child: Text(
-                  l10n.setupNeedHuman,
-                  style: TextStyle(color: DiceUpColors.error),
-                ),
-              ),
-            PrimaryButton(
-              label: l10n.setupStartMatch,
-              onPressed: _hasHumanSeat ? () => _startMatch(l10n) : null,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  /// One seat's card: name field, colour picker, human/AI switch and
-  /// (for AI seats) difficulty.
+  /// One seat's card: avatar + name, name field, colour picker,
+  /// human/AI choice and (for AI seats) difficulty.
+  ///
+  /// The header shows the seat's display name (live as the name is
+  /// typed) with the "Player N" seat label underneath only while a
+  /// custom name overrides it, plus a type chip (icon + Human/AI)
+  /// so the seat type is readable without opening the segmented
+  /// control. The name field scrolls itself into view when focused
+  /// (F10): a focused field hidden behind the keyboard is scrolled
+  /// to the middle of the visible list.
   Widget _buildSeatCard(int seat) {
     final isAi = _isAi[seat];
     final l10n = stringsOf(context);
+    final displayName = _displayName(seat, l10n);
+    final seatLabel = l10n.playerName(seat + 1);
     return DiceUpCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +543,7 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
           Row(
             children: [
               PlayerAvatar(
-                name: _displayName(seat, l10n),
+                name: displayName,
                 seatIndex: seat,
                 // The ring follows the seat's *chosen* colour (M2.2),
                 // not the seat-order colour — after a swap they differ.
@@ -470,20 +551,74 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
               ),
               const SizedBox(width: DiceUpSpacing.md),
               Expanded(
-                child: Text(
-                  l10n.playerName(seat + 1),
-                  style: Theme.of(context).textTheme.titleMedium,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (displayName != seatLabel)
+                      Text(
+                        seatLabel,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: DiceUpSpacing.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DiceUpSpacing.xs,
+                  vertical: DiceUpSpacing.xxs,
+                ),
+                decoration: const BoxDecoration(
+                  color: DiceUpColors.surfaceMuted,
+                  borderRadius: DiceUpSpacing.radiusSmBorder,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isAi ? Icons.smart_toy_outlined : Icons.person_outline,
+                      size: 16,
+                      color: DiceUpColors.textSecondary,
+                    ),
+                    const SizedBox(width: DiceUpSpacing.xxs),
+                    Text(
+                      isAi ? l10n.setupAi : l10n.setupHuman,
+                      style: DiceUpTypography.caption,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: DiceUpSpacing.sm),
-          DiceUpTextField(
-            key: ValueKey('seat-$seat-name'),
-            label: l10n.setupNameLabel,
-            controller: _nameControllers[seat],
-            inputFormatters: [LengthLimitingTextInputFormatter(12)],
-            onChanged: (_) => setState(() {}),
+          Builder(
+            builder: (fieldContext) => Focus(
+              onFocusChange: (focused) {
+                if (!focused) return;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  Scrollable.ensureVisible(
+                    fieldContext,
+                    alignment: 0.5,
+                    duration: isReducedMotion(fieldContext)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
+                  );
+                });
+              },
+              child: DiceUpTextField(
+                key: ValueKey('seat-$seat-name'),
+                label: l10n.setupNameLabel,
+                controller: _nameControllers[seat],
+                inputFormatters: [LengthLimitingTextInputFormatter(12)],
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
           ),
           const SizedBox(height: DiceUpSpacing.sm),
           Text(
@@ -496,6 +631,11 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
               for (final colour in PlayerColour.values)
                 _buildColourSwatch(seat, colour),
             ],
+          ),
+          const SizedBox(height: DiceUpSpacing.xs),
+          Text(
+            l10n.setupColourSelected(colourName(_colours[seat], l10n)),
+            style: DiceUpTypography.caption,
           ),
           const SizedBox(height: DiceUpSpacing.sm),
           SegmentedButton<bool>(
@@ -513,24 +653,38 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
           ),
           if (isAi) ...[
             const SizedBox(height: DiceUpSpacing.sm),
-            DropdownButtonFormField<AiDifficulty>(
-              initialValue: _difficulty[seat],
-              decoration: InputDecoration(
-                labelText: l10n.setupAiDifficultyLabel,
+            // The difficulty belongs to the AI seat, not to the
+            // form at large: it sits in a muted panel inside the
+            // seat card so it reads as part of this seat's AI
+            // configuration.
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DiceUpSpacing.sm,
+                vertical: DiceUpSpacing.xxs,
               ),
-              items: AiDifficulty.values
-                  .map(
-                    (d) => DropdownMenuItem(
-                      value: d,
-                      child: Text(difficultyName(d, l10n)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _difficulty[seat] = value);
-                }
-              },
+              decoration: const BoxDecoration(
+                color: DiceUpColors.surfaceMuted,
+                borderRadius: DiceUpSpacing.radiusMdBorder,
+              ),
+              child: DropdownButtonFormField<AiDifficulty>(
+                initialValue: _difficulty[seat],
+                decoration: InputDecoration(
+                  labelText: l10n.setupAiDifficultyLabel,
+                ),
+                items: AiDifficulty.values
+                    .map(
+                      (d) => DropdownMenuItem(
+                        value: d,
+                        child: Text(difficultyName(d, l10n)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _difficulty[seat] = value);
+                  }
+                },
+              ),
             ),
           ],
         ],
@@ -577,19 +731,36 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
             padding: const EdgeInsets.only(right: DiceUpSpacing.sm),
             child: Opacity(
               opacity: isTaken ? 0.35 : 1.0,
+              // Stronger selected state (F5): a teal outer ring
+              // around the disc plus a thin white inner edge and
+              // the check, so the selected colour reads at a glance
+              // instead of only by a 2.5 px border. The disc stays
+              // 48 dp (D-09).
               child: Container(
                 width: DiceUpSpacing.minTouchTarget,
                 height: DiceUpSpacing.minTouchTarget,
                 decoration: BoxDecoration(
-                  color: DiceUpColors.forColour(colour),
                   shape: BoxShape.circle,
                   border: isSelected
-                      ? Border.all(color: DiceUpColors.textPrimary, width: 2.5)
+                      ? Border.all(color: DiceUpColors.teal, width: 3)
                       : null,
                 ),
-                child: isSelected
-                    ? const Icon(Icons.check, size: 20, color: Colors.white)
-                    : null,
+                child: Padding(
+                  padding: EdgeInsets.all(isSelected ? 2 : 0),
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: DiceUpColors.forColour(colour),
+                      shape: BoxShape.circle,
+                      border: isSelected
+                          ? Border.all(color: Colors.white, width: 1.5)
+                          : null,
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check, size: 20, color: Colors.white)
+                        : null,
+                  ),
+                ),
               ),
             ),
           ),
@@ -601,51 +772,77 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
   /// The ruleset section (M2.2, D-29): the curated user-facing subset
   /// with the stock defaults. "Continue to rank 2nd/3rd" is not
   /// offered — there are no mechanics for it (D-02).
+  ///
+  /// The six switches are grouped into two clusters with a divider
+  /// between them (REDESIGN-PLAN.md §3.3/F5): release-and-finish
+  /// rules first, then the extra-turn rules — so the card stops
+  /// scanning as six identical toggles. The plain-language
+  /// descriptions are kept verbatim. No "stock rules" reset button:
+  /// there is no localised string for one, and the defaults are
+  /// already what the switches show on first open.
   Widget _buildRulesetCard() {
     final l10n = stringsOf(context);
     return DiceUpCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.setupRules, style: Theme.of(context).textTheme.titleMedium),
-          SwitchListTile(
-            title: Text(l10n.setupRuleReleaseOnOne),
-            subtitle: Text(l10n.setupRuleReleaseOnOneDescription),
+          _ruleSwitch(
+            title: l10n.setupRuleReleaseOnOne,
+            description: l10n.setupRuleReleaseOnOneDescription,
             value: _releaseOnOne,
             onChanged: (value) => setState(() => _releaseOnOne = value),
           ),
-          SwitchListTile(
-            title: Text(l10n.setupRuleExactFinish),
-            subtitle: Text(l10n.setupRuleExactFinishDescription),
+          _ruleSwitch(
+            title: l10n.setupRuleExactFinish,
+            description: l10n.setupRuleExactFinishDescription,
             value: _exactFinish,
             onChanged: (value) => setState(() => _exactFinish = value),
           ),
-          SwitchListTile(
-            title: Text(l10n.setupRuleExtraSix),
-            subtitle: Text(l10n.setupRuleExtraSixDescription),
-            value: _extraTurnOnSix,
-            onChanged: (value) => setState(() => _extraTurnOnSix = value),
-          ),
-          SwitchListTile(
-            title: Text(l10n.setupRuleExtraCapture),
-            subtitle: Text(l10n.setupRuleExtraCaptureDescription),
-            value: _extraTurnOnCapture,
-            onChanged: (value) => setState(() => _extraTurnOnCapture = value),
-          ),
-          SwitchListTile(
-            title: Text(l10n.setupRuleExtraHome),
-            subtitle: Text(l10n.setupRuleExtraHomeDescription),
-            value: _extraTurnOnHome,
-            onChanged: (value) => setState(() => _extraTurnOnHome = value),
-          ),
-          SwitchListTile(
-            title: Text(l10n.setupRuleThirdSix),
-            subtitle: Text(l10n.setupRuleThirdSixDescription),
+          _ruleSwitch(
+            title: l10n.setupRuleThirdSix,
+            description: l10n.setupRuleThirdSixDescription,
             value: _thirdSixLimit,
             onChanged: (value) => setState(() => _thirdSixLimit = value),
           ),
+          const Divider(height: DiceUpSpacing.lg, color: DiceUpColors.border),
+          _ruleSwitch(
+            title: l10n.setupRuleExtraSix,
+            description: l10n.setupRuleExtraSixDescription,
+            value: _extraTurnOnSix,
+            onChanged: (value) => setState(() => _extraTurnOnSix = value),
+          ),
+          _ruleSwitch(
+            title: l10n.setupRuleExtraCapture,
+            description: l10n.setupRuleExtraCaptureDescription,
+            value: _extraTurnOnCapture,
+            onChanged: (value) => setState(() => _extraTurnOnCapture = value),
+          ),
+          _ruleSwitch(
+            title: l10n.setupRuleExtraHome,
+            description: l10n.setupRuleExtraHomeDescription,
+            value: _extraTurnOnHome,
+            onChanged: (value) => setState(() => _extraTurnOnHome = value),
+          ),
         ],
       ),
+    );
+  }
+
+  /// One ruleset switch: title + plain-language description in the
+  /// secondary style, edge-to-edge inside the card so the switch
+  /// aligns with the card padding.
+  Widget _ruleSwitch({
+    required String title,
+    required String description,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title),
+      subtitle: Text(description, style: Theme.of(context).textTheme.bodySmall),
+      value: value,
+      onChanged: onChanged,
     );
   }
 }

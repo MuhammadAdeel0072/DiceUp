@@ -218,7 +218,11 @@ void main() {
     ];
     final centre = boardTokenCenter(
       const BoardToken(id: '0:3', seatIndex: 0, stepsTaken: 55),
-      const Size(480, 480),
+      // The rendered board size, not an assumed 480 dp: the game
+      // screen's board is height-aware (Stage 2 redesign, F8), so
+      // at the default 800x600 viewport it renders smaller than
+      // 480 dp and a 480-based centre would miss the token.
+      tester.getSize(board),
       tokens,
     );
     await tester.tapAt(origin + centre);
@@ -679,21 +683,28 @@ void main() {
       );
       await tester.pump();
       final difficultyField = find
-          .byType(DropdownButtonFormField<AiDifficulty>)
+          .byType(DropdownButtonFormField<AiDifficulty>, skipOffstage: false)
           .first;
+      // The field sits below the fold. It is built — the setup
+      // ListView's cacheExtent keeps the whole bounded form in
+      // the tree — but a default finder skips it: sliver children
+      // outside the paint extent are "offstage" to finders, so
+      // the lookup needs `skipOffstage: false`. `ensureVisible`
+      // then scrolls it into view; no fixed drag is needed, and
+      // none is reliable against the seat cards' height.
       await tester.ensureVisible(difficultyField);
       await tester.pumpAndSettle();
       await tester.tap(difficultyField);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Hard'));
       await tester.pumpAndSettle();
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
-      await tester.pumpAndSettle();
       final releaseTile = find.byWidgetPredicate(
         (widget) =>
             widget is SwitchListTile &&
             (widget.title as Text?)?.data == 'Release on 1',
+        skipOffstage: false,
       );
+      // Same pattern for the ruleset card, the last list item.
       await tester.ensureVisible(releaseTile);
       await tester.pumpAndSettle();
       await tester.tap(releaseTile);
@@ -782,7 +793,9 @@ void main() {
               seatIndex: token.playerIndex,
               stepsTaken: token.stepsTaken,
             ),
-            const Size(480, 480),
+            // The rendered board size, not an assumed 480 dp (see
+            // the tap helper above: the board is height-aware).
+            tester.getSize(board),
             tokens,
           );
           await tester.tapAt(origin + centre);

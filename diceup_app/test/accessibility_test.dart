@@ -958,26 +958,55 @@ void main() {
       // subtitle merged with a newline, as the framework joins
       // them — and the Switch widgets themselves are separate
       // nodes carrying the toggled state. The enabled flag lives
-      // on the switch node, not the title node, so the flag is
-      // read off the switches in screen order (Sound first,
-      // Vibration second). (The tree-search finders —
-      // `find.bySemanticsLabel` / `find.semantics.byPredicate` —
-      // need the exact merged label, so the titles are read
-      // through `tester.getSemantics` on the text widgets, the
-      // same path the remediation plan names.)
+      // on the switch node, not the title node.
+      //
+      // The titles are read through their own tiles, not bare
+      // `find.text`: the redesign (Stage 3C) added section
+      // headings whose text duplicates the switch titles ("Sound"
+      // as a heading and as the switch title), so a bare text
+      // finder matches two widgets. The sections are Vibration
+      // first, Sound second, so the switches are identified by
+      // tile, not by position in `find.byType(Switch)` order.
+      // (The tree-search finders — `find.bySemanticsLabel` /
+      // `find.semantics.byPredicate` — need the exact merged label,
+      // so the titles are read through `tester.getSemantics` on the
+      // text widgets, the same path the remediation plan names.)
+      Finder tileFor(String title) => find.byWidgetPredicate(
+        (widget) =>
+            widget is SwitchListTile && (widget.title as Text?)?.data == title,
+      );
       expect(
-        tester.getSemantics(find.text('Sound')).label,
+        tester
+            .getSemantics(
+              find.descendant(
+                of: tileFor('Sound'),
+                matching: find.text('Sound'),
+              ),
+            )
+            .label,
         'Sound\nComing soon — sound does not play anything yet.',
       );
       expect(
-        tester.getSemantics(find.text('Vibration')).label,
+        tester
+            .getSemantics(
+              find.descendant(
+                of: tileFor('Vibration'),
+                matching: find.text('Vibration'),
+              ),
+            )
+            .label,
         'Vibration\nHaptic feedback on moves',
       );
       final switches = find.byType(Switch);
       expect(switches, findsNWidgets(2));
       expect(
         tester
-            .getSemantics(switches.first)
+            .getSemantics(
+              find.descendant(
+                of: tileFor('Sound'),
+                matching: find.byType(Switch),
+              ),
+            )
             .getSemanticsData()
             .flagsCollection
             .isEnabled,
@@ -985,7 +1014,12 @@ void main() {
       );
       expect(
         tester
-            .getSemantics(switches.last)
+            .getSemantics(
+              find.descendant(
+                of: tileFor('Vibration'),
+                matching: find.byType(Switch),
+              ),
+            )
             .getSemanticsData()
             .flagsCollection
             .isEnabled,

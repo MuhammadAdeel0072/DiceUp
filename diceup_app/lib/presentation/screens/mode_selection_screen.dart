@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../l10n/app_strings.dart';
@@ -10,6 +11,15 @@ import '../navigation/app_routes.dart';
 /// Offline modes are fully available. The online card is visible but
 /// honestly unavailable until Phase 5 — it explains that instead of
 /// navigating to a dead end.
+///
+/// Presentation (redesign Stage 3A, REDESIGN-PLAN.md §3.2): the two
+/// playable cards are visually distinct from each other — a filled
+/// icon disc in the mode's own accent (teal for Play vs AI, navy
+/// for Local multiplayer) plus the one-line "what happens" subtitle
+/// each already carries — while the online card stays visibly inert
+/// (muted surface, muted text, no chevron, no tap). Content centres
+/// in a [DiceUpSpacing.maxContentWidth] column on wide screens.
+/// Navigation and semantics behaviour are unchanged.
 class ModeSelectionScreen extends StatelessWidget {
   const ModeSelectionScreen({super.key});
 
@@ -39,50 +49,66 @@ class ModeSelectionScreen extends StatelessWidget {
       // fits the layout is unchanged.
       body: SingleChildScrollView(
         padding: DiceUpSpacing.screenPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Semantics(
-              button: true,
-              label: l10n.modeVsAiSemantics,
-              onTap: goVsAi,
-              excludeSemantics: true,
-              child: DiceUpCard(
-                onTap: goVsAi,
-                child: _ModeRow(
-                  icon: Icons.smart_toy_outlined,
-                  title: l10n.modeVsAi,
-                  subtitle: l10n.modeVsAiDescription,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: DiceUpSpacing.maxContentWidth,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Semantics(
+                  button: true,
+                  label: l10n.modeVsAiSemantics,
+                  onTap: goVsAi,
+                  excludeSemantics: true,
+                  child: DiceUpCard(
+                    onTap: goVsAi,
+                    child: _ModeRow(
+                      icon: Icons.smart_toy_outlined,
+                      iconBackground: DiceUpColors.teal,
+                      iconColor: Colors.white,
+                      title: l10n.modeVsAi,
+                      subtitle: l10n.modeVsAiDescription,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: DiceUpSpacing.md),
-            Semantics(
-              button: true,
-              label: l10n.modeLocalSemantics,
-              onTap: goLocal,
-              excludeSemantics: true,
-              child: DiceUpCard(
-                onTap: goLocal,
-                child: _ModeRow(
-                  icon: Icons.people_outline,
-                  title: l10n.modeLocal,
-                  subtitle: l10n.modeLocalDescription,
+                const SizedBox(height: DiceUpSpacing.md),
+                Semantics(
+                  button: true,
+                  label: l10n.modeLocalSemantics,
+                  onTap: goLocal,
+                  excludeSemantics: true,
+                  child: DiceUpCard(
+                    onTap: goLocal,
+                    child: _ModeRow(
+                      icon: Icons.people_outline,
+                      iconBackground: DiceUpColors.navy,
+                      iconColor: Colors.white,
+                      title: l10n.modeLocal,
+                      subtitle: l10n.modeLocalDescription,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: DiceUpSpacing.md),
+                DiceUpCard(
+                  child: _ModeRow(
+                    icon: Icons.public_outlined,
+                    iconBackground: DiceUpColors.surfaceMuted,
+                    iconColor: DiceUpColors.textSecondary,
+                    title: l10n.modeOnline,
+                    subtitle: l10n.modeOnlineDescription,
+                    // M2.10 (M-13): no chevron — the card is not tappable
+                    // and must not imply navigation. Muted text as
+                    // well, so the inert card never reads as playable.
+                    showChevron: false,
+                    muted: true,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: DiceUpSpacing.md),
-            DiceUpCard(
-              child: _ModeRow(
-                icon: Icons.public_outlined,
-                title: l10n.modeOnline,
-                subtitle: l10n.modeOnlineDescription,
-                // M2.10 (M-13): no chevron — the card is not tappable
-                // and must not imply navigation.
-                showChevron: false,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -92,12 +118,26 @@ class ModeSelectionScreen extends StatelessWidget {
 class _ModeRow extends StatelessWidget {
   const _ModeRow({
     required this.icon,
+    required this.iconBackground,
+    required this.iconColor,
     required this.title,
     required this.subtitle,
     this.showChevron = true,
+    this.muted = false,
   });
 
   final IconData icon;
+
+  /// The filled 48 dp disc behind the icon (D-09): teal for Play vs
+  /// AI, navy for Local multiplayer, muted ivory for the inert
+  /// online card — the distinct icon treatment that tells the two
+  /// playable modes apart at a glance.
+  final Color iconBackground;
+
+  /// Icon colour on [iconBackground]: white on the filled teal/navy
+  /// discs, secondary on the muted disc.
+  final Color iconColor;
+
   final String title;
   final String subtitle;
 
@@ -106,23 +146,44 @@ class _ModeRow extends StatelessWidget {
   /// row never implies a destination it cannot reach.
   final bool showChevron;
 
+  /// Whether the row is the inert online card: title and subtitle
+  /// render in the secondary colour instead of the primary one.
+  final bool muted;
+
   @override
   Widget build(BuildContext context) {
+    final titleStyle = Theme.of(context).textTheme.titleMedium;
+    final subtitleStyle = Theme.of(context).textTheme.bodySmall;
     return Row(
       children: [
-        Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary),
+        Container(
+          width: DiceUpSpacing.minTouchTarget,
+          height: DiceUpSpacing.minTouchTarget,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: iconBackground,
+            borderRadius: DiceUpSpacing.radiusMdBorder,
+          ),
+          child: Icon(icon, size: 28, color: iconColor),
+        ),
         const SizedBox(width: DiceUpSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                title,
+                style: muted
+                    ? titleStyle?.copyWith(color: DiceUpColors.textSecondary)
+                    : titleStyle,
+              ),
               const SizedBox(height: DiceUpSpacing.xxs),
-              Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+              Text(subtitle, style: subtitleStyle),
             ],
           ),
         ),
-        if (showChevron) const Icon(Icons.chevron_right),
+        if (showChevron)
+          const Icon(Icons.chevron_right, color: DiceUpColors.textSecondary),
       ],
     );
   }

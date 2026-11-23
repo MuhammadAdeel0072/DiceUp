@@ -138,6 +138,16 @@ void main() {
       await tester.pumpWidget(_scopedApp(deps, const SettingsScreen()));
       await tester.pumpAndSettle();
 
+      // The footer is the last item of the settings ListView: at
+      // 800x600 it sits below the fold (the redesign, Stage 3C,
+      // made the screen taller with section headings), so a default
+      // finder skips it as offstage. It is built — scroll it into
+      // view first, as a real user would; the assertions below are
+      // unchanged.
+      final footer = find.textContaining('DiceUp 0.1.0+1', skipOffstage: false);
+      await tester.ensureVisible(footer);
+      await tester.pumpAndSettle();
+
       expect(find.textContaining('DiceUp 0.1.0+1'), findsOneWidget);
       expect(find.textContaining('DiceUp 1.0.0'), findsNothing);
     });

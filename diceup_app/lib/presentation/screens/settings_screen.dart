@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
+import '../../core/design_system/diceup_typography.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
@@ -153,57 +155,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (settings == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    return ListView(
-      padding: DiceUpSpacing.screenPadding,
-      children: [
-        SwitchListTile(
-          title: Text(l10n.settingsSound),
-          subtitle: Text(l10n.settingsSoundComingSoon),
-          value: _soundOn,
-          // Disabled on purpose (D-32): no sound code exists, so
-          // the toggle must not imply playback can be turned on.
-          onChanged: null,
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: DiceUpSpacing.maxContentWidth,
+          ),
+          child: ListView(
+            padding: DiceUpSpacing.screenPadding,
+            children: [
+              // Feedback (D-32): vibration is the real haptic
+              // feedback; the Sound group below stays honest about
+              // sound being a named follow-up, not a feature.
+              SectionHeading(title: l10n.settingsVibration),
+              const SizedBox(height: DiceUpSpacing.xs),
+              DiceUpCard(
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l10n.settingsVibration),
+                  subtitle: Text(l10n.settingsVibrationDescription),
+                  value: _vibrationOn,
+                  onChanged: (value) =>
+                      _updateSetting('vibration_enabled', value ? '1' : '0'),
+                ),
+              ),
+              const SizedBox(height: DiceUpSpacing.lg),
+              SectionHeading(title: l10n.settingsSound),
+              const SizedBox(height: DiceUpSpacing.xs),
+              DiceUpCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.settingsSound),
+                      subtitle: Text(l10n.settingsSoundComingSoon),
+                      value: _soundOn,
+                      // Disabled on purpose (D-32): no sound code exists, so
+                      // the toggle must not imply playback can be turned on.
+                      onChanged: null,
+                    ),
+                    const Divider(
+                      height: DiceUpSpacing.lg,
+                      color: DiceUpColors.border,
+                    ),
+                    Text(
+                      l10n.settingsVolume(_volume),
+                      style: DiceUpTypography.sectionHeading,
+                    ),
+                    Slider(
+                      value: _volume.toDouble(),
+                      min: 0,
+                      max: 100,
+                      divisions: 100,
+                      label: _volume.toString(),
+                      onChanged: (value) => _updateSetting(
+                        'sound_volume',
+                        value.round().toString(),
+                      ),
+                    ),
+                    Text(
+                      l10n.settingsVolumeStored,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: DiceUpSpacing.lg),
+              SecondaryButton(
+                label: l10n.settingsResetDefaults,
+                onPressed: _resetToDefaults,
+              ),
+              const SizedBox(height: DiceUpSpacing.lg),
+              Text(
+                // M2.10 (M-13): the version matches pubspec.yaml (0.1.0+1).
+                // Sourcing it from the pubspec at runtime (package_info_plus)
+                // is a later step — until then this literal is kept in sync
+                // with the pubspec by the M2.10 footer test.
+                l10n.settingsFooter('0.1.0+1'),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
-        SwitchListTile(
-          title: Text(l10n.settingsVibration),
-          subtitle: Text(l10n.settingsVibrationDescription),
-          value: _vibrationOn,
-          onChanged: (value) =>
-              _updateSetting('vibration_enabled', value ? '1' : '0'),
-        ),
-        const SizedBox(height: DiceUpSpacing.sm),
-        Text(
-          l10n.settingsVolume(_volume),
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        Slider(
-          value: _volume.toDouble(),
-          min: 0,
-          max: 100,
-          divisions: 100,
-          label: _volume.toString(),
-          onChanged: (value) =>
-              _updateSetting('sound_volume', value.round().toString()),
-        ),
-        Text(
-          l10n.settingsVolumeStored,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: DiceUpSpacing.lg),
-        SecondaryButton(
-          label: l10n.settingsResetDefaults,
-          onPressed: _resetToDefaults,
-        ),
-        const SizedBox(height: DiceUpSpacing.lg),
-        Text(
-          // M2.10 (M-13): the version matches pubspec.yaml (0.1.0+1).
-          // Sourcing it from the pubspec at runtime (package_info_plus)
-          // is a later step — until then this literal is kept in sync
-          // with the pubspec by the M2.10 footer test.
-          l10n.settingsFooter('0.1.0+1'),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
+      ),
     );
   }
 }

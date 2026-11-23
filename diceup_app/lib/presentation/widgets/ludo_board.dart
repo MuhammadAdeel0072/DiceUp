@@ -399,8 +399,10 @@ class LudoBoardPainter extends CustomPainter {
       ..color = DiceUpColors.border
       ..strokeWidth = 1;
 
-    // Board background.
-    boardPaint.color = Colors.white;
+    // Board background: warm ivory (Stage 2 redesign, F2) — the
+    // board reads as an object on the navy table field, not a
+    // white square on grey.
+    boardPaint.color = DiceUpColors.surface;
     canvas.drawRect(Offset.zero & size, boardPaint);
 
     // Yards.
@@ -408,9 +410,33 @@ class LudoBoardPainter extends CustomPainter {
       final yardRect = _yardRect(seat, cell);
       boardPaint.color = DiceUpColors.playerColor(seat);
       canvas.drawRect(yardRect, boardPaint);
-      boardPaint.color = Colors.white;
+      boardPaint.color = DiceUpColors.surface;
       canvas.drawRect(yardRect.deflate(cell * 1.1), boardPaint);
     }
+    // Current-seat yard glow (Stage 2 turn system, F3): a teal
+    // outline around the current player's yard only, drawn from
+    // [currentSeat] — the board-anchored turn signal, in the
+    // action colour regardless of seat, so the signal is "this
+    // seat's turn", not "this colour is special". The quadrant is
+    // the current player's COLOUR quadrant, not their seat
+    // quadrant: yards are colour-keyed positions (M3.5), so after
+    // a colour swap the seat-order quadrant is the wrong yard —
+    // e.g. seat 0 playing blue yards bottom-left, and a glow
+    // around the top-left (red) yard would mark the wrong player.
+    var currentColourIndex = currentSeat;
+    for (final token in tokens) {
+      if (token.seatIndex == currentSeat) {
+        currentColourIndex = token.effectiveColour.index;
+        break;
+      }
+    }
+    canvas.drawRect(
+      _yardRect(currentColourIndex, cell).deflate(1),
+      Paint()
+        ..color = DiceUpColors.teal
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
 
     // Track + home-path cells.
     for (var i = 0; i < 52; i++) {
@@ -418,8 +444,11 @@ class LudoBoardPainter extends CustomPainter {
     }
     for (final colour in PlayerColour.values) {
       for (final cellPos in _homePaths[colour]!) {
-        boardPaint.color = DiceUpColors.forColour(colour)
-            .withValues(alpha: 0.55);
+        // Home paths in FULL colour (Stage 2, F2): the audit found
+        // them at 0.55 alpha — the most meaningful cells were the
+        // palest. Full colour makes them the strongest, not the
+        // palest, on the board.
+        boardPaint.color = DiceUpColors.forColour(colour);
         canvas.drawRect(_cellRect(cellPos, cell), boardPaint);
         canvas.drawRect(_cellRect(cellPos, cell), gridPaint);
       }
@@ -516,12 +545,16 @@ class LudoBoardPainter extends CustomPainter {
   }
 
   /// The draw scale for a token: the per-step lift for the moving
-  /// token, the shrink/pop for the captured token, 1.0 otherwise.
+  /// token, the shrink/pop for the captured token, a slight lift
+  /// (~1.06) for a legal token at rest — so a legal token reads as
+  /// a piece that can be picked up even after the one-shot pulse
+  /// has finished — and 1.0 otherwise.
   double _scaleFor(BoardToken token) {
     if (token.id == hopTokenId && hopCenter != null) return hopScale;
     if (token.id == captureTokenId && captureCenter != null) {
       return captureScale;
     }
+    if (legalTokenIds.contains(token.id)) return 1.06;
     return 1.0;
   }
 
@@ -555,10 +588,46 @@ class LudoBoardPainter extends CustomPainter {
     int trackIndex,
   ) {
     final rect = _cellRect(cellPos, cell);
-    if (safeTrackIndices.contains(trackIndex)) {
-      fillPaint.color = DiceUpColors.amberLight;
+    // Start cells get their seat colour at FULL strength (Stage 2,
+    // F2 — the audit found them at 0.35 alpha), looked up from
+    // [Board] (M3.5) — never `trackIndex ~/ 13`. A start cell is
+    // also a safe cell, so it keeps its star: a white star with a
+    // navy outline, readable on every player colour including
+    // yellow (white on yellow is 2.38:1; the navy outline is what
+    // separates the star from the yellow fill).
+    final startColour = _colourByStartCell[trackIndex];
+    if (startColour != null) {
+      fillPaint.color = DiceUpColors.forColour(startColour);
       canvas.drawRect(rect, fillPaint);
-      // Star marker for safe cells (FR-23: safe cells visibly marked).
+      canvas.drawRect(rect, gridPaint);
+      _drawStar(
+        canvas,
+        rect.center,
+        cell * 0.28,
+        Paint()..color = Colors.white,
+        outline: Paint()
+          ..color = DiceUpColors.navy
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+      return;
+    }
+    if (safeTrackIndices.contains(trackIndex)) {
+      // Safe cells (Stage 2, F2): the audit's amber star on
+      // amberLight measured 2.86:1. The fill is now the ivory
+      // board surface and the star is amber on it (3.19:1 — above
+      // the 3:1 floor for a non-text marker), reinforced by an
+      // amber ring around the cell, so the safe marker no longer
+      // depends on a pale fill.
+      fillPaint.color = DiceUpColors.surface;
+      canvas.drawRect(rect, fillPaint);
+      canvas.drawRect(
+        rect.deflate(0.75),
+        Paint()
+          ..color = DiceUpColors.amber
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
       _drawStar(
         canvas,
         rect.center,
@@ -566,22 +635,19 @@ class LudoBoardPainter extends CustomPainter {
         Paint()..color = DiceUpColors.amber,
       );
     } else {
-      fillPaint.color = Colors.white;
+      fillPaint.color = DiceUpColors.surface;
       canvas.drawRect(rect, fillPaint);
     }
     canvas.drawRect(rect, gridPaint);
-    // Start cells get their seat colour, looked up from [Board]
-    // (M3.5) — never `trackIndex ~/ 13`.
-    final startColour = _colourByStartCell[trackIndex];
-    if (startColour != null) {
-      fillPaint.color = DiceUpColors.forColour(startColour)
-          .withValues(alpha: 0.35);
-      canvas.drawRect(rect, fillPaint);
-      canvas.drawRect(rect, gridPaint);
-    }
   }
 
-  void _drawStar(Canvas canvas, Offset centre, double radius, Paint paint) {
+  void _drawStar(
+    Canvas canvas,
+    Offset centre,
+    double radius,
+    Paint paint, {
+    Paint? outline,
+  }) {
     final path = Path();
     for (var i = 0; i < 10; i++) {
       final r = i.isEven ? radius : radius * 0.45;
@@ -595,6 +661,7 @@ class LudoBoardPainter extends CustomPainter {
     }
     path.close();
     canvas.drawPath(path, paint);
+    if (outline != null) canvas.drawPath(path, outline);
   }
 
   void _drawCentre(Canvas canvas, Size size, double cell) {
@@ -613,6 +680,16 @@ class LudoBoardPainter extends CustomPainter {
         ..lineTo(corners[(seat + 1) % 4].dx, corners[(seat + 1) % 4].dy)
         ..close();
       canvas.drawPath(path, Paint()..color = DiceUpColors.playerColor(seat));
+      // A thin ivory seam between the triangles, so the four
+      // home colours read as four pieces meeting in the centre
+      // rather than one flat block.
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = DiceUpColors.surface
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
     }
   }
 
@@ -667,43 +744,69 @@ class LudoBoardPainter extends CustomPainter {
     }
     // Token body. Shape differs per seat so players are distinguishable
     // by more than colour (NFR-08): circle, square, diamond, triangle.
+    // Depth (Stage 2, F2): a soft offset shadow under the piece and
+    // a small top-left highlight, so tokens read as game pieces
+    // sitting on the board rather than flat dots — a subtle
+    // top-light edge only, no bevel or texture. The shadow and
+    // highlight follow the token's scale and opacity, so a hopping
+    // or captured token keeps its depth through the animation.
+    final shadow = Paint()
+      ..color = Colors.black.withValues(alpha: 0.18 * opacity);
+    final highlight = Paint()
+      ..color = Colors.white.withValues(alpha: 0.30 * opacity);
+    final shadowCentre = centre + Offset(0, radius * 0.18);
     final fill = Paint()..color = color.withValues(alpha: opacity);
     final edge = Paint()
       ..color = Colors.white.withValues(alpha: opacity)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
-    switch (token.seatIndex % 4) {
-      case 0:
-        canvas.drawCircle(centre, radius, fill);
-        canvas.drawCircle(centre, radius, edge);
-      case 1:
-        final rect = Rect.fromCircle(center: centre, radius: radius * 0.92);
-        canvas.drawRect(rect, fill);
-        canvas.drawRect(rect, edge);
-      case 2:
-        final diamond = Path()
-          ..moveTo(centre.dx, centre.dy - radius)
-          ..lineTo(centre.dx + radius, centre.dy)
-          ..lineTo(centre.dx, centre.dy + radius)
-          ..lineTo(centre.dx - radius, centre.dy)
-          ..close();
-        canvas.drawPath(diamond, fill);
-        canvas.drawPath(diamond, edge);
-      default:
-        final triangle = Path()
-          ..moveTo(centre.dx, centre.dy - radius)
-          ..lineTo(centre.dx + radius, centre.dy + radius * 0.8)
-          ..lineTo(centre.dx - radius, centre.dy + radius * 0.8)
-          ..close();
-        canvas.drawPath(triangle, fill);
-        canvas.drawPath(triangle, edge);
+    // Builds the token's shape path for the given centre/radius,
+    // so the shadow, fill, edge and highlight all share one shape.
+    Path shapePath(Offset at, double r) {
+      switch (token.seatIndex % 4) {
+        case 1:
+          return Path()..addRect(Rect.fromCircle(center: at, radius: r * 0.92));
+        case 2:
+          return Path()
+            ..moveTo(at.dx, at.dy - r)
+            ..lineTo(at.dx + r, at.dy)
+            ..lineTo(at.dx, at.dy + r)
+            ..lineTo(at.dx - r, at.dy)
+            ..close();
+        case 3:
+          return Path()
+            ..moveTo(at.dx, at.dy - r)
+            ..lineTo(at.dx + r, at.dy + r * 0.8)
+            ..lineTo(at.dx - r, at.dy + r * 0.8)
+            ..close();
+        default:
+          return Path()..addOval(Rect.fromCircle(center: at, radius: r));
+      }
     }
-    // Current-player marker.
+
+    canvas.drawPath(shapePath(shadowCentre, radius * 0.95), shadow);
+    canvas.drawPath(shapePath(centre, radius), fill);
+    canvas.drawPath(shapePath(centre, radius), edge);
+    canvas.drawCircle(
+      centre + Offset(-radius * 0.32, -radius * 0.32),
+      radius * 0.26,
+      highlight,
+    );
+    // Current-player marker (Stage 2 turn system, F3): the old
+    // small white dot inside the token is gone. A token of the
+    // current player now carries a teal ring — the same action
+    // colour as the yard glow, the banner accent and the chip
+    // turn badge — so the turn signal is one system in three
+    // places, and the marker is a ring + shape cue (the token's
+    // own shape), never colour alone.
     if (token.seatIndex == currentSeat) {
       canvas.drawCircle(
         centre,
-        radius * 0.45,
-        Paint()..color = Colors.white.withValues(alpha: 0.85 * opacity),
+        radius + 1.5,
+        Paint()
+          ..color = DiceUpColors.teal.withValues(alpha: opacity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
       );
     }
   }

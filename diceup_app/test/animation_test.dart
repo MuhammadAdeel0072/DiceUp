@@ -72,11 +72,23 @@ void main() {
   /// roller and degraded play (no repositories — nothing is
   /// persisted), and returns the provider-owned controller so tests
   /// can assert engine state alongside the animation.
+  ///
+  /// The viewport is tall (800x1400): the game screen's board is
+  /// height-aware (Stage 2 redesign, F8), so at the 800x600
+  /// default the board would shrink below the 480 dp this file's
+  /// tap geometry assumes ([boardSize] and the (64, 64) yard
+  /// tap). The tall viewport keeps the board at 480 dp, exactly
+  /// as `premium_animation_test.dart` and `game_screen_test.dart`
+  /// do.
   Future<OfflineGameController> pumpGame(
     WidgetTester tester, {
     required List<int> dice,
     bool vsAi = false,
   }) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     late final ProviderContainer container;
     await tester.pumpWidget(
       ProviderScope(
