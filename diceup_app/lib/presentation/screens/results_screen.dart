@@ -392,8 +392,7 @@ class _ResultsScreenState extends State<ResultsScreen>
     final totalSeconds = duration.isNegative ? 0 : duration.inSeconds;
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}'
-        ':'
+    return '${minutes.toString().padLeft(2, '0')}: '
         '${seconds.toString().padLeft(2, '0')}';
   }
 
