@@ -4,6 +4,7 @@ import 'package:diceup/l10n/app_localizations.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_decor.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../domain/engine/player_colour.dart';
 import '../../domain/repositories/local_match_repository.dart';
@@ -111,12 +112,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: DiceUpSpacing.maxContentWidth,
-          ),
-          child: ListView(
+      // Premium v2: the quiet ivory washes behind the statistics
+      // (decorative, no semantics). The 2x2 totals grid and all
+      // figures are unchanged.
+      child: Stack(
+        children: [
+          const Positioned.fill(child: IvoryBackground()),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: DiceUpSpacing.maxContentWidth,
+              ),
+              child: ListView(
             padding: DiceUpSpacing.screenPadding,
             children: [
               // Lifetime totals as a 2x2 stat grid (REDESIGN-PLAN.md
@@ -182,10 +189,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
               ],
             ],
-          ),
-        ),
-      ),
-    );
+          ), // ListView
+        ), // ConstrainedBox
+      ), // Center
+        ], // Stack children
+      ), // Stack
+    ); // SafeArea + return
   }
 
   /// Human wins per seat from the RETAINED history only, keyed by

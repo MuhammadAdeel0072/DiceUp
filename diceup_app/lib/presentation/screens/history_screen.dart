@@ -4,6 +4,7 @@ import 'package:diceup/l10n/app_localizations.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_decor.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../core/design_system/diceup_typography.dart';
 import '../../domain/repositories/local_match_repository.dart';
@@ -90,12 +91,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
     }
     return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: DiceUpSpacing.maxContentWidth,
-          ),
-          child: ListView.separated(
+      // Premium v2: the quiet ivory washes behind the list
+      // (decorative, no semantics). Entries, order and the empty
+      // state are unchanged.
+      child: Stack(
+        children: [
+          const Positioned.fill(child: IvoryBackground()),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: DiceUpSpacing.maxContentWidth,
+              ),
+              child: ListView.separated(
             padding: DiceUpSpacing.screenPadding,
             itemCount: matches.length,
             separatorBuilder: (_, _) =>
@@ -184,10 +191,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               );
             },
-          ),
-        ),
-      ),
-    );
+          ), // ListView.separated
+        ), // ConstrainedBox
+      ), // Center
+        ], // Stack children
+      ), // Stack
+    ); // SafeArea + return
   }
 
   Future<void> _showDetail(LocalMatch match) async {
