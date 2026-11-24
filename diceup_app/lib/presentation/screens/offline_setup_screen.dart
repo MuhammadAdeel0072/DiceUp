@@ -735,7 +735,12 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
               // around the disc plus a thin white inner edge and
               // the check, so the selected colour reads at a glance
               // instead of only by a 2.5 px border. The disc stays
-              // 48 dp (D-09).
+              // 48 dp (D-09). Premium v2: the disc is a lit dome
+              // (the same treatment as the board tokens — light
+              // top-left, colour, deep base) with a small drop
+              // shadow, so the palette looks like the pieces the
+              // player will actually place. Selection behaviour,
+              // sizes and semantics are unchanged.
               child: Container(
                 width: DiceUpSpacing.minTouchTarget,
                 height: DiceUpSpacing.minTouchTarget,
@@ -750,8 +755,32 @@ class _OfflineSetupScreenState extends State<OfflineSetupScreen> {
                   child: Container(
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: DiceUpColors.forColour(colour),
                       shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.35, -0.35),
+                        radius: 1.2,
+                        colors: [
+                          Color.lerp(
+                            DiceUpColors.forColour(colour),
+                            Colors.white,
+                            0.22,
+                          )!,
+                          DiceUpColors.forColour(colour),
+                          Color.lerp(
+                            DiceUpColors.forColour(colour),
+                            const Color(0xFF2A1608),
+                            0.22,
+                          )!,
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 3,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                       border: isSelected
                           ? Border.all(color: Colors.white, width: 1.5)
                           : null,

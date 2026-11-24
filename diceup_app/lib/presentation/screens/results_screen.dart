@@ -7,6 +7,7 @@ import 'package:diceup/l10n/app_localizations.dart';
 import '../../core/accessibility/reduced_motion.dart';
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_decor.dart';
 import '../../core/design_system/diceup_shadows.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../l10n/app_strings.dart';
@@ -199,17 +200,28 @@ class _ResultsScreenState extends State<ResultsScreen>
                       // mark sits on the navy table field so the
                       // white-disc avatar reads as an object on the
                       // table, not as another card on ivory.
+                      // Premium v2: the stage uses the layered table
+                      // background (vignette + teal/gold washes,
+                      // clipped to the rounded corners) so the
+                      // winner's mark has a lit stage instead of a
+                      // flat panel.
                       Container(
-                        padding: DiceUpSpacing.screenPadding,
                         decoration: const BoxDecoration(
-                          color: DiceUpColors.table,
                           borderRadius: DiceUpSpacing.radiusLgBorder,
                           boxShadow: DiceUpShadows.table,
                         ),
-                        child: Center(
-                          child: _WinnerAvatar(
-                            result: result,
-                            entrance: _entranceController,
+                        child: ClipRRect(
+                          borderRadius: DiceUpSpacing.radiusLgBorder,
+                          child: TableBackground(
+                            child: Padding(
+                              padding: DiceUpSpacing.screenPadding,
+                              child: Center(
+                                child: _WinnerAvatar(
+                                  result: result,
+                                  entrance: _entranceController,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -224,6 +236,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                               child: StatTile(
                                 label: l10n.labelDuration,
                                 value: _formatDuration(result.duration),
+                                icon: Icons.schedule_outlined,
                               ),
                             ),
                             const SizedBox(width: DiceUpSpacing.sm),
@@ -231,6 +244,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                               child: StatTile(
                                 label: l10n.labelMoves,
                                 value: '${result.moveCount}',
+                                icon: Icons.timeline,
                               ),
                             ),
                           ],
@@ -378,7 +392,8 @@ class _ResultsScreenState extends State<ResultsScreen>
     final totalSeconds = duration.isNegative ? 0 : duration.inSeconds;
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:'
+    return '${minutes.toString().padLeft(2, '0')}'
+        ':'
         '${seconds.toString().padLeft(2, '0')}';
   }
 
@@ -473,7 +488,14 @@ class _WinnerAvatar extends StatelessWidget {
               height: 88,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: DiceUpColors.teal, width: 3),
+                // Premium v2: the winner's ring is gold — the
+                // restrained accent reserved for one highlight per
+                // screen, and this is the results screen's one. Gold
+                // on the navy stage is 5.39:1 (a non-text marker, so
+                // the 3:1 floor applies); the avatar itself still
+                // carries name + colour ring + shape, never colour
+                // alone (D-27).
+                border: Border.all(color: DiceUpColors.gold, width: 3),
                 boxShadow: DiceUpShadows.lifted,
               ),
             ),
