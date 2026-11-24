@@ -79,6 +79,15 @@ abstract final class DiceUpColors {
   /// Warm ivory muted surface.
   static const Color surfaceMuted = Color(0xFFEFE7D3);
 
+  /// The alternate ivory (premium v2): one step deeper than
+  /// [surface], one step lighter than [surfaceMuted]. The board
+  /// painter alternates regular track cells between [surface] and
+  /// this for a quiet checker rhythm; the yard inner panels and
+  /// pedestal sockets use it too. Never a text surface — it exists
+  /// so cells and sockets read as inlays without inventing a colour
+  /// per widget.
+  static const Color ivoryAlt = Color(0xFFFAF5E9);
+
   /// Warm neutral border, harmonised with the ivory surfaces.
   static const Color border = Color(0xFFE5DFCC);
 
