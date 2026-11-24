@@ -132,6 +132,13 @@ class DiceWidget extends StatelessWidget {
       // the 100–250 ms UI-feedback budget; instant under reduced
       // motion. The 540 ms tumble budget and the steady (never
       // oscillating) rollable border are untouched.
+      //
+      // Premium v2: the active face is a top-lit surface (white →
+      // warm ivory, falling light) instead of a flat fill, so the
+      // die reads as an object under a lamp; the muted inert face
+      // stays flat — it must not look worth tapping. The opacity
+      // contract (1.0 enabled / 0.6 rolling / 0.45 inert) and the
+      // rollable teal border are unchanged.
       child: AnimatedContainer(
         duration: isReducedMotion(context)
             ? Duration.zero
@@ -141,6 +148,13 @@ class DiceWidget extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           color: enabled || rolling ? Colors.white : DiceUpColors.surfaceMuted,
+          gradient: enabled || rolling
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.white, Color(0xFFF3EDE0)],
+                )
+              : null,
           borderRadius: DiceUpSpacing.radiusMdBorder,
           border: Border.all(
             color: rollable || rolling
@@ -162,9 +176,24 @@ class DiceWidget extends StatelessWidget {
                     child: Container(
                       width: size * 0.16,
                       height: size * 0.16,
-                      decoration: const BoxDecoration(
-                        color: DiceUpColors.navy,
+                      // Premium v2 pips: a navy dome (light top-left
+                      // falling to deep navy) with a soft seat shadow,
+                      // so each pip sits IN the face instead of ON it.
+                      // Layouts and sizes are untouched.
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        gradient: const RadialGradient(
+                          center: Alignment(-0.4, -0.4),
+                          radius: 1.4,
+                          colors: [Color(0xFF31446E), DiceUpColors.navy],
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x401B2A4E),
+                            blurRadius: 2,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
                     ),
                   ),

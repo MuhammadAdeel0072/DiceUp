@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../domain/engine/player_colour.dart';
 import 'diceup_colors.dart';
+import 'diceup_decor.dart';
 import 'diceup_spacing.dart';
 import 'diceup_typography.dart';
 
@@ -30,6 +31,15 @@ AppLocalizations _l10n(BuildContext context) =>
 
 /// Primary call-to-action button. Disabled while [onPressed] is null,
 /// which is how invalid actions are prevented (SDD §11.2, error prevention).
+///
+/// Premium v2: the button acknowledges the press with a subtle scale
+/// ([PressableScale] — a raw-pointer listener, so it never competes
+/// with the button's own tap recognition) and settles back with a
+/// small overshoot. Colours, size floor (48 dp), disabled greys and
+/// typography all come from the theme unchanged; the v2 elevation and
+/// shadow live in the theme's elevated-button style. Under reduced
+/// motion the scale is instant (near-zero), so the press reads as a
+/// state change, not a movement.
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
     super.key,
@@ -44,18 +54,21 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: isLoading ? null : onPressed,
-      child: isLoading
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : Text(label),
+    return PressableScale(
+      enabled: onPressed != null && !isLoading,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(label),
+      ),
     );
   }
 }
@@ -101,10 +114,15 @@ class DiceUpCard extends StatelessWidget {
       child: Padding(padding: padding, child: child),
     );
     if (onTap == null) return card;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: DiceUpSpacing.radiusLgBorder,
-      child: card,
+    // v2: tappable cards acknowledge the press with the same
+    // subtle scale as buttons — a raw-pointer listener under the
+    // InkWell, so the tap itself is still the InkWell's.
+    return PressableScale(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: DiceUpSpacing.radiusLgBorder,
+        child: card,
+      ),
     );
   }
 }
@@ -454,6 +472,10 @@ class SectionHeading extends StatelessWidget {
 /// [value] is a preformatted string (e.g. "12", "04:32") so the
 /// tile never formats numbers itself; [icon] is an optional
 /// Material/Cupertino glyph, never emoji.
+///
+/// Premium v2: when [icon] is given it sits in a small tinted disc
+/// (teal at 10% alpha) so the tile has a brand moment instead of a
+/// lone glyph. The numeral/label styles are unchanged.
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
@@ -474,7 +496,16 @@ class StatTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 24, color: DiceUpColors.teal),
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: DiceUpColors.teal.withValues(alpha: 0.10),
+              ),
+              child: Icon(icon, size: 20, color: DiceUpColors.teal),
+            ),
             const SizedBox(height: DiceUpSpacing.xs),
           ],
           Text(
