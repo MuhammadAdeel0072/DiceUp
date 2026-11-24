@@ -126,7 +126,7 @@ suite could not be executed here. Verification performed instead:
 - Diff review confirming zero changes under `lib/domain/`,
   `lib/data/`, `lib/l10n/`, `pubspec.yaml`, and platform folders.
 - Byte-exact blob-SHA verification of every pushed file against the
-  working tree (all 15 match).
+  working tree (all 17 Dart files and this document match).
 
 Remaining risk (documented, not silent): a full `flutter analyze` +
 `flutter test` run on a machine with the SDK is the final gate; the
