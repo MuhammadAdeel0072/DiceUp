@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_shadows.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
@@ -154,16 +155,45 @@ class _ModeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleStyle = Theme.of(context).textTheme.titleMedium;
     final subtitleStyle = Theme.of(context).textTheme.bodySmall;
+    // Premium v2: the filled disc becomes a small lit badge — its
+    // colour falling to navy at the bottom-right, a raised shadow
+    // and a soft tinted ring of its own accent — so each playable
+    // mode reads as a game tile instead of a settings row. The
+    // inert online card keeps the muted flat disc: it must never
+    // borrow the playable modes' energy. Chevron rows end in a
+    // quiet tinted circle instead of a bare glyph. Sizes (48 dp
+    // disc, D-09) and texts are unchanged.
+    final discDecoration = BoxDecoration(
+      gradient: muted
+          ? null
+          : LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                iconBackground,
+                Color.lerp(iconBackground, DiceUpColors.navy, 0.28)!,
+              ],
+            ),
+      color: muted ? iconBackground : null,
+      borderRadius: DiceUpSpacing.radiusMdBorder,
+      boxShadow: muted
+          ? null
+          : [
+              ...DiceUpShadows.raised,
+              BoxShadow(
+                color: iconBackground.withValues(alpha: 0.20),
+                blurRadius: 0,
+                spreadRadius: 3,
+              ),
+            ],
+    );
     return Row(
       children: [
         Container(
           width: DiceUpSpacing.minTouchTarget,
           height: DiceUpSpacing.minTouchTarget,
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: iconBackground,
-            borderRadius: DiceUpSpacing.radiusMdBorder,
-          ),
+          decoration: discDecoration,
           child: Icon(icon, size: 28, color: iconColor),
         ),
         const SizedBox(width: DiceUpSpacing.md),
@@ -183,7 +213,20 @@ class _ModeRow extends StatelessWidget {
           ),
         ),
         if (showChevron)
-          const Icon(Icons.chevron_right, color: DiceUpColors.textSecondary),
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: DiceUpColors.surfaceMuted,
+            ),
+            child: const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: DiceUpColors.textSecondary,
+            ),
+          ),
       ],
     );
   }

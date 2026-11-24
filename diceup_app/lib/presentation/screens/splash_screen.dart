@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
+import '../../core/design_system/diceup_decor.dart';
+import '../../core/design_system/diceup_spacing.dart';
 import '../../data/local/app_startup.dart';
 import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
@@ -67,27 +69,50 @@ class _SplashScreenState extends State<SplashScreen> {
     final l10n = stringsOf(context);
     return Scaffold(
       backgroundColor: DiceUpColors.navy,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const DiceWidget(value: 6, size: 96),
-            const SizedBox(height: 24),
-            Text(
-              l10n.appName,
-              style: textTheme.displayLarge?.copyWith(color: Colors.white),
+      // Premium v2: the brand moment sits on the layered table field
+      // (navy vignette + the teal/gold washes) instead of a flat
+      // navy rectangle, and the gold rule under the tagline is the
+      // same mark the home hero uses — one brand language from the
+      // first frame. The title/tagline styles, the 96 dp die, the
+      // 500 ms brand moment and the spinner (pinned by the boot
+      // tests' `pumpAndSettle` path) are unchanged.
+      body: Stack(
+        children: [
+          const Positioned.fill(child: TableBackground()),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const DiceWidget(value: 6, size: 96),
+                const SizedBox(height: 24),
+                Text(
+                  l10n.appName,
+                  style: textTheme.displayLarge?.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.splashTagline,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: const Color(0xFFCBD5E1),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: 48,
+                  height: 3,
+                  decoration: const BoxDecoration(
+                    color: DiceUpColors.gold,
+                    borderRadius: DiceUpSpacing.radiusSmBorder,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const CircularProgressIndicator(color: DiceUpColors.amber),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.splashTagline,
-              style: textTheme.bodyLarge?.copyWith(
-                color: const Color(0xFFCBD5E1),
-              ),
-            ),
-            const SizedBox(height: 32),
-            const CircularProgressIndicator(color: DiceUpColors.amber),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

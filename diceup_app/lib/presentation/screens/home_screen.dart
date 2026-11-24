@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_decor.dart';
 import '../../core/design_system/diceup_shadows.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../core/design_system/diceup_typography.dart';
@@ -170,7 +171,15 @@ class _HomeScreenState extends State<HomeScreen> {
         // nothing moves on screens where everything already fit.
         // The Align + maxContentWidth centre the column on wide
         // screens (tablets) instead of stretching it full-width.
-        child: LayoutBuilder(
+        // Premium v2: the warm ivory world gains its quiet
+        // teal/gold washes behind the content ([IvoryBackground] —
+        // decorative, no semantics), so the entrance stops reading
+        // as a form screen. Layout, order and pinned styles are
+        // unchanged.
+        child: Stack(
+          children: [
+            const Positioned.fill(child: IvoryBackground()),
+            LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
             padding: DiceUpSpacing.screenPadding,
             child: Align(
@@ -248,7 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-          ),
+            ),
+            ), // LayoutBuilder
+          ],
         ),
       ),
     );
@@ -274,13 +285,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// The Home brand header (redesign Stage 3A): the navy table field
-/// as a panel, with the four seat shapes in their on-dark player
-/// colours (shape + colour, never colour alone — D-27), the headline
-/// and tagline in white, and a single restrained gold rule. No new
-/// asset, no gradient, no glow — typography and the seat shapes
-/// carry the brand moment. The shapes are decorative: the headline
-/// already names the screen for a screen reader.
+/// The Home brand header (redesign Stage 3A, upgraded premium v2):
+/// the navy table field as a panel — now the *layered* table
+/// background ([TableBackground]: navy→indigo vignette with the
+/// teal/gold washes, clipped to the panel's rounded corners) — with
+/// the DiceUp brand mark, the four seat shapes in their on-dark
+/// player colours (shape + colour, never colour alone — D-27), the
+/// headline and tagline in white, and the restrained gold rule. The
+/// headline's pinned style (32 sp, w800, white) and the tagline's
+/// (16 sp, bodyLarge) are untouched. The mark and the shapes are
+/// decorative: the headline already names the screen for a screen
+/// reader.
 class _BrandHeader extends StatelessWidget {
   const _BrandHeader({required this.title, required this.subtitle});
 
@@ -290,54 +305,62 @@ class _BrandHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(DiceUpSpacing.lg),
-      decoration: BoxDecoration(
-        color: DiceUpColors.table,
+      decoration: const BoxDecoration(
         borderRadius: DiceUpSpacing.radiusLgBorder,
         boxShadow: DiceUpShadows.table,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ExcludeSemantics(
-            child: Row(
+      child: ClipRRect(
+        borderRadius: DiceUpSpacing.radiusLgBorder,
+        child: TableBackground(
+          child: Padding(
+            padding: const EdgeInsets.all(DiceUpSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var seat = 0; seat < 4; seat++) ...[
-                  if (seat > 0) const SizedBox(width: DiceUpSpacing.xs),
-                  PlayerShapeMarker(
-                    shape: PlayerShape.forSeat(seat),
-                    color: DiceUpColors.playerColorOnDark(seat),
-                    size: 20,
+                ExcludeSemantics(
+                  child: Row(
+                    children: [
+                      const BrandMark(size: 44),
+                      const Spacer(),
+                      for (var seat = 0; seat < 4; seat++) ...[
+                        if (seat > 0) const SizedBox(width: DiceUpSpacing.xs),
+                        PlayerShapeMarker(
+                          shape: PlayerShape.forSeat(seat),
+                          color: DiceUpColors.playerColorOnDark(seat),
+                          size: 20,
+                        ),
+                      ],
+                    ],
                   ),
-                ],
+                ),
+                const SizedBox(height: DiceUpSpacing.md),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.displayLarge
+                        ?.copyWith(color: DiceUpColors.textOnDark),
+                  ),
+                ),
+                const SizedBox(height: DiceUpSpacing.xs),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(color: DiceUpColors.textOnDark),
+                ),
+                const SizedBox(height: DiceUpSpacing.md),
+                Container(
+                  width: 48,
+                  height: 3,
+                  decoration: const BoxDecoration(
+                    color: DiceUpColors.gold,
+                    borderRadius: DiceUpSpacing.radiusSmBorder,
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: DiceUpSpacing.md),
-          Semantics(
-            header: true,
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.displayLarge
-                  ?.copyWith(color: DiceUpColors.textOnDark),
-            ),
-          ),
-          const SizedBox(height: DiceUpSpacing.xs),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodyLarge
-                ?.copyWith(color: DiceUpColors.textOnDark),
-          ),
-          const SizedBox(height: DiceUpSpacing.md),
-          Container(
-            width: 48,
-            height: 3,
-            decoration: const BoxDecoration(
-              color: DiceUpColors.gold,
-              borderRadius: DiceUpSpacing.radiusSmBorder,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

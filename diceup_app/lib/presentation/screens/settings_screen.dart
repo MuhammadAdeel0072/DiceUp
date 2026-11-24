@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_decor.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../core/design_system/diceup_typography.dart';
 import '../../domain/repositories/settings_repository.dart';
@@ -156,12 +157,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: DiceUpSpacing.maxContentWidth,
-          ),
-          child: ListView(
+      // Premium v2: the warm ivory world's quiet washes behind the
+      // settings list (decorative, no semantics). The list, its
+      // pinned texts, and the honest disabled Sound toggle are
+      // unchanged.
+      child: Stack(
+        children: [
+          const Positioned.fill(child: IvoryBackground()),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: DiceUpSpacing.maxContentWidth,
+              ),
+              child: ListView(
             padding: DiceUpSpacing.screenPadding,
             children: [
               // Feedback (D-32): vibration is the real haptic
@@ -236,9 +244,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
-          ),
-        ),
-      ),
-    );
+          ), // ListView
+        ), // ConstrainedBox
+      ), // Center
+        ], // Stack children
+      ), // Stack
+    ); // SafeArea + return
   }
 }
