@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/accessibility/reduced_motion.dart';
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
+import '../../core/design_system/diceup_decor.dart';
 import '../../core/design_system/diceup_shadows.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../domain/engine/game_state.dart';
@@ -36,7 +37,7 @@ import '../widgets/ludo_board.dart';
 /// exact setup the match started with, ruleset included.
 GameSetup _gameSetupOf(MatchSetup setup) => GameSetup(
   playerCount: setup.playerCount,
-  aiSeats: Map.of(setup.aiSeats),
+  aiSeats: setup.aiSeats,
   names: List.of(setup.names),
   colours: List.of(setup.colours),
   ruleset: setup.ruleset,
@@ -1462,7 +1463,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
           // on wide screens, and the board side is height-aware
           // ([_boardSide]) so the dice row stays above the fold
           // even on short/wide viewports (e.g. 800x600).
-          child: LayoutBuilder(
+          // Premium v2: the navy field gains the layered table
+          // washes ([TableBackground]) behind the content — the
+          // board column, its sizes, the pinned first paint and
+          // all semantics are untouched.
+          child: Stack(
+            children: [
+              const Positioned.fill(child: TableBackground()),
+              LayoutBuilder(
             builder: (context, constraints) {
               final contentWidth = constraints.maxWidth > 560
                   ? 560.0
@@ -1517,7 +1525,15 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                       color: DiceUpColors.ivory,
                                       width: 2,
                                     ),
-                                    boxShadow: DiceUpShadows.table,
+                                    // Premium v2: a thin dark rim
+                                    // under the ivory border (a
+                                    // zero-blur spread shadow), so
+                                    // the frame reads as the board's
+                                    // physical edge on the table field.
+                                    boxShadow: [
+                                      ...DiceUpShadows.boardRim,
+                                      ...DiceUpShadows.table,
+                                    ],
                                   ),
                                   child: ClipRRect(
                                     borderRadius: DiceUpSpacing.radiusLgBorder,
@@ -1580,10 +1596,17 @@ class _GameScreenState extends ConsumerState<GameScreen>
                               vertical: DiceUpSpacing.xxs,
                             ),
                             decoration: BoxDecoration(
-                              color: DiceUpColors.surface,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  DiceUpColors.surface,
+                                  DiceUpColors.ivoryAlt,
+                                ],
+                              ),
                               borderRadius: DiceUpSpacing.radiusLgBorder,
                               border: Border.all(color: DiceUpColors.border),
-                              boxShadow: DiceUpShadows.raised,
+                              boxShadow: DiceUpShadows.floating,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1719,8 +1742,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 ),
               );
             },
-          ),
-        ),
+            ), // LayoutBuilder
+            ], // Stack children
+          ), // Stack
+        ), // SafeArea
       ),
     );
   }
