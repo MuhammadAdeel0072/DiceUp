@@ -401,17 +401,85 @@ class LudoBoardPainter extends CustomPainter {
 
     // Board background: warm ivory (Stage 2 redesign, F2) — the
     // board reads as an object on the navy table field, not a
-    // white square on grey.
-    boardPaint.color = DiceUpColors.surface;
-    canvas.drawRect(Offset.zero & size, boardPaint);
+    // white square on grey. Premium v2: the ivory falls away very
+    // slightly toward the bottom-right (a lamp-lit surface), so the
+    // board has depth before a single token is drawn. The gradient
+    // stays inside the ivory token family (surface → ivoryAlt), so
+    // every documented cell/star contrast in diceup_colors.dart
+    // keeps holding.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [DiceUpColors.surface, DiceUpColors.ivoryAlt],
+        ).createShader(Offset.zero & size),
+    );
 
-    // Yards.
+    // Yards. Premium v2: the colour frame gains a shaded inner face
+    // (deep band along the bottom/right, like a lit tray), the ivory
+    // inner panel is rounded, and each yard slot gets a pedestal
+    // socket — a waiting token sits in a seat instead of on a blank
+    // slab, and an empty socket reads as an invitation. Occupied
+    // sockets disappear under their token (the token radius is a
+    // hair larger than the socket ring).
     for (var seat = 0; seat < 4; seat++) {
       final yardRect = _yardRect(seat, cell);
-      boardPaint.color = DiceUpColors.playerColor(seat);
+      final frameColour = DiceUpColors.playerColor(seat);
+      boardPaint.color = frameColour;
       canvas.drawRect(yardRect, boardPaint);
-      boardPaint.color = DiceUpColors.surface;
-      canvas.drawRect(yardRect.deflate(cell * 1.1), boardPaint);
+      // Shaded inner face: one deep line along the bottom and right
+      // edges of the frame, a step darker than the frame colour.
+      final deepEdge = _deepen(frameColour, 0.18);
+      final inset = yardRect.deflate(cell * 0.18);
+      final edgePaint = Paint()
+        ..color = deepEdge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = cell * 0.36;
+      canvas.drawLine(
+        Offset(inset.left + cell * 0.18, inset.bottom),
+        Offset(inset.right, inset.bottom),
+        edgePaint,
+      );
+      canvas.drawLine(
+        Offset(inset.right, inset.top + cell * 0.18),
+        Offset(inset.right, inset.bottom),
+        edgePaint,
+      );
+      // Rounded ivory inner panel.
+      final inner = yardRect.deflate(cell * 1.1);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(inner, Radius.circular(cell * 0.6)),
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [DiceUpColors.surface, DiceUpColors.ivoryAlt],
+          ).createShader(inner),
+      );
+      // Pedestal sockets, one per yard slot (slot coordinates are
+      // grid doubles — see [_yardSlots]; the same centres the tokens
+      // render at, so a token covers its socket exactly).
+      for (final slot in _yardSlots[seat]) {
+        final socketCentre = Offset(
+          (slot.y + 0.5) * cell,
+          (slot.x + 0.5) * cell,
+        );
+        canvas.drawCircle(
+          socketCentre,
+          cell * 0.42,
+          Paint()..color = DiceUpColors.ivoryAlt,
+        );
+        canvas.drawCircle(
+          socketCentre,
+          cell * 0.42,
+          Paint()
+            ..color = DiceUpColors.border
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
+        );
+      }
     }
     // Current-seat yard glow (Stage 2 turn system, F3): a teal
     // outline around the current player's yard only, drawn from
@@ -618,7 +686,9 @@ class LudoBoardPainter extends CustomPainter {
       // board surface and the star is amber on it (3.19:1 — above
       // the 3:1 floor for a non-text marker), reinforced by an
       // amber ring around the cell, so the safe marker no longer
-      // depends on a pale fill.
+      // depends on a pale fill. The fill stays [DiceUpColors.
+      // surface] (not the v2 alternate ivory) so the documented
+      // 3.19:1 figure keeps holding verbatim.
       fillPaint.color = DiceUpColors.surface;
       canvas.drawRect(rect, fillPaint);
       canvas.drawRect(
@@ -635,7 +705,13 @@ class LudoBoardPainter extends CustomPainter {
         Paint()..color = DiceUpColors.amber,
       );
     } else {
-      fillPaint.color = DiceUpColors.surface;
+      // Premium v2: regular cells alternate between the two ivory
+      // tokens (surface / ivoryAlt), giving the track a quiet
+      // checker rhythm. Start cells and safe cells keep their
+      // documented fills and markers above.
+      fillPaint.color = trackIndex.isEven
+          ? DiceUpColors.surface
+          : DiceUpColors.ivoryAlt;
       canvas.drawRect(rect, fillPaint);
     }
     canvas.drawRect(rect, gridPaint);
@@ -691,6 +767,21 @@ class LudoBoardPainter extends CustomPainter {
           ..strokeWidth = 1,
       );
     }
+    // Premium v2: a hairline of deep navy around the whole 3x3
+    // home square, so the centre reads as one finished piece set
+    // into the board (and the four triangles gain an edge against
+    // the ivory track cells around them).
+    canvas.drawRect(
+      Rect.fromCenter(
+        center: centre,
+        width: half * 2,
+        height: half * 2,
+      ),
+      Paint()
+        ..color = DiceUpColors.navy.withValues(alpha: 0.28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
   }
 
   void _drawToken(
@@ -744,18 +835,41 @@ class LudoBoardPainter extends CustomPainter {
     }
     // Token body. Shape differs per seat so players are distinguishable
     // by more than colour (NFR-08): circle, square, diamond, triangle.
-    // Depth (Stage 2, F2): a soft offset shadow under the piece and
-    // a small top-left highlight, so tokens read as game pieces
-    // sitting on the board rather than flat dots — a subtle
-    // top-light edge only, no bevel or texture. The shadow and
-    // highlight follow the token's scale and opacity, so a hopping
-    // or captured token keeps its depth through the animation.
+    // Depth: a soft offset shadow under the piece and a small top-left
+    // highlight, so tokens read as game pieces sitting on the board
+    // rather than flat dots (Stage 2, F2). Premium v2 upgrades the
+    // body itself to a lit dome — see the paint notes below. The
+    // shadow and highlight follow the token's scale and opacity, so
+    // a hopping or captured token keeps its depth through the
+    // animation.
     final shadow = Paint()
-      ..color = Colors.black.withValues(alpha: 0.18 * opacity);
+      ..color = Colors.black.withValues(alpha: 0.22 * opacity);
     final highlight = Paint()
-      ..color = Colors.white.withValues(alpha: 0.30 * opacity);
+      ..color = Colors.white.withValues(alpha: 0.38 * opacity);
     final shadowCentre = centre + Offset(0, radius * 0.18);
-    final fill = Paint()..color = color.withValues(alpha: opacity);
+    // Premium v2 body: a lit dome — the token's colour falling from
+    // a light top-left to a deep base, with a deep under-rim between
+    // the fill and the white edge. The shape (seat circle/square/
+    // diamond/triangle), the radius formula and the legal/current
+    // rings are unchanged — the piece simply reads as a polished
+    // game stone instead of a flat dot. The shadow, gradient and
+    // rim all follow [scale] and [opacity], so a hopping or captured
+    // token keeps its depth through the animation.
+    final fill = Paint()
+      ..shader = RadialGradient(
+        center: const Offset(0.32, 0.28),
+        radius: 1.1,
+        colors: [
+          _lighten(color, 0.22).withValues(alpha: opacity),
+          color.withValues(alpha: opacity),
+          _deepen(color, 0.22).withValues(alpha: opacity),
+        ],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(Rect.fromCircle(center: centre, radius: radius));
+    final deepRim = Paint()
+      ..color = _deepen(color, 0.32).withValues(alpha: opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = radius * 0.16;
     final edge = Paint()
       ..color = Colors.white.withValues(alpha: opacity)
       ..style = PaintingStyle.stroke
@@ -786,6 +900,7 @@ class LudoBoardPainter extends CustomPainter {
 
     canvas.drawPath(shapePath(shadowCentre, radius * 0.95), shadow);
     canvas.drawPath(shapePath(centre, radius), fill);
+    canvas.drawPath(shapePath(centre, radius * 0.985), deepRim);
     canvas.drawPath(shapePath(centre, radius), edge);
     canvas.drawCircle(
       centre + Offset(-radius * 0.32, -radius * 0.32),
@@ -841,3 +956,15 @@ class LudoBoardPainter extends CustomPainter {
         !setEquals(oldDelegate.safeTrackIndices, safeTrackIndices);
   }
 }
+
+/// Lightens [colour] toward white by [amount] (0..1) — the gloss end
+/// of the painter's lit pieces. Helper for [LudoBoardPainter] only.
+Color _lighten(Color colour, double amount) =>
+    Color.lerp(colour, Colors.white, amount)!;
+
+/// Deepens [colour] toward a warm near-black by [amount] (0..1) —
+/// the shaded end of the painter's lit pieces. Lerping toward a warm
+/// dark brown (not pure black) keeps yellows and greens saturated
+/// instead of muddy.
+Color _deepen(Color colour, double amount) =>
+    Color.lerp(colour, const Color(0xFF2A1608), amount)!;
