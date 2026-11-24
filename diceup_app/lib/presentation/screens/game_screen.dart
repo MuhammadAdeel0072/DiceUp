@@ -37,7 +37,7 @@ import '../widgets/ludo_board.dart';
 /// exact setup the match started with, ruleset included.
 GameSetup _gameSetupOf(MatchSetup setup) => GameSetup(
   playerCount: setup.playerCount,
-  aiSeats: setup.aiSeats,
+  aiSeats: Map.of(setup.aiSeats),
   names: List.of(setup.names),
   colours: List.of(setup.colours),
   ruleset: setup.ruleset,
