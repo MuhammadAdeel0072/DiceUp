@@ -1,0 +1,17 @@
+# Dependencies / build
+node_modules/
+dist/
+coverage/
+
+# Environment — never commit real secrets (.env* covers .env,
+# .env.local, .env.test, .env.production, ...; the negation keeps the
+# safe example file tracked — Stage 4, M-08: the old list missed
+# .env.test / .env.production, which would have been committable).
+.env*
+!.env.example
+
+# Logs / editor
+*.log
+.DS_Store
+# Dev-only RS256 keypair (local dev only — never commit, never use in production)
+.keys/

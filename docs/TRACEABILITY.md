@@ -83,3 +83,70 @@ supporting NFRs remain `not started`. Their implementation locations and
 test cases are defined in the SDD (§3.5, §5, §8, §9.2, §10) and will be
 added to this file when each phase begins. No phase is marked
 `implemented` or `verified` until its tests have actually run green.
+
+## Phase 4 — Online backend foundation (Stage 2, infrastructure subset) — IMPLEMENTED + VERIFIED (Stage 5, 2026-11-27)
+
+Branch `feature/online-phase-4-backend-foundation` from
+`implementation/foundation-phase-2-3` @ `102884a`; HEAD at Stage 5
+verification `93542ad` (+ Stage 5 doc commits). Repository:
+MuhammadAdeel0072/DiceUp (staging clone
+`~/workspace/scratch/diceup-phase4/`). **Nothing pushed, no PR opened,
+no merge.** Full requirement mapping, planned implementation and final
+statuses: `docs/PHASE-4-PLAN.md` §2 + §13. Final report:
+`~/workspace/goals/diceup-full-implementation/files/phase4-backend-foundation-report.md`.
+
+Stage 5 measured (this VM, Node v24.22.1, PostgreSQL 16.15, Redis
+7.0.15, real services, no Docker, no CI): typecheck exit 0, lint
+exit 0, format:check exit 0, build exit 0; unit **156/156 (22
+suites)**; e2e **73/73 (8 suites)**; total **229/229**. `npm audit`
+BLOCKED (registry 403). Clean-checkout sanity re-verified on the
+final tree: `npm ci` (817 packages), both migrations on a fresh DB,
+prod build boots, `/v1/health` 200, `/v1/health/ready` 200
+(database up, redis up), live register 201. `diceup_app/` untouched
+(`git diff 102884a..HEAD -- diceup_app/` empty) — no Flutter suite
+run, none owed.
+
+| SRS ID | SDD § | Module | Implementation location | Test case | Status |
+| --- | --- | --- | --- | --- | --- |
+| FR-02 | 5.2 | Auth | `backend/src/auth/` (`auth.controller.ts`, `auth.service.ts`, `dto/`), `backend/src/users/` (`user.entity.ts`, `profile.entity.ts`), `backend/src/mailer/` | `test/integration/auth.e2e.spec.ts` (duplicate email/username → 409 + code; weak password → 400; happy path creates users + profiles + email_tokens rows); `test/unit/dto-validation.spec.ts` | verified (e2e auth 31 tests; unit 156/156) |
+| FR-03 | 5.2, 13.1 | Auth | `backend/src/auth/` (`email-token.entity.ts`, `email-verification.service.ts`, `email-token.service.ts`), `backend/src/common/guards/email-verified.guard.ts` | `test/integration/auth.e2e.spec.ts` (verify → verified; reuse/expired rejected; unverified → 403 on guarded routes); `test/unit/email-token.spec.ts` | verified |
+| FR-04 | 5.2.1 | Auth | `backend/src/auth/` (`auth.service.ts`, `dto/login.dto.ts`, `password-hasher.service.ts`, `login-throttle.service.ts`) | `test/integration/auth.e2e.spec.ts` (email/username login, generic 401); `test/security/auth-security.e2e.spec.ts` (enumeration resistance) | verified |
+| FR-05 | 5.2 | Auth | `backend/src/auth/` (`auth.service.ts`, `auth-session.entity.ts`) | `test/integration/auth.e2e.spec.ts` + `full-journey.e2e.spec.ts` (logout → refresh 401; old access token fails REST + socket) | verified |
+| FR-06 | 5.2, 13.1 | Auth | `backend/src/auth/` (`password-reset.service.ts`, `email-token.entity.ts` purpose='reset') | `test/integration/auth.e2e.spec.ts` (forgot neutral 200 for unknown email; reset → new login works, old sessions revoked; reuse/expired rejected) | verified |
+| FR-07 | 5.1.9 | Users | `backend/src/users/` (`users.controller.ts`, `users.service.ts`, `dto/`) | `test/integration/auth.e2e.spec.ts` (GET/PATCH own profile; validation 400; bad avatar_key 400) | verified |
+| FR-08 | 5.1 | Users | `backend/src/users/` (`dto/change-password.dto.ts`, `dto/update-preferences.dto.ts`); `profiles.notification_preferences` (migration 0002) | `test/integration/auth.e2e.spec.ts` (wrong old → 401; change revokes sessions; preferences round-trip) | verified |
+| FR-09 | 5.1.1 | Auth | `backend/src/auth/` (`auth.service.ts` refresh flow, `token.service.ts`) | `test/integration/auth.e2e.spec.ts` + `full-journey.e2e.spec.ts` (refresh → new pair; refresh after logout → 401; reuse revokes family) | verified |
+| FR-10 | — | Users | `backend/src/users/` (`users.service.ts` request path; `users.deletion_requested_at` marker, migration 0001) | `test/integration/auth.e2e.spec.ts` (request → sessions revoked, marker set, login refused) | implemented (partial) — request path only; anonymisation NOT IMPLEMENTED, awaits OD-08 |
+| FR-42 | 13.2 | Guards | `backend/src/common/guards/` (`jwt-auth.guard.ts`, `email-verified.guard.ts`, `account-status.guard.ts`), `backend/src/app.module.ts` | `test/integration/authz-matrix.e2e.spec.ts` (4 routes × 8 states = 32 assertions) | verified — with gap G-1: matrix covers 4/7 guarded routes; password/preferences/delete routes covered only for happy-path in auth e2e (plan §13.4) |
+| FR-63 | 5.1 | Users | `backend/src/users/` (`users.controller.ts`, `dto/public-profile.dto.ts`) | `test/integration/auth.e2e.spec.ts` (public profile excludes email/hash; unknown id → 404) | verified (counters stay 0 until Phase 6) |
+| FR-75/76 | 13.2 | Guards | `backend/src/common/guards/account-status.guard.ts`, `backend/src/users/user.entity.ts` (status CHECK) | `test/integration/authz-matrix.e2e.spec.ts` (suspended → 403) + auth e2e (login 403 `ACCOUNT_SUSPENDED`) | verified (enforcement only; admin set-status endpoints are Phase 7) |
+| NFR-05 | 4.1 | — | Design only (stateless services, indexed queries, Redis rate-limit reads) | None — no k6 script, `test/load/` does not exist | blocked — 200-user load test not run (Phase 5) |
+| NFR-13 | 13.1 | Auth | `backend/src/auth/password-hasher.service.ts` (Argon2id 64 MiB / 3 / 1) | `test/unit/password-hasher.spec.ts` (5 tests); security e2e (no password/hash in logs or responses) | verified |
+| NFR-14 | 13.3 | Config | `backend/src/main.ts` (helmet HSTS + nosniff), `backend/src/config/` (production fail-fast) | `test/unit/config.validation.spec.ts` (production fail-fast) | verified — with gap G-2: no header-assertion test; no live TLS / prod boot (deployment property) |
+| NFR-15 | 12.4 | Auth | `backend/src/auth/` (`token.service.ts`, `auth-session.entity.ts`, `family_id`) | `test/unit/token.service.spec.ts` (6); auth e2e (rotation, reuse → family revoked, 15-min expiry) | verified |
+| NFR-16 | 13.4 | Auth | `backend/src/auth/login-throttle.service.ts` over `RedisService` | `test/unit/login-throttle.spec.ts` (6); auth e2e (5 bad → 6th 429 even with correct password; success resets) | verified |
+| NFR-17 | 13.2 | Guards | Global `JwtAuthGuard` + `AccountStatusGuard` + `RolesGuard` + `RateLimitGuard`; `WsJwtGuard` per-message | `test/integration/authz-matrix.e2e.spec.ts`; `test/unit/guards.spec.ts` (12); `test/unit/ws-jwt.guard.spec.ts` (20) | verified — same matrix gap as FR-42 (G-1); residuals L-01/L-02 documented |
+| NFR-20 | 12.1, 13.4 | Common/Socket | Global `ValidationPipe` (whitelist strip), `RateLimitGuard`, `WsRateLimitGuard` (20/s, disconnect after 5 violations) | `test/unit/dto-validation.spec.ts` (12), `rate-limit.spec.ts` (8), `socket-rate-limit.spec.ts` (8); socket e2e (21-event burst, 30-event flood); security e2e (413 oversized body) | verified |
+| NFR-21 | 13.7 | Users/Auth | Schema minimisation (no location/contacts/device-id columns); DTO allow-lists | Data-flow review (plan §10.4); security e2e (no `password_hash` in any response) | verified (full deletion workflow awaits OD-08, FR-10) |
+| NFR-24 | 9.4 | Socket/Redis | Socket.IO Redis adapter (`@socket.io/redis-adapter` + ioredis), per-match lock helper in `RedisService` | `test/integration/socket.e2e.spec.ts` (two-node broadcast via adapter, 13 tests) | blocked — 500-player load test not run (Phase 5); adapter wiring verified |
+| NFR-27 | — | — | `backend/eslint.config.mjs`, `tsconfig*.json` | `npm run lint` exit 0; `npm run typecheck` exit 0 (Stage 5 measured) | verified |
+| NFR-31 | — | Auth/Users | One TypeORM transaction per multi-row write (register, reset) | `test/integration/auth.e2e.spec.ts` (fault-injection rollback) | verified (pattern only; no match/result exists yet) |
+| NFR-37 | — | Logging | `backend/src/common/logging/` (nestjs-pino, redaction list), `logging.interceptor.ts` (`requestId`) | Security e2e log-capture test (no password/token in logs); unit redactor coverage | verified |
+| NFR-39 | 6.9 | Vectors | `backend/test/vectors/` (`rules-vectors.loader.ts`, `rules-vectors.spec.ts`) — reads the single `diceup_app/test/vectors/rules.json`, never copied | `test/vectors/rules-vectors.spec.ts` (4 tests: 23/23 parse; canonical case = Dart defaults; 6 variants each differ in exactly one field; tampered file fails) | verified (foundation only; TS engine is Phase 5; plan wording corrected Stage 5 — loader validates coherence, not all-23-equal-defaults) |
+| CON-03 | 3.5, 15.1 | — | Whole `backend/` (NestJS 11 + TypeScript strict + Socket.IO 4.8.3; PostgreSQL 16 via TypeORM; Redis 7 via ioredis) | `node --version`, `package.json` engines `>=22 <23`, `.nvmrc` = 22 | verified — variance: all runs on Node v24.22.1; Node 22 LTS itself unexercised |
+| CI-01 | 12 | Common | `backend/src/common/` (response-envelope interceptor + HTTP exception filter), `/v1` prefix | Contract assertions across auth e2e (envelope on success + every error class) | verified |
+| CI-02 | 12.6 | Socket | `backend/src/socket/` (`game.gateway.ts`, `ws-jwt.guard.ts`, namespace `/game`) | `test/integration/socket.e2e.spec.ts` (no/bad/revoked/unverified/suspended token refused; valid connects; ping/pong) | verified |
+| CI-04 | 9 | Database | `backend/src/database/` (single `DataSource` via `DatabaseModule`; `synchronize: false`) | `test/unit/database-options.spec.ts` (3); `config-precedence.spec.ts` (3) | verified |
+| CI-05 | 9.4 | Redis | `backend/src/redis/` (key registry with TTLs; only rate-limit counters written) | `test/integration/redis-down.e2e.spec.ts` (auth fails closed 503, app still boots); flush-Redis resilience per plan §10.3 | verified |
+| CI-07 | 3.8 | Mailer | `backend/src/mailer/` (`mailer.interface.ts`, `log-mailer.service.ts`, `smtp-mailer.service.ts`) | `test/unit/mailer.spec.ts` (3); auth e2e (register/forgot produce a dispatched message with the token via log transport) | verified (interface + transports; no real provider — OD-09 open) |
+| CI-08 | 3.8 | Mailer | `backend/src/mailer/mailer.interface.ts` (`PushSender` declared, no implementation) | Code review (zero providers wired) | verified (interface only) |
+| BR-14 | 6.2 | Config | `RULESET_VERSION=1.0.0` validated config (`backend/src/config/`) | Vector loader pins it; `test/vectors/rules-vectors.spec.ts` | verified (foundation only; no match stores it yet — Phase 5) |
+| BR-19 | 13.2 | Guards | `backend/src/common/guards/account-status.guard.ts` | See FR-75/76 row | verified |
+| NFR-23, CON-01, CON-02, CON-04, CON-05, CON-06 | 3.2 | Guard | No Flutter change, no admin panel, no payment code, no offline dependency (`git diff 102884a..HEAD -- diceup_app/` empty) | `git diff` evidence (Stage 5) | verified (guard — not violated) |
+
+**Out of scope for Phase 4 (NOT APPLICABLE here):** everything in
+plan §2.2 — Phases 5/6/7 rows (rooms, matchmaking, gameplay, friends,
+history/stats/leaderboard, notifications, reports, admin panel),
+Flutter-only NFRs, and operations items (NFR-22 availability, NFR-34
+backups). No Phase 4 row is marked complete without the evidence
+named in its row above.
