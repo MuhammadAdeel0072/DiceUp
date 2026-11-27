@@ -1,121 +1,145 @@
+import 'package:diceup/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'core/design_system/diceup_theme.dart';
+import 'data/local/app_startup.dart';
+import 'domain/engine/dice_roller.dart';
+import 'presentation/app_dependencies_scope.dart';
+import 'presentation/feedback/feedback_service.dart';
+import 'presentation/navigation/app_routes.dart';
+import 'presentation/providers/app_providers.dart';
+import 'presentation/screens/splash_screen.dart';
+
+/// App entry point (M1.6): the real load happens here, before the
+/// first frame, so Home is never shown as ready before
+/// initialisation completes. [initializeApp] never throws — a
+/// database that cannot be opened even after recovery yields a
+/// degraded [StartupResult] and the app still reaches Home.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final startup = await initializeApp();
+  runApp(DiceUpApp(startup: startup));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+/// DiceUp — multiplayer Ludo (offline-first).
+///
+/// Composition root (M3.3, H-07; D-06): the [ProviderScope] below
+/// is the single wiring point — it exposes the awaited startup
+/// result as [startupResultProvider], from which the repository,
+/// use-case and controller providers derive (see
+/// `lib/presentation/providers/app_providers.dart`). No game logic
+/// lives here, and no screen constructs a repository, a use case
+/// or a controller. [AppDependenciesScope] remains for the screens
+/// not yet migrated to providers (settings, history, statistics,
+/// home, setup — one screen at a time; see the M3.3 plan section).
+///
+/// Single-scope rule: this is the ONLY [ProviderScope] in the
+/// app tree. Never wrap [DiceUpApp] in another scope: Riverpod
+/// owns a non-overridden provider in the outermost scope, so its
+/// transitive watches resolve there and cannot see this scope's
+/// [startupResultProvider] override — the controller graph would
+/// read the un-overridden provider and fail. Tests inject fakes
+/// through the named test seams below ([testDiceRoller],
+/// [testFeedbackService], [testVibrationEnabled]) instead; tests
+/// of a bare screen use `test/test_providers.dart`, which builds
+/// its own single scope.
+class DiceUpApp extends StatefulWidget {
+  const DiceUpApp({
+    super.key,
+    this.startup,
+    this.initializer,
+    this.testDiceRoller,
+    this.testFeedbackService,
+    this.testVibrationEnabled,
+  });
 
-  // This widget is the root of your application.
+  /// A completed startup result (production: awaited in [main]).
+  /// When null, this widget runs the initializer itself and shows
+  /// the loading splash until it completes — the path widget tests
+  /// use, so they can inject an in-memory database or a failing
+  /// factory without going through [main].
+  final StartupResult? startup;
+
+  /// Startup override for tests. Defaults to [initializeApp].
+  final Future<StartupResult> Function()? initializer;
+
+  /// Test seams for the app-level scope (fixed dice, fake
+  /// feedback, vibration flag), applied as provider overrides
+  /// alongside the startup override. Production passes none.
+  /// This is how tests inject fakes into the app-level scope —
+  /// wrapping [DiceUpApp] in another [ProviderScope] is forbidden
+  /// (see the single-scope rule above).
+  final DiceRoller? testDiceRoller;
+  final FeedbackService? testFeedbackService;
+  final bool? testVibrationEnabled;
+
+  @override
+  State<DiceUpApp> createState() => _DiceUpAppState();
+}
+
+class _DiceUpAppState extends State<DiceUpApp> {
+  StartupResult? _startup;
+
+  @override
+  void initState() {
+    super.initState();
+    _startup = widget.startup;
+    if (_startup == null) _initialise();
+  }
+
+  Future<void> _initialise() async {
+    final startup = await (widget.initializer ?? initializeApp)();
+    if (mounted) setState(() => _startup = startup);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+    final startup = _startup;
+    if (startup == null) {
+      // Still initialising: brand + spinner only. The splash never
+      // navigates from here — this widget rebuilds with the ready
+      // result, and the ready splash navigates to Home.
+      return MaterialApp(
+        title: 'DiceUp',
+        debugShowCheckedModeBanner: false,
+        // M3.10 (NFR-38): localised strings (English-only baseline).
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: DiceUpTheme.light(),
+        home: const SplashScreen(),
+      );
+    }
+    return ProviderScope(
+      overrides: [
+        startupResultProvider.overrideWithValue(startup),
+        if (widget.testDiceRoller != null)
+          diceRollerProvider.overrideWithValue(widget.testDiceRoller!),
+        if (widget.testFeedbackService != null)
+          feedbackServiceProvider.overrideWithValue(
+            widget.testFeedbackService!,
+          ),
+        if (widget.testVibrationEnabled != null)
+          vibrationEnabledProvider.overrideWithValue(
+            widget.testVibrationEnabled!,
+          ),
+      ],
+      child: AppDependenciesScope(
+        startup: startup,
+        child: MaterialApp(
+          title: 'DiceUp',
+          debugShowCheckedModeBanner: false,
+          // M3.10 (NFR-38): localised strings (English-only baseline).
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: DiceUpTheme.light(),
+          initialRoute: AppRoutes.splash,
+          routes: AppRoutes.routesFor(startup: startup),
+          // M3 premium (§2.7.2): the results route's fade/slide
+          // entrance lives in AppRoutes.onGenerateRoute (the
+          // results entry is deliberately absent from routesFor).
+          onGenerateRoute: AppRoutes.onGenerateRoute,
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }

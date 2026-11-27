@@ -1,0 +1,914 @@
+{
+  "@@last_modified": "2026-11-22T17:10:00.000",
+  "@@locale": "en",
+  "@appName": {
+    "description": "The app name, shown in app bars and the splash screen. A proper noun, the same in every language."
+  },
+  "@avatarLabel": {
+    "description": "Semantics label of a player avatar: name, seat shape and colour name (M2.9, NFR-08, D-27).",
+    "placeholders": {
+      "colour": {
+        "example": "red",
+        "type": "String"
+      },
+      "name": {
+        "example": "Adeel",
+        "type": "String"
+      },
+      "shape": {
+        "example": "circle",
+        "type": "String"
+      }
+    }
+  },
+  "@cancel": {
+    "description": "Default dismiss action of confirmation dialogs."
+  },
+  "@close": {
+    "description": "Closes the match-detail dialog."
+  },
+  "@colourBlue": {
+    "description": "Lower-case colour name, used inside sentences and semantics labels."
+  },
+  "@colourGreen": {
+    "description": "Lower-case colour name, used inside sentences and semantics labels."
+  },
+  "@colourRed": {
+    "description": "Lower-case colour name, used inside sentences and semantics labels (avatar, swatches, statistics)."
+  },
+  "@colourYellow": {
+    "description": "Lower-case colour name, used inside sentences and semantics labels."
+  },
+  "@diceNoRollYet": {
+    "description": "Dice semantics label when no roll has happened and none is available."
+  },
+  "@diceRolling": {
+    "description": "Dice semantics label while a roll is in flight."
+  },
+  "@diceShowing": {
+    "description": "Dice semantics label after a roll, when no roll is available.",
+    "placeholders": {
+      "value": {
+        "example": "6",
+        "type": "int"
+      }
+    }
+  },
+  "@diceShowingTap": {
+    "description": "Dice semantics label after a roll, when another roll is available.",
+    "placeholders": {
+      "value": {
+        "example": "6",
+        "type": "int"
+      }
+    }
+  },
+  "@diceTapToRoll": {
+    "description": "Tooltip of the dice when a roll is available."
+  },
+  "@diceTapToRollLabel": {
+    "description": "Dice semantics label before the first roll."
+  },
+  "@difficultyEasy": {
+    "description": "AI difficulty name in the setup difficulty dropdown."
+  },
+  "@difficultyHard": {
+    "description": "AI difficulty name in the setup difficulty dropdown."
+  },
+  "@difficultyMedium": {
+    "description": "AI difficulty name in the setup difficulty dropdown."
+  },
+  "@gameBoardFinished": {
+    "description": "Board semantics label when the match is finished and there is no winner (defensive case)."
+  },
+  "@gameBoardTurnOne": {
+    "description": "Board semantics label during a turn with exactly one legal move.",
+    "placeholders": {
+      "name": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@gameBoardTurnOther": {
+    "description": "Board semantics label during a turn with any number of legal moves other than one.",
+    "placeholders": {
+      "count": {
+        "example": "4",
+        "type": "int"
+      },
+      "name": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@gameBoardWinner": {
+    "description": "Board semantics label when the match is finished.",
+    "placeholders": {
+      "name": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@gameDiceChooseToken": {
+    "description": "Feedback for tapping the dice after rolling, when a token move is due."
+  },
+  "@gameDiceNotYourTurn": {
+    "description": "Feedback for tapping the dice during another player's turn."
+  },
+  "@gameDiceWaitMove": {
+    "description": "Feedback for tapping the dice while a token hop is in flight."
+  },
+  "@gameDiceWaitSettle": {
+    "description": "Feedback for tapping the dice while a roll is in flight."
+  },
+  "@gameIllegalTokenMove": {
+    "description": "SnackBar + status feedback for a tap on a token that cannot move (M2.8, FR-21)."
+  },
+  "@gameLeaveConfirm": {
+    "description": "Confirm action of the leave-match confirmation dialog."
+  },
+  "@gameLeaveFinishedMessage": {
+    "description": "Body of the leave-match confirmation dialog when the match is already finished."
+  },
+  "@gameLeaveTitle": {
+    "description": "Title of the leave-match confirmation dialog."
+  },
+  "@gameLeaveUnfinishedMessage": {
+    "description": "Body of the leave-match confirmation dialog when the match is unfinished."
+  },
+  "@gamePauseRestart": {
+    "description": "Pause menu action: restart the match (asks confirmation)."
+  },
+  "@gamePauseResume": {
+    "description": "Pause menu action: resume the frozen match."
+  },
+  "@gamePauseTooltip": {
+    "description": "Tooltip of the AppBar pause button on the game screen."
+  },
+  "@gamePausedMessage": {
+    "description": "Body of the pause menu dialog."
+  },
+  "@gamePausedTitle": {
+    "description": "Title of the pause menu dialog."
+  },
+  "@gamePlayerHome": {
+    "description": "Player chip label: name and tokens home out of four.",
+    "placeholders": {
+      "home": {
+        "example": "0",
+        "type": "int"
+      },
+      "name": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@gameRestartConfirm": {
+    "description": "Confirm action of the restart confirmation dialog."
+  },
+  "@gameRestartMessage": {
+    "description": "Body of the restart confirmation dialog."
+  },
+  "@gameRestartTitle": {
+    "description": "Title of the restart confirmation dialog."
+  },
+  "@gameRollDice": {
+    "description": "Label of the Roll button on the game screen."
+  },
+  "@gameRolling": {
+    "description": "Label of the Roll button while a roll is in flight."
+  },
+  "@gameSafeCellsHint": {
+    "description": "Hint under the player chips on the game screen."
+  },
+  "@gameTurnBanner": {
+    "description": "Semantics label of the turn banner (M2.9).",
+    "placeholders": {
+      "name": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@historyDurationMinutesSeconds": {
+    "description": "Duration of one minute or more in the history list.",
+    "placeholders": {
+      "minutes": {
+        "example": "1",
+        "type": "int"
+      },
+      "seconds": {
+        "example": "30",
+        "type": "int"
+      }
+    }
+  },
+  "@historyDurationSeconds": {
+    "description": "Duration under one minute in the history list.",
+    "placeholders": {
+      "seconds": {
+        "example": "45",
+        "type": "int"
+      }
+    }
+  },
+  "@historyEmptyHint": {
+    "description": "History empty-state hint when no matches are stored."
+  },
+  "@historyEmptyTitle": {
+    "description": "History empty-state title when no matches are stored."
+  },
+  "@historyLoadFailedHint": {
+    "description": "History empty-state hint when loading the stored matches failed."
+  },
+  "@historyLoadFailedTitle": {
+    "description": "History empty-state title when loading the stored matches failed."
+  },
+  "@historyLocalBadge": {
+    "description": "Badge on each history row: offline results never affect rankings (BR-18)."
+  },
+  "@historyLocalNote": {
+    "description": "Note at the bottom of the match-detail dialog (BR-18)."
+  },
+  "@historyMatchFinished": {
+    "description": "History row title for a match with no winner recorded.",
+    "placeholders": {
+      "mode": {
+        "example": "vs AI",
+        "type": "String"
+      }
+    }
+  },
+  "@historyMatchLine": {
+    "description": "History row subtitle: date, duration and player count.",
+    "placeholders": {
+      "date": {
+        "example": "21 Nov 2026, 12:00",
+        "type": "String"
+      },
+      "duration": {
+        "example": "1m 30s",
+        "type": "String"
+      },
+      "players": {
+        "example": "2 players",
+        "type": "String"
+      }
+    }
+  },
+  "@historyMatchWon": {
+    "description": "History row title naming the winner.",
+    "placeholders": {
+      "mode": {
+        "example": "vs AI",
+        "type": "String"
+      },
+      "winner": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@historyNoWinner": {
+    "description": "Winner value in the match-detail dialog when no winner is recorded."
+  },
+  "@historyUnavailableHint": {
+    "description": "History empty-state hint when no dependencies are available."
+  },
+  "@historyUnavailableTitle": {
+    "description": "History empty-state title when no dependencies are available."
+  },
+  "@historyUnknownLength": {
+    "description": "Duration shown when a stored match has no duration."
+  },
+  "@homeDatabaseError": {
+    "description": "Snackbar shown once when the database could not be opened even after recovery. Same text as the data layer's kStartupDatabaseErrorMessage, which stays the data-layer source of truth."
+  },
+  "@homeDatabaseRecovered": {
+    "description": "Snackbar shown once when the database was unreadable and was recreated. Same text as the data layer's kDatabaseRecoveryMessage, which stays the data-layer source of truth."
+  },
+  "@homeMatchHistory": {
+    "description": "Home button and history screen title."
+  },
+  "@homeOfflineNote": {
+    "description": "Footnote at the bottom of the home screen."
+  },
+  "@homeOnlineMessage": {
+    "description": "Body of the Play Online login-prompt dialog (M2.10, M-13)."
+  },
+  "@homePlayOffline": {
+    "description": "Home button: offline play."
+  },
+  "@homePlayOnline": {
+    "description": "Home button and login-prompt dialog title: online play (Phase 5)."
+  },
+  "@homeReadySubtitle": {
+    "description": "Home screen sub-headline."
+  },
+  "@homeReadyTitle": {
+    "description": "Home screen headline."
+  },
+  "@homeResumeDiscard": {
+    "description": "Resume dialog action: delete the saved match."
+  },
+  "@homeResumeMessage": {
+    "description": "Body of the resume dialog."
+  },
+  "@homeResumeResume": {
+    "description": "Resume dialog action: continue the saved match."
+  },
+  "@homeResumeTitle": {
+    "description": "Title of the resume dialog offered on Home when a saved match exists."
+  },
+  "@homeSettingsTooltip": {
+    "description": "Tooltip of the settings icon button on Home."
+  },
+  "@homeSnapshotCorrupt": {
+    "description": "Snackbar shown once when a stored snapshot was corrupt and was discarded. Same text as the data layer's kCorruptSnapshotMessage, which stays the data-layer source of truth."
+  },
+  "@homeStatistics": {
+    "description": "Home button and statistics screen title."
+  },
+  "@labelDuration": {
+    "description": "Info-row label for the match length (results screen, history detail)."
+  },
+  "@labelFinished": {
+    "description": "Info-row label for the finish date (results screen)."
+  },
+  "@labelMode": {
+    "description": "Info-row label for the match mode (results screen, history detail)."
+  },
+  "@labelMoves": {
+    "description": "Info-row label for the move count (results screen)."
+  },
+  "@labelPlayers": {
+    "description": "Info-row label for the participants (results screen, history detail)."
+  },
+  "@labelRuleset": {
+    "description": "Detail-row label for the ruleset version (history detail)."
+  },
+  "@labelWinner": {
+    "description": "Detail-row label for the winner (history detail)."
+  },
+  "@mainMenu": {
+    "description": "Button that returns to the home screen (pause menu, results screen)."
+  },
+  "@modeLocal": {
+    "description": "Mode label for a local-multiplayer match (history, results, mode-selection card, setup screen title)."
+  },
+  "@modeLocalDescription": {
+    "description": "Subtitle of the Local multiplayer mode card."
+  },
+  "@modeOnline": {
+    "description": "Title of the online mode card (not tappable until Phase 5)."
+  },
+  "@modeOnlineDescription": {
+    "description": "Subtitle of the online mode card."
+  },
+  "@modeShortVsAi": {
+    "description": "Short mode label used in the results screen and the history list/detail (as opposed to the 'Play vs AI' card title)."
+  },
+  "@modeTitle": {
+    "description": "Mode-selection screen title."
+  },
+  "@modeVsAi": {
+    "description": "Mode card title and setup screen title for the vs-AI mode."
+  },
+  "@modeVsAiDescription": {
+    "description": "Subtitle of the Play vs AI mode card."
+  },
+  "modeVsAiSemantics": "Play vs AI. You against computer opponents (Easy, Medium, Hard).",
+  "@modeVsAiSemantics": {
+    "description": "Semantics label of the Play vs AI mode card: title plus subtitle as one sentence, so a screen reader hears the mode and what it means."
+  },
+  "modeLocalSemantics": "Local multiplayer. 2–4 players sharing this device.",
+  "@modeLocalSemantics": {
+    "description": "Semantics label of the Local multiplayer mode card: title plus subtitle as one sentence."
+  },
+  "@monthApr": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthAug": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthDec": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthFeb": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthJan": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthJul": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthJun": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthMar": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthMay": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthNov": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthOct": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@monthSep": {
+    "description": "Short month name used by the history and results date formats."
+  },
+  "@ok": {
+    "description": "Acknowledges the Play Online login-prompt dialog."
+  },
+  "@playerName": {
+    "description": "Default display name for a seat whose name field was left empty (D-28).",
+    "placeholders": {
+      "number": {
+        "example": "1",
+        "type": "int"
+      }
+    }
+  },
+  "@playerWithAi": {
+    "description": "A player's display name with the AI marker appended.",
+    "placeholders": {
+      "name": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@playersCountOne": {
+    "description": "Player count when exactly one player is listed (results info row, history list line)."
+  },
+  "@playersCountOther": {
+    "description": "Player count for any number of players other than one.",
+    "placeholders": {
+      "count": {
+        "example": "4",
+        "type": "int"
+      }
+    }
+  },
+  "@resultsEmpty": {
+    "description": "Empty state when the results route opens without a match result."
+  },
+  "@resultsPlayerHome": {
+    "description": "Tokens-home count next to a player on the results screen (M3 premium, §2.6/Q8).",
+    "placeholders": {
+      "home": {
+        "example": "3",
+        "type": "int"
+      }
+    }
+  },
+  "@resultsPlayAgain": {
+    "description": "Results button: a fresh match with the same settings."
+  },
+  "@resultsRecordFailed": {
+    "description": "Notice on the results screen when the completed match could not be recorded. Same text as the presentation constant kMatchRecordFailedMessage, which stays the single source the tests assert against."
+  },
+  "@resultsTitle": {
+    "description": "Results screen title."
+  },
+  "@resultsWinnerBadge": {
+    "description": "Badge next to the winning player in the results player list."
+  },
+  "@resultsWinnerWins": {
+    "description": "Results headline naming the winner.",
+    "placeholders": {
+      "name": {
+        "example": "Player 1",
+        "type": "String"
+      }
+    }
+  },
+  "@settingsFooter": {
+    "description": "Version footer at the bottom of the settings screen. The version is kept in sync with pubspec.yaml by the footer test (M2.10).",
+    "placeholders": {
+      "version": {
+        "example": "0.1.0+1",
+        "type": "String"
+      }
+    }
+  },
+  "@settingsLoadFailed": {
+    "description": "Error message when loading the stored settings failed."
+  },
+  "@settingsResetConfirm": {
+    "description": "Confirm action of the reset-to-defaults confirmation dialog."
+  },
+  "@settingsResetDefaults": {
+    "description": "Settings button: restore the default settings."
+  },
+  "@settingsResetMessage": {
+    "description": "Body of the reset-to-defaults confirmation dialog."
+  },
+  "@settingsResetTitle": {
+    "description": "Title of the reset-to-defaults confirmation dialog."
+  },
+  "@settingsSaveFailed": {
+    "description": "Snackbar when persisting a setting change failed."
+  },
+  "@settingsSound": {
+    "description": "Sound toggle title (disabled until sound lands, D-32)."
+  },
+  "@settingsSoundComingSoon": {
+    "description": "Subtitle of the disabled sound toggle."
+  },
+  "@settingsTitle": {
+    "description": "Settings screen title and Home settings-button tooltip."
+  },
+  "@settingsUnavailableHint": {
+    "description": "Settings empty-state hint when no dependencies are available."
+  },
+  "@settingsUnavailableTitle": {
+    "description": "Settings empty-state title when no dependencies are available."
+  },
+  "@settingsVibration": {
+    "description": "Vibration toggle title."
+  },
+  "@settingsVibrationDescription": {
+    "description": "Subtitle of the vibration toggle."
+  },
+  "@settingsVolume": {
+    "description": "Label above the sound volume slider.",
+    "placeholders": {
+      "volume": {
+        "example": "100",
+        "type": "int"
+      }
+    }
+  },
+  "@settingsVolumeStored": {
+    "description": "Note under the sound volume slider."
+  },
+  "@setupAi": {
+    "description": "Seat-type segment: an AI plays this seat."
+  },
+  "@setupAiDifficultyLabel": {
+    "description": "Label of the AI difficulty dropdown."
+  },
+  "@setupColourLabel": {
+    "description": "Label above a seat's colour swatches."
+  },
+  "@setupColourPlain": {
+    "description": "Semantics label and tooltip of a colour swatch that is free to pick.",
+    "placeholders": {
+      "colour": {
+        "example": "blue",
+        "type": "String"
+      }
+    }
+  },
+  "@setupColourSelected": {
+    "description": "Semantics label of a colour swatch that is the seat's current colour.",
+    "placeholders": {
+      "colour": {
+        "example": "red",
+        "type": "String"
+      }
+    }
+  },
+  "@setupColourTaken": {
+    "description": "Visible error when a colour taken by another seat in the match is picked.",
+    "placeholders": {
+      "name": {
+        "example": "Player 2",
+        "type": "String"
+      }
+    }
+  },
+  "@setupColourTakenBy": {
+    "description": "Semantics label of a colour swatch held by another seat in the match.",
+    "placeholders": {
+      "colour": {
+        "example": "green",
+        "type": "String"
+      },
+      "name": {
+        "example": "Player 2",
+        "type": "String"
+      }
+    }
+  },
+  "@setupDistinctColour": {
+    "description": "Validation error: two seats share a colour (defence-in-depth; the picker prevents it)."
+  },
+  "@setupHuman": {
+    "description": "Seat-type segment: a human plays this seat."
+  },
+  "@setupLoadingLast": {
+    "description": "Loading state while the last-used setup options load."
+  },
+  "@setupNameLabel": {
+    "description": "Label of a seat's name field."
+  },
+  "@setupNeedHuman": {
+    "description": "Validation error and inline warning when no seat is human (FR-14)."
+  },
+  "@setupPlayers": {
+    "description": "Setup section heading for the player count."
+  },
+  "@setupRuleExactFinish": {
+    "description": "Ruleset switch title: an exact roll is needed to reach home."
+  },
+  "@setupRuleExactFinishDescription": {
+    "description": "Ruleset switch subtitle for exact finish."
+  },
+  "@setupRuleExtraCapture": {
+    "description": "Ruleset switch title: capturing a token earns another roll."
+  },
+  "@setupRuleExtraCaptureDescription": {
+    "description": "Ruleset switch subtitle for extra turn on capture."
+  },
+  "@setupRuleExtraHome": {
+    "description": "Ruleset switch title: bringing a token home earns another roll."
+  },
+  "@setupRuleExtraHomeDescription": {
+    "description": "Ruleset switch subtitle for extra turn on home."
+  },
+  "@setupRuleExtraSix": {
+    "description": "Ruleset switch title: rolling a 6 earns another roll."
+  },
+  "@setupRuleExtraSixDescription": {
+    "description": "Ruleset switch subtitle for extra turn on six."
+  },
+  "@setupRuleReleaseOnOne": {
+    "description": "Ruleset switch title: a roll of 1 releases a token."
+  },
+  "@setupRuleReleaseOnOneDescription": {
+    "description": "Ruleset switch subtitle for release-on-1."
+  },
+  "@setupRuleThirdSix": {
+    "description": "Ruleset switch title: three sixes in a row forfeit the roll."
+  },
+  "@setupRuleThirdSixDescription": {
+    "description": "Ruleset switch subtitle for the third-six limit."
+  },
+  "@setupRules": {
+    "description": "Setup section heading for the ruleset switches."
+  },
+  "@setupSeats": {
+    "description": "Setup section heading for the per-seat cards."
+  },
+  "@setupStartMatch": {
+    "description": "Setup button: start the match with the chosen options."
+  },
+  "@shapeCircle": {
+    "description": "Token shape name, used in the avatar semantics label."
+  },
+  "@shapeDiamond": {
+    "description": "Token shape name, used in the avatar semantics label."
+  },
+  "@shapeSquare": {
+    "description": "Token shape name, used in the avatar semantics label."
+  },
+  "@shapeTriangle": {
+    "description": "Token shape name, used in the avatar semantics label."
+  },
+  "@splashTagline": {
+    "description": "Tagline under the DiceUp mark on the splash screen."
+  },
+  "@statisticsHumanWins": {
+    "description": "Statistics row label: lifetime matches won by a human seat (D-24)."
+  },
+  "@statisticsLoadFailed": {
+    "description": "Error message when loading the statistics failed."
+  },
+  "@statisticsLocalMatches": {
+    "description": "Statistics row label: lifetime local-multiplayer matches."
+  },
+  "@statisticsMatchesPlayed": {
+    "description": "Statistics row label: lifetime matches played."
+  },
+  "@statisticsMatchesVsAi": {
+    "description": "Statistics row label: lifetime matches against AI seats."
+  },
+  "@statisticsNoHumanWins": {
+    "description": "Shown when no human seat has won in the retained history."
+  },
+  "@statisticsNoMatches": {
+    "description": "Note shown when no match has been played yet."
+  },
+  "@statisticsPerPlayerCaption": {
+    "description": "Caption for the per-player breakdown, which is computed from retained history only (M1.7, D-24). Same text as the presentation constant kPerPlayerWinsCaption, which stays the single source the tests assert against."
+  },
+  "@statisticsSeatWins": {
+    "description": "Per-seat win row label: seat number and colour name.",
+    "placeholders": {
+      "colour": {
+        "example": "Red",
+        "type": "String"
+      },
+      "seat": {
+        "example": "1",
+        "type": "int"
+      }
+    }
+  },
+  "@statisticsTitle": {
+    "description": "Statistics screen title."
+  },
+  "@statisticsUnavailableHint": {
+    "description": "Statistics empty-state hint when no dependencies are available."
+  },
+  "@statisticsUnavailableTitle": {
+    "description": "Statistics empty-state title when no dependencies are available."
+  },
+  "@statisticsWinsBySeat": {
+    "description": "Heading above the per-seat win breakdown."
+  },
+  "@tryAgain": {
+    "description": "Retry action of the shared error view."
+  },
+  "@winnerSuffix": {
+    "description": "Suffix appended to a player's name in the history detail view when that player won the match."
+  },
+  "appName": "DiceUp",
+  "avatarLabel": "{name}, {shape} token, {colour}",
+  "cancel": "Cancel",
+  "close": "Close",
+  "colourBlue": "blue",
+  "colourGreen": "green",
+  "colourRed": "red",
+  "colourYellow": "yellow",
+  "diceNoRollYet": "Dice, no roll yet",
+  "diceRolling": "Dice, rolling",
+  "diceShowing": "Dice, showing {value}",
+  "diceShowingTap": "Dice, showing {value}. Tap to roll",
+  "diceTapToRoll": "Tap to roll",
+  "diceTapToRollLabel": "Dice, tap to roll",
+  "difficultyEasy": "Easy",
+  "difficultyHard": "Hard",
+  "difficultyMedium": "Medium",
+  "gameBoardFinished": "Ludo board. Match finished",
+  "gameBoardTurnOne": "Ludo board. {name}'s turn, 1 legal move",
+  "gameBoardTurnOther": "Ludo board. {name}'s turn, {count} legal moves",
+  "gameBoardWinner": "Ludo board. {name} won the match",
+  "gameDiceChooseToken": "Choose a token to move.",
+  "gameDiceNotYourTurn": "It's not your turn yet.",
+  "gameDiceWaitMove": "Wait for the move to finish.",
+  "gameDiceWaitSettle": "Wait for the dice to settle.",
+  "gameIllegalTokenMove": "That token can't move now",
+  "gameLeaveConfirm": "Leave",
+  "gameLeaveFinishedMessage": "This match is over.",
+  "gameLeaveTitle": "Leave the match?",
+  "gameLeaveUnfinishedMessage": "Your progress in this match will be lost.",
+  "gamePauseRestart": "Restart",
+  "gamePauseResume": "Resume",
+  "gamePauseTooltip": "Pause",
+  "gamePausedMessage": "Take a break — the match is frozen.",
+  "gamePausedTitle": "Paused",
+  "gamePlayerHome": "{name} · Home {home}/4",
+  "gameRestartConfirm": "Restart",
+  "gameRestartMessage": "The current match will be discarded.",
+  "gameRestartTitle": "Restart match?",
+  "gameRollDice": "Roll dice",
+  "gameRolling": "Rolling…",
+  "gameSafeCellsHint": "Safe cells are marked with a star. Tokens on safe cells cannot be captured.",
+  "gameTurnBanner": "{name}'s turn",
+  "historyDurationMinutesSeconds": "{minutes}m {seconds}s",
+  "historyDurationSeconds": "{seconds} s",
+  "historyEmptyHint": "Finished offline matches will appear here, newest first.",
+  "historyEmptyTitle": "No matches yet",
+  "historyLoadFailedHint": "Try again later.",
+  "historyLoadFailedTitle": "Couldn't load match history",
+  "historyLocalBadge": "Local",
+  "historyLocalNote": "Local match — offline results never affect rankings.",
+  "historyMatchFinished": "{mode} · Finished",
+  "historyMatchLine": "{date} · {duration} · {players}",
+  "historyMatchWon": "{mode} · {winner} won",
+  "historyNoWinner": "No winner recorded",
+  "historyUnavailableHint": "Your saved data couldn't be loaded, so past matches cannot be shown right now.",
+  "historyUnavailableTitle": "History unavailable",
+  "historyUnknownLength": "Unknown length",
+  "homeDatabaseError": "Your saved data couldn't be loaded. You can still play, but matches and settings will not be saved this time.",
+  "homeDatabaseRecovered": "Your local history couldn't be read, so it was reset. You can keep playing.",
+  "homeMatchHistory": "Match History",
+  "homeOfflineNote": "Offline play works without an account or internet.",
+  "homeOnlineMessage": "Log in to play online — online play arrives in Phase 5.",
+  "homePlayOffline": "Play Offline",
+  "homePlayOnline": "Play Online",
+  "homeReadySubtitle": "Classic Ludo — offline, with friends.",
+  "homeReadyTitle": "Ready to play?",
+  "homeResumeDiscard": "Discard",
+  "homeResumeMessage": "You have a match in progress. Resume where you left off, or discard it and start fresh.",
+  "homeResumeResume": "Resume",
+  "homeResumeTitle": "Resume your match?",
+  "homeSettingsTooltip": "Settings",
+  "homeSnapshotCorrupt": "Your saved match couldn't be read, so it was discarded. You can start a new match.",
+  "homeStatistics": "Statistics",
+  "labelDuration": "Duration",
+  "labelFinished": "Finished",
+  "labelMode": "Mode",
+  "labelMoves": "Moves",
+  "labelPlayers": "Players",
+  "labelRuleset": "Ruleset",
+  "labelWinner": "Winner",
+  "mainMenu": "Main Menu",
+  "modeLocal": "Local multiplayer",
+  "modeLocalDescription": "2–4 players sharing this device.",
+  "modeOnline": "Online multiplayer",
+  "modeOnlineDescription": "Rooms, friends and live matches — coming in Phase 5.",
+  "modeShortVsAi": "vs AI",
+  "modeTitle": "Choose a mode",
+  "modeVsAi": "Play vs AI",
+  "modeVsAiDescription": "You against computer opponents (Easy, Medium, Hard).",
+  "monthApr": "Apr",
+  "monthAug": "Aug",
+  "monthDec": "Dec",
+  "monthFeb": "Feb",
+  "monthJan": "Jan",
+  "monthJul": "Jul",
+  "monthJun": "Jun",
+  "monthMar": "Mar",
+  "monthMay": "May",
+  "monthNov": "Nov",
+  "monthOct": "Oct",
+  "monthSep": "Sep",
+  "ok": "OK",
+  "playerName": "Player {number}",
+  "playerWithAi": "{name} (AI)",
+  "playersCountOne": "1 player",
+  "playersCountOther": "{count} players",
+  "resultsEmpty": "No match result to show.",
+  "resultsPlayAgain": "Play Again",
+  "resultsPlayerHome": "Home {home}/4",
+  "resultsRecordFailed": "This match finished, but it couldn't be saved to your history.",
+  "resultsTitle": "Results",
+  "resultsWinnerBadge": "Winner",
+  "resultsWinnerWins": "{name} wins!",
+  "settingsFooter": "DiceUp {version} — offline-first Ludo. Online play, friends and leaderboards arrive in later phases.",
+  "settingsLoadFailed": "Couldn't load settings",
+  "settingsResetConfirm": "Reset",
+  "settingsResetDefaults": "Reset to defaults",
+  "settingsResetMessage": "Sound, vibration and volume return to their defaults.",
+  "settingsResetTitle": "Reset settings?",
+  "settingsSaveFailed": "Couldn't save that setting. Try again.",
+  "settingsSound": "Sound",
+  "settingsSoundComingSoon": "Coming soon — sound does not play anything yet.",
+  "settingsTitle": "Settings",
+  "settingsUnavailableHint": "Your saved data couldn't be loaded, so settings cannot be changed right now.",
+  "settingsUnavailableTitle": "Settings unavailable",
+  "settingsVibration": "Vibration",
+  "settingsVibrationDescription": "Haptic feedback on moves",
+  "settingsVolume": "Sound volume: {volume}",
+  "settingsVolumeStored": "Stored for when sound arrives — moving this slider plays nothing.",
+  "setupAi": "AI",
+  "setupAiDifficultyLabel": "AI difficulty",
+  "setupColourLabel": "Colour",
+  "setupColourPlain": "Colour {colour}",
+  "setupColourSelected": "Colour {colour}, selected",
+  "setupColourTaken": "That colour is already taken by {name}.",
+  "setupColourTakenBy": "Colour {colour}, taken by {name}",
+  "setupDistinctColour": "Each player needs a distinct colour.",
+  "setupHuman": "Human",
+  "setupLoadingLast": "Loading your last setup…",
+  "setupNameLabel": "Name",
+  "setupNeedHuman": "At least one seat must be human.",
+  "setupPlayers": "Players",
+  "setupRuleExactFinish": "Exact finish",
+  "setupRuleExactFinishDescription": "A token needs an exact roll to reach home.",
+  "setupRuleExtraCapture": "Extra turn on capture",
+  "setupRuleExtraCaptureDescription": "Capturing a token earns another roll.",
+  "setupRuleExtraHome": "Extra turn on home",
+  "setupRuleExtraHomeDescription": "Bringing a token home earns another roll.",
+  "setupRuleExtraSix": "Extra turn on six",
+  "setupRuleExtraSixDescription": "Rolling a 6 earns another roll.",
+  "setupRuleReleaseOnOne": "Release on 1",
+  "setupRuleReleaseOnOneDescription": "A roll of 1 also releases a token.",
+  "setupRuleThirdSix": "Third-six limit",
+  "setupRuleThirdSixDescription": "Three sixes in a row forfeits the roll.",
+  "setupRules": "Rules",
+  "setupSeats": "Seats",
+  "setupStartMatch": "Start match",
+  "shapeCircle": "circle",
+  "shapeDiamond": "diamond",
+  "shapeSquare": "square",
+  "shapeTriangle": "triangle",
+  "splashTagline": "Multiplayer Ludo",
+  "statisticsHumanWins": "Human wins",
+  "statisticsLoadFailed": "Couldn't load statistics",
+  "statisticsLocalMatches": "Local matches",
+  "statisticsMatchesPlayed": "Matches played",
+  "statisticsMatchesVsAi": "Matches vs AI",
+  "statisticsNoHumanWins": "No human wins in your latest 500 matches yet.",
+  "statisticsNoMatches": "No matches yet — finish an offline match and your totals will appear here.",
+  "statisticsPerPlayerCaption": "Per-player wins from your latest 500 matches.",
+  "statisticsSeatWins": "Seat {seat} · {colour}",
+  "statisticsTitle": "Statistics",
+  "statisticsUnavailableHint": "Your saved data couldn't be loaded, so statistics cannot be shown right now.",
+  "statisticsUnavailableTitle": "Statistics unavailable",
+  "statisticsWinsBySeat": "Wins by seat",
+  "tryAgain": "Try again",
+  "winnerSuffix": " — winner"
+}
