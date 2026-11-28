@@ -91,8 +91,9 @@ describe('health + startup (real PostgreSQL + real Redis)', () => {
     try {
       const executed = await ds.runMigrations();
       expect(executed.map((m) => m.name)).toContain('InitAuth1764240000000');
-      // Schema verification: the four SDD §9.2 tables exist, nothing else
-      // except TypeORM's own `migrations` version table (§4.4).
+      // Schema verification: the SDD §9.2 tables exist (Phase 4's four
+      // + Phase 5 Stage 3's six), nothing else except TypeORM's own
+      // `migrations` version table (§4.4).
       const tables = await ds.query(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
@@ -101,8 +102,14 @@ describe('health + startup (real PostgreSQL + real Redis)', () => {
       expect(tables.map((t: { table_name: string }) => t.table_name)).toEqual([
         'auth_sessions',
         'email_tokens',
+        'game_configurations',
+        'match_players',
+        'matches',
         'migrations',
+        'move_events',
         'profiles',
+        'room_members',
+        'rooms',
         'users',
       ]);
       // citest extension + key columns, incl. the two [P4 choice] columns.

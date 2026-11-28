@@ -1,10 +1,13 @@
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import type { Server, ServerOptions, Socket } from 'socket.io';
+import type { AppConfig } from '../config/configuration';
 import { ErrorCode } from '../common/errors/error-codes';
 import { SOCKET_NAMESPACE, type SocketClientData } from './socket.constants';
 import { SocketAuthError } from './socket-error';
+import { SocketConnectionRateLimitService } from './socket-connection-rate-limit.service';
 import { SocketRedisClients } from './socket-redis-clients.service';
 import {
   extractHandshakeAppVersion,
@@ -42,6 +45,14 @@ export class RedisSocketIoAdapter extends IoAdapter {
     app: INestApplication,
     private readonly guard: WsJwtGuard,
     private readonly clients: SocketRedisClients,
+    private readonly connLimiter: SocketConnectionRateLimitService,
+    /**
+     * The validated `trust proxy` setting: only when it is on may
+     * the first `X-Forwarded-For` entry be trusted as the client IP
+     * for the connection limit (otherwise an attacker could spoof
+     * the header to dodge the per-IP budget).
+     */
+    private readonly trustProxy: boolean | number | string,
   ) {
     super(app);
   }
@@ -78,7 +89,33 @@ export class RedisSocketIoAdapter extends IoAdapter {
     next: (err?: Error) => void,
   ): Promise<void> {
     try {
+      // L-02: bound handshake floods BEFORE the RS256 verify + DB
+      // lookups. The per-IP check runs first (unauthenticated), the
+      // per-user check after auth (one account, bounded connections).
+      // A limit hit refuses the handshake with RATE_LIMITED; the
+      // limiter never throws (Redis-down falls back in-process).
+      const ip = extractHandshakeIp(socket, this.trustProxy);
+      const ipCheck = await this.connLimiter.checkIp(ip);
+      if (!ipCheck.allowed) {
+        next(
+          new SocketAuthError(
+            ErrorCode.RateLimited,
+            'Too many connections from this address. Slow down.',
+          ).toHandshakeError(),
+        );
+        return;
+      }
       const user = await this.guard.authenticate(socket.handshake.auth);
+      const userCheck = await this.connLimiter.checkUser(user.id);
+      if (!userCheck.allowed) {
+        next(
+          new SocketAuthError(
+            ErrorCode.RateLimited,
+            'Too many connections for this account. Slow down.',
+          ).toHandshakeError(),
+        );
+        return;
+      }
       const data = socket.data as SocketClientData;
       data.user = user;
       data.authToken = extractHandshakeToken(socket.handshake.auth);
@@ -115,5 +152,29 @@ export function createRedisSocketAdapter(
     app,
     app.get(WsJwtGuard),
     app.get(SocketRedisClients),
+    app.get(SocketConnectionRateLimitService),
+    app.get(ConfigService).getOrThrow<AppConfig>('app').trustProxy,
   );
+}
+
+/**
+ * Client IP for the connection limit (L-02): the first
+ * `X-Forwarded-For` entry only when the trust-proxy setting is on,
+ * otherwise the socket's remote address. Never trusts the header
+ * blindly — with trust proxy off, a spoofed header must not buy a
+ * fresh per-IP budget.
+ */
+export function extractHandshakeIp(
+  socket: Socket,
+  trustProxy: boolean | number | string,
+): string {
+  if (trustProxy) {
+    const forwarded = socket.handshake.headers['x-forwarded-for'];
+    const first =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0]?.trim()
+        : undefined;
+    if (first) return first;
+  }
+  return socket.handshake.address || 'unknown';
 }

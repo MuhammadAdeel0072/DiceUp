@@ -10,8 +10,8 @@ import {
   vectorsFilePath,
 } from './rules-vectors.loader';
 
-describe('rule-vector loader — NFR-39 foundation (plan §2.1.2)', () => {
-  it('parses 23/23 cases from the single repo copy', () => {
+describe('rule-vector loader — NFR-39 (Stage 4: full case shape)', () => {
+  it('parses 39/39 cases from the single repo copy', () => {
     const vectors = loadRuleVectors();
     expect(vectors.formatVersion).toBe(1);
     expect(vectors.rulesetVersion).toBe('1.0.0');
@@ -36,17 +36,18 @@ describe('rule-vector loader — NFR-39 foundation (plan §2.1.2)', () => {
     });
   });
 
-  it('the 6 variant cases each differ from the defaults in exactly one field', () => {
+  it('the 10 variant cases differ from the defaults as documented', () => {
     // Plan §2.1.2 said every case equals the defaults; the real file
-    // has 6 deliberate single-field variants (see loader doc). 17/23
-    // cases match the defaults exactly.
+    // has 10 deliberate variants (see loader doc). 29/39 cases match
+    // the defaults exactly. The 6 Phase 4 variants each differ in
+    // exactly one field; the 4 Stage 4 variants differ as listed.
     const vectors = loadRuleVectors();
     const byId = new Map(vectors.cases.map((c) => [c.id, c.ruleset]));
     expect(
       vectors.cases.filter(
         (c) => rulesetDiffFromDefaults(c.ruleset).length === 0,
       ),
-    ).toHaveLength(17);
+    ).toHaveLength(29);
     expect(
       rulesetDiffFromDefaults(byId.get('release-on-one-variant')!),
     ).toEqual(['releaseOnOne']);
@@ -67,6 +68,53 @@ describe('rule-vector loader — NFR-39 foundation (plan §2.1.2)', () => {
         byId.get('exact-finish-off-overshoot-lands-home')!,
       ),
     ).toEqual(['exactFinish']);
+    expect(rulesetDiffFromDefaults(byId.get('release-on-one-only')!)).toEqual([
+      'releaseOnSix',
+      'releaseOnOne',
+    ]);
+    expect(
+      rulesetDiffFromDefaults(byId.get('max-consecutive-sixes-two')!),
+    ).toEqual(['maxConsecutiveSixes']);
+    expect(
+      rulesetDiffFromDefaults(byId.get('max-consecutive-sixes-five')!),
+    ).toEqual(['maxConsecutiveSixes']);
+    expect(
+      rulesetDiffFromDefaults(
+        byId.get('combined-variant-release-one-exact-off')!,
+      ),
+    ).toEqual([
+      'releaseOnOne',
+      'extraTurnOnCapture',
+      'maxConsecutiveSixes',
+      'exactFinish',
+    ]);
+  });
+
+  it('the loader rejects a bad step op and a mismatched embedded ruleset', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'diceup-vectors-'));
+    const good = loadRuleVectors();
+    const write = (obj: unknown, name: string) => {
+      const p = path.join(tmp, name);
+      fs.writeFileSync(p, JSON.stringify(obj));
+      return p;
+    };
+    const badOp = JSON.parse(JSON.stringify(good)) as typeof good;
+    (badOp.cases[0].steps[0] as unknown as Record<string, unknown>).op =
+      'teleport';
+    expect(() => loadRuleVectors(write(badOp, 'bad-op.json'))).toThrow(
+      /unknown op/,
+    );
+    const badEmbedded = JSON.parse(JSON.stringify(good)) as typeof good;
+    (
+      badEmbedded.cases[0].initial as unknown as Record<string, unknown>
+    ).ruleset = {
+      ...(badEmbedded.cases[0].ruleset as unknown as Record<string, unknown>),
+      exactFinish: false,
+    };
+    expect(() =>
+      loadRuleVectors(write(badEmbedded, 'bad-embedded.json')),
+    ).toThrow(/initial.ruleset does not match/);
+    fs.rmSync(tmp, { recursive: true, force: true });
   });
 
   it('tampered vectors fail: bad version, missing field, wrong count', () => {
@@ -86,13 +134,13 @@ describe('rule-vector loader — NFR-39 foundation (plan §2.1.2)', () => {
       loadRuleVectors(
         write({ ...good, cases: good.cases.slice(0, 5) }, 'short.json'),
       ),
-    ).toThrow(/Expected 23/);
+    ).toThrow(/Expected 39/);
     const missingField = JSON.parse(JSON.stringify(good)) as typeof good;
     delete (missingField.cases[0].ruleset as unknown as Record<string, unknown>)
       .exactFinish;
     expect(() =>
       loadRuleVectors(write(missingField, 'missing-field.json')),
-    ).toThrow(/invalid ruleset/);
+    ).toThrow(/missing required field "exactFinish"/);
     const wrongRuleset = JSON.parse(JSON.stringify(good)) as typeof good;
     wrongRuleset.cases[0].ruleset.releaseOnSix = false;
     wrongRuleset.cases[0].ruleset.releaseOnOne = false;

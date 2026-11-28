@@ -1,8 +1,161 @@
 {
   "@@last_modified": "2026-11-22T17:10:00.000",
   "@@locale": "en",
+  "@accountChangePassword": {
+    "description": "Account screen: opens the change-password form."
+  },
+  "@accountDisplayName": {
+    "description": "Account screen: the player's display name."
+  },
+  "@accountEmail": {
+    "description": "Account screen: the player's email address."
+  },
+  "@accountEmailNotVerified": {
+    "description": "Account screen: shown when the email is not yet verified."
+  },
+  "@accountEmailStatus": {
+    "description": "Account screen: label of the email-verification status row."
+  },
+  "@accountEmailVerified": {
+    "description": "Account screen: shown when the email is verified."
+  },
+  "@accountLogOut": {
+    "description": "Account screen: signs out of the online account."
+  },
+  "@accountMatchesPlayed": {
+    "description": "Account screen: online matches played."
+  },
+  "@accountMatchesWon": {
+    "description": "Account screen: online matches won."
+  },
+  "@accountSignedInAs": {
+    "description": "Account screen: who is signed in.",
+    "placeholders": {
+      "name": {
+        "example": "Adeel",
+        "type": "String"
+      }
+    }
+  },
+  "@accountTitle": {
+    "description": "Account screen title."
+  },
+  "@accountUsername": {
+    "description": "Account screen: the player's username."
+  },
+  "@accountVerifyEmail": {
+    "description": "Account screen: opens the email-verification screen."
+  },
   "@appName": {
     "description": "The app name, shown in app bars and the splash screen. A proper noun, the same in every language."
+  },
+  "@authCodeLabel": {
+    "description": "Label of the email-verification / reset code field."
+  },
+  "@authConfirmPasswordLabel": {
+    "description": "Label of the repeat-new-password field."
+  },
+  "@authCurrentPasswordLabel": {
+    "description": "Label of the current-password field."
+  },
+  "@authDisplayNameLabel": {
+    "description": "Label of the optional display-name field on registration."
+  },
+  "@authEmailLabel": {
+    "description": "Label of the email field."
+  },
+  "@authEmailOrUsernameLabel": {
+    "description": "Label of the login identifier field."
+  },
+  "@authErrorAccountSuspended": {
+    "description": "Auth error: the account is suspended."
+  },
+  "@authErrorEmailNotVerified": {
+    "description": "Auth error: the route needs a verified email."
+  },
+  "@authErrorEmailTaken": {
+    "description": "Auth error: registration email is taken."
+  },
+  "@authErrorForbidden": {
+    "description": "Auth error: the server refused the request."
+  },
+  "@authErrorInvalidCode": {
+    "description": "Auth error: the verification / reset code field is empty."
+  },
+  "@authErrorInvalidCredentials": {
+    "description": "Auth error: wrong login credentials."
+  },
+  "@authErrorInvalidEmail": {
+    "description": "Auth error: the email field is not a valid email."
+  },
+  "@authErrorInvalidUsername": {
+    "description": "Auth error: the username field is invalid."
+  },
+  "@authErrorNetwork": {
+    "description": "Auth error: no network / server unreachable."
+  },
+  "@authErrorPasswordTooShort": {
+    "description": "Auth error: the password is too short."
+  },
+  "@authErrorPasswordsDoNotMatch": {
+    "description": "Auth error: the two password fields differ."
+  },
+  "@authErrorRateLimited": {
+    "description": "Auth error: the server rate-limited the request."
+  },
+  "@authErrorRequired": {
+    "description": "Auth error: a required field is empty."
+  },
+  "@authErrorSessionExpired": {
+    "description": "Auth error: the session expired or was revoked."
+  },
+  "@authErrorTimeout": {
+    "description": "Auth error: the request timed out."
+  },
+  "@authErrorTokenExpired": {
+    "description": "Auth error: the email token expired."
+  },
+  "@authErrorTokenInvalid": {
+    "description": "Auth error: the email token is unknown."
+  },
+  "@authErrorTokenUsed": {
+    "description": "Auth error: the email token was already used."
+  },
+  "@authErrorUnexpected": {
+    "description": "Auth error: unexpected server response."
+  },
+  "@authErrorUsernameTaken": {
+    "description": "Auth error: registration username is taken."
+  },
+  "@authErrorValidation": {
+    "description": "Auth error: the server rejected a field value."
+  },
+  "@authInfoForgotSent": {
+    "description": "Auth info: the reset email was requested."
+  },
+  "@authInfoPasswordChanged": {
+    "description": "Auth info: the password was changed."
+  },
+  "@authInfoRegisterDone": {
+    "description": "Auth info: registration succeeded."
+  },
+  "@authInfoResetDone": {
+    "description": "Auth info: the password was reset."
+  },
+  "@authInfoVerifyDone": {
+    "description": "Auth info: the email was verified."
+  },
+  "@authInfoVerifyResent": {
+    "description": "Auth info: the verification email was resent."
+  },
+  "@authNewPasswordLabel": {
+    "description": "Label of the new-password field."
+  },
+  "@authPasswordLabel": {
+    "description": "Label of the password field."
+  },
+  "@authUsernameLabel": {
+    "description": "Label of the username field."
   },
   "@avatarLabel": {
     "description": "Semantics label of a player avatar: name, seat shape and colour name (M2.9, NFR-08, D-27).",
@@ -77,6 +230,15 @@
   },
   "@difficultyMedium": {
     "description": "AI difficulty name in the setup difficulty dropdown."
+  },
+  "@forgotButton": {
+    "description": "Forgot-password screen: requests the reset email."
+  },
+  "@forgotMessage": {
+    "description": "Forgot-password screen: what the screen does."
+  },
+  "@forgotTitle": {
+    "description": "Forgot-password screen title."
   },
   "@gameBoardFinished": {
     "description": "Board semantics label when the match is finished and there is no winner (defensive case)."
@@ -297,8 +459,26 @@
   "@homeOfflineNote": {
     "description": "Footnote at the bottom of the home screen."
   },
+  "@homeOnlineLogOut": {
+    "description": "Home: Play Online dialog action for a signed-in player."
+  },
   "@homeOnlineMessage": {
     "description": "Body of the Play Online login-prompt dialog (M2.10, M-13)."
+  },
+  "@homeOnlinePlay": {
+    "description": "Home: Play Online dialog action for a signed-in player, opens the online lobby."
+  },
+  "@homeOnlineSignedIn": {
+    "description": "Home: Play Online dialog for a signed-in player.",
+    "placeholders": {
+      "name": {
+        "example": "Adeel",
+        "type": "String"
+      }
+    }
+  },
+  "@homeOnlineViewAccount": {
+    "description": "Home: Play Online dialog action for a signed-in player."
   },
   "@homePlayOffline": {
     "description": "Home button: offline play."
@@ -354,6 +534,18 @@
   "@labelWinner": {
     "description": "Detail-row label for the winner (history detail)."
   },
+  "@loginButton": {
+    "description": "Login screen: submits the login form."
+  },
+  "@loginForgotPassword": {
+    "description": "Login screen: link to the forgot-password screen."
+  },
+  "@loginNoAccount": {
+    "description": "Login screen: link to the registration screen."
+  },
+  "@loginTitle": {
+    "description": "Login screen title."
+  },
   "@mainMenu": {
     "description": "Button that returns to the home screen (pause menu, results screen)."
   },
@@ -363,11 +555,17 @@
   "@modeLocalDescription": {
     "description": "Subtitle of the Local multiplayer mode card."
   },
+  "@modeLocalSemantics": {
+    "description": "Semantics label of the Local multiplayer mode card: title plus subtitle as one sentence."
+  },
   "@modeOnline": {
-    "description": "Title of the online mode card (not tappable until Phase 5)."
+    "description": "Title of the online mode card."
   },
   "@modeOnlineDescription": {
     "description": "Subtitle of the online mode card."
+  },
+  "@modeOnlineSemantics": {
+    "description": "Semantics label of the online mode card: title plus subtitle as one sentence."
   },
   "@modeShortVsAi": {
     "description": "Short mode label used in the results screen and the history list/detail (as opposed to the 'Play vs AI' card title)."
@@ -381,13 +579,8 @@
   "@modeVsAiDescription": {
     "description": "Subtitle of the Play vs AI mode card."
   },
-  "modeVsAiSemantics": "Play vs AI. You against computer opponents (Easy, Medium, Hard).",
   "@modeVsAiSemantics": {
     "description": "Semantics label of the Play vs AI mode card: title plus subtitle as one sentence, so a screen reader hears the mode and what it means."
-  },
-  "modeLocalSemantics": "Local multiplayer. 2–4 players sharing this device.",
-  "@modeLocalSemantics": {
-    "description": "Semantics label of the Local multiplayer mode card: title plus subtitle as one sentence."
   },
   "@monthApr": {
     "description": "Short month name used by the history and results date formats."
@@ -428,6 +621,289 @@
   "@ok": {
     "description": "Acknowledges the Play Online login-prompt dialog."
   },
+  "@onlineCancelQueue": {
+    "description": "Matchmaking screen: leaves the queue."
+  },
+  "@onlineCodeCopied": {
+    "description": "Lobby: confirmation that the room code was copied."
+  },
+  "@onlineCodeHint": {
+    "description": "Join form: hint under the room-code field."
+  },
+  "@onlineCodeLabel": {
+    "description": "Join form: label of the room-code field."
+  },
+  "@onlineConnectionConnecting": {
+    "description": "Connection banner: the first handshake is in flight."
+  },
+  "@onlineConnectionDisconnected": {
+    "description": "Connection banner: no socket; honest that nothing is queued while offline."
+  },
+  "@onlineConnectionReconnecting": {
+    "description": "Connection banner: the socket dropped and the client is retrying."
+  },
+  "@onlineConnectionRetry": {
+    "description": "Connection banner: manual reconnect action."
+  },
+  "@onlineCopyCode": {
+    "description": "Lobby: copies the room code to the clipboard."
+  },
+  "@onlineCreateButton": {
+    "description": "Lobby entry: creates the room."
+  },
+  "@onlineCreateTitle": {
+    "description": "Lobby entry: create-room section title."
+  },
+  "@onlineErrorAlreadyInMatch": {
+    "description": "Lobby error: the player is already in an active match."
+  },
+  "@onlineErrorAlreadyInMatchmaking": {
+    "description": "Matchmaking error: the player is already queued."
+  },
+  "@onlineErrorAlreadyInRoom": {
+    "description": "Lobby error: the player is already in a room."
+  },
+  "@onlineErrorIllegalMove": {
+    "description": "Game error: the attempted move is not legal in the current state."
+  },
+  "@onlineErrorInvalidState": {
+    "description": "Lobby error: the action is not possible right now."
+  },
+  "@onlineErrorMatchFinished": {
+    "description": "Game error: the match has already finished."
+  },
+  "@onlineErrorMatchNotFound": {
+    "description": "Game error: the match no longer exists."
+  },
+  "@onlineErrorMatchmakingUnavailable": {
+    "description": "Matchmaking error: the queue is unavailable."
+  },
+  "@onlineErrorNetwork": {
+    "description": "Lobby error: the server could not be reached."
+  },
+  "@onlineErrorNotRoomHost": {
+    "description": "Lobby error: only the host can do that."
+  },
+  "@onlineErrorNotMatchPlayer": {
+    "description": "Game error: the viewer is not a player in this match."
+  },
+  "@onlineErrorNotRoomMember": {
+    "description": "Lobby error: not a member of the room."
+  },
+  "@onlineErrorNotYourTurn": {
+    "description": "Game error: the player tried to act outside their turn."
+  },
+  "@onlineErrorRoomFull": {
+    "description": "Lobby error: the room is full."
+  },
+  "@onlineErrorRoomNotFound": {
+    "description": "Lobby error: no open room has that code."
+  },
+  "@onlineErrorRoomStarted": {
+    "description": "Lobby error: the room has already started."
+  },
+  "@onlineErrorStaleState": {
+    "description": "Game error: the client view is behind the server state."
+  },
+  "@onlineErrorTimeout": {
+    "description": "Lobby error: the request timed out."
+  },
+  "@onlineErrorUnexpected": {
+    "description": "Lobby error: generic fallback."
+  },
+  "@onlineGameForfeitConfirm": {
+    "description": "Game screen: confirms leaving the match (a forfeit)."
+  },
+  "@onlineGameForfeitMessage": {
+    "description": "Game screen: leaving mid-match forfeits for the leaver only."
+  },
+  "@onlineGameForfeitTitle": {
+    "description": "Game screen: leave-match confirmation title."
+  },
+  "@onlineGameLeave": {
+    "description": "Game screen: leave-match action."
+  },
+  "@onlineGameLoadFailed": {
+    "description": "Game screen: the first snapshot could not be loaded."
+  },
+  "@onlineGameLoading": {
+    "description": "Game screen: the first snapshot is loading."
+  },
+  "@onlineGamePlayerDisconnected": {
+    "description": "Game screen: per-player grace countdown while disconnected.",
+    "placeholders": {
+      "seconds": {
+        "example": "42",
+        "type": "int"
+      }
+    }
+  },
+  "@onlineGamePlayerForfeited": {
+    "description": "Game screen: per-player status after a forfeit."
+  },
+  "@onlineGameMissedTurns": {
+    "description": "Game screen: local missed-turn count and the server auto-play rule.",
+    "placeholders": {
+      "count": {
+        "example": "1",
+        "type": "int"
+      }
+    }
+  },
+  "@onlineGameTitle": {
+    "description": "Game screen title."
+  },
+  "@onlineGameTurnTimeLeft": {
+    "description": "Game screen: seconds left on the current turn.",
+    "placeholders": {
+      "seconds": {
+        "example": "24",
+        "type": "int"
+      }
+    }
+  },
+  "@onlineGameWaitingFor": {
+    "description": "Game screen: turn banner while another player moves.",
+    "placeholders": {
+      "name": {
+        "example": "Ben",
+        "type": "String"
+      }
+    }
+  },
+  "@onlineGameYourTurn": {
+    "description": "Game screen: turn banner on the local player's turn."
+  },
+  "@onlineGoToLobby": {
+    "description": "Matchmaking screen: opens the matched room's lobby."
+  },
+  "@onlineHost": {
+    "description": "Lobby: badge marking the host."
+  },
+  "@onlineJoinButton": {
+    "description": "Lobby entry: joins the room by code."
+  },
+  "@onlineJoinQueue": {
+    "description": "Matchmaking screen: joins the queue."
+  },
+  "@onlineJoinTitle": {
+    "description": "Lobby entry: join-room section title."
+  },
+  "@onlineLeaveRoom": {
+    "description": "Lobby: leaves the room."
+  },
+  "@onlineLobbyTitle": {
+    "description": "Lobby screen title."
+  },
+  "@onlineMatched": {
+    "description": "Matchmaking screen: a group formed; shows the room code.",
+    "placeholders": {
+      "code": {
+        "example": "K7Q2XA",
+        "type": "String"
+      }
+    }
+  },
+  "@onlineMatchmakingTitle": {
+    "description": "Matchmaking screen title."
+  },
+  "@onlineMatchStarted": {
+    "description": "Lobby: the match started."
+  },
+  "@onlineMaxPlayers": {
+    "description": "Create form: player-limit label."
+  },
+  "@onlineMembers": {
+    "description": "Lobby: member-list section title."
+  },
+  "@onlineNeedPlayers": {
+    "description": "Lobby: start is blocked, fewer than 2 players."
+  },
+  "@onlineNeedReady": {
+    "description": "Lobby: start is blocked, not everyone is ready."
+  },
+  "@onlineNotHost": {
+    "description": "Lobby: start is blocked, the viewer is not the host."
+  },
+  "@onlinePlayerDisconnected": {
+    "description": "Game screen: a player disconnected; grace countdown shown.",
+    "placeholders": {
+      "name": {
+        "example": "Ben",
+        "type": "String"
+      },
+      "seconds": {
+        "example": "42",
+        "type": "int"
+      }
+    }
+  },
+  "@onlinePlayerForfeited": {
+    "description": "Game screen: a player forfeited.",
+    "placeholders": {
+      "name": {
+        "example": "Ben",
+        "type": "String"
+      }
+    }
+  },
+  "@onlinePlayerReconnected": {
+    "description": "Game screen: a player reconnected inside their grace.",
+    "placeholders": {
+      "name": {
+        "example": "Ben",
+        "type": "String"
+      }
+    }
+  },
+  "@onlineQueuePosition": {
+    "description": "Matchmaking screen: the player's queue position.",
+    "placeholders": {
+      "position": {
+        "example": "2",
+        "type": "int"
+      }
+    }
+  },
+  "@onlineQueueSize": {
+    "description": "Matchmaking screen: how many players are waiting.",
+    "placeholders": {
+      "count": {
+        "example": "3",
+        "type": "int"
+      }
+    }
+  },
+  "@onlineReady": {
+    "description": "Lobby: the readiness toggle."
+  },
+  "@onlineRulesetSummary": {
+    "description": "Create form: the frozen ruleset shown before readiness (G-16).",
+    "placeholders": {
+      "version": {
+        "example": "1.0.0",
+        "type": "String"
+      }
+    }
+  },
+  "@onlineShareCode": {
+    "description": "Lobby: shares the room code."
+  },
+  "@onlineShareMessage": {
+    "description": "Lobby: the shared invite text (room-code share only).",
+    "placeholders": {
+      "code": {
+        "example": "K7Q2XA",
+        "type": "String"
+      }
+    }
+  },
+  "@onlineStartMatch": {
+    "description": "Lobby: host starts the match."
+  },
+  "@onlineYou": {
+    "description": "Lobby: badge marking the signed-in player."
+  },
   "@playerName": {
     "description": "Default display name for a seat whose name field was left empty (D-28).",
     "placeholders": {
@@ -458,8 +934,29 @@
       }
     }
   },
+  "@registerButton": {
+    "description": "Registration screen: submits the form."
+  },
+  "@registerHaveAccount": {
+    "description": "Registration screen: link to the login screen."
+  },
+  "@registerTitle": {
+    "description": "Registration screen title."
+  },
+  "@resetButton": {
+    "description": "Reset-password screen: submits the code and new password."
+  },
+  "@resetMessage": {
+    "description": "Reset-password screen: what the screen does."
+  },
+  "@resetTitle": {
+    "description": "Reset-password screen title."
+  },
   "@resultsEmpty": {
     "description": "Empty state when the results route opens without a match result."
+  },
+  "@resultsPlayAgain": {
+    "description": "Results button: a fresh match with the same settings."
   },
   "@resultsPlayerHome": {
     "description": "Tokens-home count next to a player on the results screen (M3 premium, §2.6/Q8).",
@@ -469,9 +966,6 @@
         "type": "int"
       }
     }
-  },
-  "@resultsPlayAgain": {
-    "description": "Results button: a fresh match with the same settings."
   },
   "@resultsRecordFailed": {
     "description": "Notice on the results screen when the completed match could not be recorded. Same text as the presentation constant kMatchRecordFailedMessage, which stays the single source the tests assert against."
@@ -730,10 +1224,77 @@
   "@tryAgain": {
     "description": "Retry action of the shared error view."
   },
+  "@verifyButton": {
+    "description": "Verification screen: submits the code."
+  },
+  "@verifyMessage": {
+    "description": "Verification screen: what the screen does.",
+    "placeholders": {
+      "email": {
+        "example": "ali@example.com",
+        "type": "String"
+      }
+    }
+  },
+  "@verifyResend": {
+    "description": "Verification screen: sends a new code."
+  },
+  "@verifyTitle": {
+    "description": "Verification screen title."
+  },
   "@winnerSuffix": {
     "description": "Suffix appended to a player's name in the history detail view when that player won the match."
   },
+  "accountChangePassword": "Change password",
+  "accountDisplayName": "Display name",
+  "accountEmail": "Email",
+  "accountEmailNotVerified": "Email not verified",
+  "accountEmailStatus": "Email status",
+  "accountEmailVerified": "Email verified",
+  "accountLogOut": "Log out",
+  "accountMatchesPlayed": "Matches played",
+  "accountMatchesWon": "Matches won",
+  "accountSignedInAs": "Signed in as {name}",
+  "accountTitle": "Account",
+  "accountUsername": "Username",
+  "accountVerifyEmail": "Verify email",
   "appName": "DiceUp",
+  "authCodeLabel": "Verification code",
+  "authConfirmPasswordLabel": "Confirm password",
+  "authCurrentPasswordLabel": "Current password",
+  "authDisplayNameLabel": "Display name (optional)",
+  "authEmailLabel": "Email",
+  "authEmailOrUsernameLabel": "Email or username",
+  "authErrorAccountSuspended": "This account is suspended.",
+  "authErrorEmailNotVerified": "Your email isn't verified yet. Check your inbox for the code.",
+  "authErrorEmailTaken": "An account with this email already exists.",
+  "authErrorForbidden": "You don't have permission to do that.",
+  "authErrorInvalidCode": "Enter the code from the email.",
+  "authErrorInvalidCredentials": "Email or password is incorrect.",
+  "authErrorInvalidEmail": "Enter a valid email address.",
+  "authErrorInvalidUsername": "Username must be 3–30 characters: letters, digits, dot, underscore or hyphen.",
+  "authErrorNetwork": "Couldn't reach the server. Check your connection and try again.",
+  "authErrorPasswordTooShort": "Password must be at least 8 characters.",
+  "authErrorPasswordsDoNotMatch": "Passwords don't match.",
+  "authErrorRateLimited": "Too many attempts. Try again in a moment.",
+  "authErrorRequired": "This field is required.",
+  "authErrorSessionExpired": "Your session expired. Log in again.",
+  "authErrorTimeout": "The request timed out. Try again.",
+  "authErrorTokenExpired": "That code has expired. Request a new one.",
+  "authErrorTokenInvalid": "That code isn't right. Check it and try again.",
+  "authErrorTokenUsed": "That code has already been used.",
+  "authErrorUnexpected": "Something went wrong. Try again.",
+  "authErrorUsernameTaken": "That username is already taken.",
+  "authErrorValidation": "Check the highlighted fields and try again.",
+  "authInfoForgotSent": "If an account exists for that email, a reset code has been sent.",
+  "authInfoPasswordChanged": "Password changed. Log in with your new password.",
+  "authInfoRegisterDone": "Account created — check your email for the verification code.",
+  "authInfoResetDone": "Password reset. Log in with your new password.",
+  "authInfoVerifyDone": "Email verified. Welcome to DiceUp online.",
+  "authInfoVerifyResent": "A new code has been sent.",
+  "authNewPasswordLabel": "New password",
+  "authPasswordLabel": "Password",
+  "authUsernameLabel": "Username",
   "avatarLabel": "{name}, {shape} token, {colour}",
   "cancel": "Cancel",
   "close": "Close",
@@ -750,6 +1311,9 @@
   "difficultyEasy": "Easy",
   "difficultyHard": "Hard",
   "difficultyMedium": "Medium",
+  "forgotButton": "Send reset code",
+  "forgotMessage": "Enter your email and we'll send you a reset code.",
+  "forgotTitle": "Reset password",
   "gameBoardFinished": "Ludo board. Match finished",
   "gameBoardTurnOne": "Ludo board. {name}'s turn, 1 legal move",
   "gameBoardTurnOther": "Ludo board. {name}'s turn, {count} legal moves",
@@ -795,7 +1359,11 @@
   "homeDatabaseRecovered": "Your local history couldn't be read, so it was reset. You can keep playing.",
   "homeMatchHistory": "Match History",
   "homeOfflineNote": "Offline play works without an account or internet.",
-  "homeOnlineMessage": "Log in to play online — online play arrives in Phase 5.",
+  "homeOnlineLogOut": "Log out",
+  "homeOnlineMessage": "Log in to play online with friends.",
+  "homeOnlinePlay": "Play online",
+  "homeOnlineSignedIn": "You're signed in as {name}.",
+  "homeOnlineViewAccount": "View account",
   "homePlayOffline": "Play Offline",
   "homePlayOnline": "Play Online",
   "homeReadySubtitle": "Classic Ludo — offline, with friends.",
@@ -814,15 +1382,22 @@
   "labelPlayers": "Players",
   "labelRuleset": "Ruleset",
   "labelWinner": "Winner",
+  "loginButton": "Log in",
+  "loginForgotPassword": "Forgot password?",
+  "loginNoAccount": "Don't have an account? Create one",
+  "loginTitle": "Log in",
   "mainMenu": "Main Menu",
   "modeLocal": "Local multiplayer",
   "modeLocalDescription": "2–4 players sharing this device.",
+  "modeLocalSemantics": "Local multiplayer. 2–4 players sharing this device.",
   "modeOnline": "Online multiplayer",
-  "modeOnlineDescription": "Rooms, friends and live matches — coming in Phase 5.",
+  "modeOnlineDescription": "Play a live match with friends in a room, or find a match.",
+  "modeOnlineSemantics": "Online multiplayer. Play a live match with friends in a room, or find a match.",
   "modeShortVsAi": "vs AI",
   "modeTitle": "Choose a mode",
   "modeVsAi": "Play vs AI",
   "modeVsAiDescription": "You against computer opponents (Easy, Medium, Hard).",
+  "modeVsAiSemantics": "Play vs AI. You against computer opponents (Easy, Medium, Hard).",
   "monthApr": "Apr",
   "monthAug": "Aug",
   "monthDec": "Dec",
@@ -836,10 +1411,85 @@
   "monthOct": "Oct",
   "monthSep": "Sep",
   "ok": "OK",
+  "onlineCancelQueue": "Leave queue",
+  "onlineCodeCopied": "Room code copied",
+  "onlineCodeHint": "Ask the host for the 6-letter code",
+  "onlineCodeLabel": "Room code",
+  "onlineConnectionConnecting": "Connecting to the game server…",
+  "onlineConnectionDisconnected": "You are offline. Moves cannot be sent while you are disconnected — nothing is queued.",
+  "onlineConnectionReconnecting": "Connection lost. Reconnecting… Moves cannot be sent until you are back.",
+  "onlineConnectionRetry": "Retry",
+  "onlineCopyCode": "Copy code",
+  "onlineCreateButton": "Create room",
+  "onlineCreateTitle": "Create a room",
+  "onlineErrorAlreadyInMatch": "You are already in an active match.",
+  "onlineErrorAlreadyInMatchmaking": "You are already in the matchmaking queue.",
+  "onlineErrorAlreadyInRoom": "You are already in a room.",
+  "onlineErrorIllegalMove": "That move is not legal right now.",
+  "onlineErrorInvalidState": "That cannot be done right now.",
+  "onlineErrorMatchFinished": "That match has finished.",
+  "onlineErrorMatchNotFound": "That match no longer exists.",
+  "onlineErrorMatchmakingUnavailable": "Matchmaking is temporarily unavailable.",
+  "onlineErrorNetwork": "Could not reach the server. Check your connection.",
+  "onlineErrorNotRoomHost": "Only the host can do that.",
+  "onlineErrorNotMatchPlayer": "You are not a player in this match.",
+  "onlineErrorNotRoomMember": "You are not a member of this room.",
+  "onlineErrorNotYourTurn": "It is not your turn.",
+  "onlineErrorRoomFull": "That room is full.",
+  "onlineErrorRoomNotFound": "No open room has that code.",
+  "onlineErrorRoomStarted": "That room has already started.",
+  "onlineErrorStaleState": "Your view of the match is out of date. Reconnecting…",
+  "onlineErrorTimeout": "The request timed out.",
+  "onlineErrorUnexpected": "Something went wrong.",
+  "onlineGameForfeitConfirm": "Leave and forfeit",
+  "onlineGameForfeitMessage": "Leaving now forfeits the match for you. The other players keep playing.",
+  "onlineGameForfeitTitle": "Leave match?",
+  "onlineGameLeave": "Leave match",
+  "onlineGameLoadFailed": "Could not load the match. Try again.",
+  "onlineGameLoading": "Loading match…",
+  "onlineGameMissedTurns": "Missed turns: {count} of 3 — if your turn runs out, the server plays your first legal move.",
+  "onlineGamePlayerDisconnected": "{seconds}s left to reconnect",
+  "onlineGamePlayerForfeited": "Forfeited",
+  "onlineGameTitle": "Online match",
+  "onlineGameTurnTimeLeft": "{seconds}s left",
+  "onlineGameWaitingFor": "Waiting for {name}",
+  "onlineGameYourTurn": "Your turn",
+  "onlineGoToLobby": "Go to lobby",
+  "onlineHost": "Host",
+  "onlineJoinButton": "Join room",
+  "onlineJoinQueue": "Find a match",
+  "onlineJoinTitle": "Join a room",
+  "onlineLeaveRoom": "Leave room",
+  "onlineLobbyTitle": "Online lobby",
+  "onlineMatched": "Match found! Room code: {code}",
+  "onlineMatchmakingTitle": "Matchmaking",
+  "onlineMatchStarted": "Match started!",
+  "onlineMaxPlayers": "Players",
+  "onlineMembers": "Players in room",
+  "onlineNeedPlayers": "At least 2 players are needed to start.",
+  "onlineNeedReady": "Every player must be ready before the match starts.",
+  "onlineNotHost": "Only the host can start the match.",
+  "onlinePlayerDisconnected": "{name} disconnected — {seconds}s left to reconnect",
+  "onlinePlayerForfeited": "{name} forfeited the match",
+  "onlinePlayerReconnected": "{name} reconnected",
+  "onlineQueuePosition": "You are #{position} in the queue.",
+  "onlineQueueSize": "{count} players waiting",
+  "onlineReady": "Ready",
+  "onlineRulesetSummary": "Ruleset {version} — standard DiceUp rules, 4 players max.",
+  "onlineShareCode": "Share code",
+  "onlineShareMessage": "Join my DiceUp room! Code: {code}",
+  "onlineStartMatch": "Start match",
+  "onlineYou": "You",
   "playerName": "Player {number}",
   "playerWithAi": "{name} (AI)",
   "playersCountOne": "1 player",
   "playersCountOther": "{count} players",
+  "registerButton": "Create account",
+  "registerHaveAccount": "Already have an account? Log in",
+  "registerTitle": "Create account",
+  "resetButton": "Reset password",
+  "resetMessage": "Enter the code from the reset email and choose a new password.",
+  "resetTitle": "Enter reset code",
   "resultsEmpty": "No match result to show.",
   "resultsPlayAgain": "Play Again",
   "resultsPlayerHome": "Home {home}/4",
@@ -910,5 +1560,9 @@
   "statisticsUnavailableTitle": "Statistics unavailable",
   "statisticsWinsBySeat": "Wins by seat",
   "tryAgain": "Try again",
+  "verifyButton": "Verify",
+  "verifyMessage": "We sent a verification code to {email}. Enter it below.",
+  "verifyResend": "Resend code",
+  "verifyTitle": "Verify your email",
   "winnerSuffix": " — winner"
 }

@@ -37,6 +37,18 @@ export const RATE_LIMITS = {
   refresh: { limit: 60, windowSeconds: 3600, windowLabel: '1h' },
   /** All authenticated REST — 100/min per user (SDD §13.4). */
   authenticated: { limit: 100, windowSeconds: 60, windowLabel: '1m' },
+  /**
+   * Coarse per-IP flood bound on every /v1 request (Stage 5, L-01):
+   * 1000/min per IP. It runs as middleware BEFORE the guards, so an
+   * unauthenticated flood against protected routes is bounded
+   * before it can reach the RS256 verification in JwtAuthGuard.
+   * Health endpoints are exempt. This is a flood bound, not a
+   * throttle — the per-endpoint and per-user limits remain the fine
+   * controls, and it fails OPEN when Redis is down so reads keep
+   * working (the auth endpoints' own fail-closed limits still
+   * apply downstream).
+   */
+  ipFlood: { limit: 1000, windowSeconds: 60, windowLabel: 'unauth-1m' },
 } as const;
 
 /** Avatar keys — the bundled set (SDD §5.1.9 "from a bundled set

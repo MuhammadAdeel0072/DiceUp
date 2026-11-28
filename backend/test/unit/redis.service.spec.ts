@@ -9,6 +9,7 @@ import { RedisService } from '../../src/redis/redis.service';
  */
 class FakeRedis {
   private store = new Map<string, { value: string; expiresAt?: number }>();
+  private zsets = new Map<string, Map<string, number>>();
   pingOk = true;
   on = jest.fn();
 
@@ -53,6 +54,17 @@ class FakeRedis {
   }
 
   async eval(script: string, _keys: number, key: string, arg: string) {
+    if (script.includes('ZRANGE')) {
+      // popGroup script: atomically pop the first N members when at
+      // least N are present, else nothing.
+      const count = Number(arg);
+      const members = this.sorted(key);
+      if (members.length < count) return [];
+      const popped = members.slice(0, count);
+      const set = this.zsets.get(key)!;
+      for (const m of popped) set.delete(m);
+      return popped;
+    }
     if (script.includes('INCR')) {
       const current = Number(this.live(key) ?? 0);
       const next = current + 1;
@@ -67,6 +79,49 @@ class FakeRedis {
     }
     // Release-lock script: delete only if the stored token matches.
     return this.live(key) === arg ? (this.store.delete(key), 1) : 0;
+  }
+
+  private sorted(key: string): string[] {
+    const set = this.zsets.get(key);
+    if (!set) return [];
+    return [...set.entries()]
+      .sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1))
+      .map(([member]) => member);
+  }
+
+  async zadd(
+    key: string,
+    mode: string,
+    score: number,
+    member: string,
+  ): Promise<number> {
+    let set = this.zsets.get(key);
+    if (!set) {
+      set = new Map();
+      this.zsets.set(key, set);
+    }
+    if (mode === 'NX' && set.has(member)) return 0;
+    set.set(member, score);
+    return 1;
+  }
+
+  async zscore(key: string, member: string): Promise<string | null> {
+    const score = this.zsets.get(key)?.get(member);
+    return score === undefined ? null : String(score);
+  }
+
+  async zrank(key: string, member: string): Promise<number | null> {
+    const members = this.sorted(key);
+    const rank = members.indexOf(member);
+    return rank === -1 ? null : rank;
+  }
+
+  async zcard(key: string): Promise<number> {
+    return this.zsets.get(key)?.size ?? 0;
+  }
+
+  async zrem(key: string, member: string): Promise<number> {
+    return this.zsets.get(key)?.delete(member) ? 1 : 0;
   }
 
   disconnect(): void {
@@ -131,5 +186,39 @@ describe('RedisService (plan §5.2)', () => {
       service.releaseLock('match:lock:abc', token as string),
     ).resolves.toBe(true);
     await expect(service.get('match:lock:abc')).resolves.toBeNull();
+  });
+
+  it('sorted sets: zaddNx is NX, zscore/zrank/zcard/zrem track the queue', async () => {
+    await expect(service.zaddNx('matchmaking:queue', 100, 'u1')).resolves.toBe(
+      true,
+    );
+    await expect(service.zaddNx('matchmaking:queue', 200, 'u1')).resolves.toBe(
+      false,
+    );
+    await expect(service.zscore('matchmaking:queue', 'u1')).resolves.toBe(100);
+    await service.zaddNx('matchmaking:queue', 50, 'u2');
+    await expect(service.zrank('matchmaking:queue', 'u2')).resolves.toBe(0);
+    await expect(service.zrank('matchmaking:queue', 'u1')).resolves.toBe(1);
+    await expect(service.zcard('matchmaking:queue')).resolves.toBe(2);
+    await expect(service.zrem('matchmaking:queue', 'u2')).resolves.toBe(true);
+    await expect(service.zrem('matchmaking:queue', 'u2')).resolves.toBe(false);
+    await expect(service.zscore('matchmaking:queue', 'u2')).resolves.toBeNull();
+  });
+
+  it('popGroup pops the earliest N only when N are present', async () => {
+    await service.zaddNx('matchmaking:queue', 3, 'u3');
+    await service.zaddNx('matchmaking:queue', 1, 'u1');
+    await service.zaddNx('matchmaking:queue', 2, 'u2');
+    // Fewer than 4 present: nothing is removed.
+    await expect(service.popGroup('matchmaking:queue', 4)).resolves.toEqual([]);
+    await expect(service.zcard('matchmaking:queue')).resolves.toBe(3);
+    await service.zaddNx('matchmaking:queue', 4, 'u4');
+    await expect(service.popGroup('matchmaking:queue', 4)).resolves.toEqual([
+      'u1',
+      'u2',
+      'u3',
+      'u4',
+    ]);
+    await expect(service.zcard('matchmaking:queue')).resolves.toBe(0);
   });
 });

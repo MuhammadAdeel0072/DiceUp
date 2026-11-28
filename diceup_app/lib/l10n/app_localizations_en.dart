@@ -10,15 +10,169 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get modeVsAiSemantics =>
-      'Play vs AI. You against computer opponents (Easy, Medium, Hard).';
+  String get accountChangePassword => 'Change password';
 
   @override
-  String get modeLocalSemantics =>
-      'Local multiplayer. 2–4 players sharing this device.';
+  String get accountDisplayName => 'Display name';
+
+  @override
+  String get accountEmail => 'Email';
+
+  @override
+  String get accountEmailNotVerified => 'Email not verified';
+
+  @override
+  String get accountEmailStatus => 'Email status';
+
+  @override
+  String get accountEmailVerified => 'Email verified';
+
+  @override
+  String get accountLogOut => 'Log out';
+
+  @override
+  String get accountMatchesPlayed => 'Matches played';
+
+  @override
+  String get accountMatchesWon => 'Matches won';
+
+  @override
+  String accountSignedInAs(String name) {
+    return 'Signed in as $name';
+  }
+
+  @override
+  String get accountTitle => 'Account';
+
+  @override
+  String get accountUsername => 'Username';
+
+  @override
+  String get accountVerifyEmail => 'Verify email';
 
   @override
   String get appName => 'DiceUp';
+
+  @override
+  String get authCodeLabel => 'Verification code';
+
+  @override
+  String get authConfirmPasswordLabel => 'Confirm password';
+
+  @override
+  String get authCurrentPasswordLabel => 'Current password';
+
+  @override
+  String get authDisplayNameLabel => 'Display name (optional)';
+
+  @override
+  String get authEmailLabel => 'Email';
+
+  @override
+  String get authEmailOrUsernameLabel => 'Email or username';
+
+  @override
+  String get authErrorAccountSuspended => 'This account is suspended.';
+
+  @override
+  String get authErrorEmailNotVerified =>
+      'Your email isn\'t verified yet. Check your inbox for the code.';
+
+  @override
+  String get authErrorEmailTaken =>
+      'An account with this email already exists.';
+
+  @override
+  String get authErrorForbidden => 'You don\'t have permission to do that.';
+
+  @override
+  String get authErrorInvalidCode => 'Enter the code from the email.';
+
+  @override
+  String get authErrorInvalidCredentials => 'Email or password is incorrect.';
+
+  @override
+  String get authErrorInvalidEmail => 'Enter a valid email address.';
+
+  @override
+  String get authErrorInvalidUsername =>
+      'Username must be 3–30 characters: letters, digits, dot, underscore or hyphen.';
+
+  @override
+  String get authErrorNetwork =>
+      'Couldn\'t reach the server. Check your connection and try again.';
+
+  @override
+  String get authErrorPasswordTooShort =>
+      'Password must be at least 8 characters.';
+
+  @override
+  String get authErrorPasswordsDoNotMatch => 'Passwords don\'t match.';
+
+  @override
+  String get authErrorRateLimited =>
+      'Too many attempts. Try again in a moment.';
+
+  @override
+  String get authErrorRequired => 'This field is required.';
+
+  @override
+  String get authErrorSessionExpired => 'Your session expired. Log in again.';
+
+  @override
+  String get authErrorTimeout => 'The request timed out. Try again.';
+
+  @override
+  String get authErrorTokenExpired =>
+      'That code has expired. Request a new one.';
+
+  @override
+  String get authErrorTokenInvalid =>
+      'That code isn\'t right. Check it and try again.';
+
+  @override
+  String get authErrorTokenUsed => 'That code has already been used.';
+
+  @override
+  String get authErrorUnexpected => 'Something went wrong. Try again.';
+
+  @override
+  String get authErrorUsernameTaken => 'That username is already taken.';
+
+  @override
+  String get authErrorValidation =>
+      'Check the highlighted fields and try again.';
+
+  @override
+  String get authInfoForgotSent =>
+      'If an account exists for that email, a reset code has been sent.';
+
+  @override
+  String get authInfoPasswordChanged =>
+      'Password changed. Log in with your new password.';
+
+  @override
+  String get authInfoRegisterDone =>
+      'Account created — check your email for the verification code.';
+
+  @override
+  String get authInfoResetDone =>
+      'Password reset. Log in with your new password.';
+
+  @override
+  String get authInfoVerifyDone => 'Email verified. Welcome to DiceUp online.';
+
+  @override
+  String get authInfoVerifyResent => 'A new code has been sent.';
+
+  @override
+  String get authNewPasswordLabel => 'New password';
+
+  @override
+  String get authPasswordLabel => 'Password';
+
+  @override
+  String get authUsernameLabel => 'Username';
 
   @override
   String avatarLabel(String colour, String name, String shape) {
@@ -73,6 +227,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get difficultyMedium => 'Medium';
+
+  @override
+  String get forgotButton => 'Send reset code';
+
+  @override
+  String get forgotMessage =>
+      'Enter your email and we\'ll send you a reset code.';
+
+  @override
+  String get forgotTitle => 'Reset password';
 
   @override
   String get gameBoardFinished => 'Ludo board. Match finished';
@@ -238,8 +402,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Offline play works without an account or internet.';
 
   @override
-  String get homeOnlineMessage =>
-      'Log in to play online — online play arrives in Phase 5.';
+  String get homeOnlineLogOut => 'Log out';
+
+  @override
+  String get homeOnlineMessage => 'Log in to play online with friends.';
+
+  @override
+  String get homeOnlinePlay => 'Play online';
+
+  @override
+  String homeOnlineSignedIn(String name) {
+    return 'You\'re signed in as $name.';
+  }
+
+  @override
+  String get homeOnlineViewAccount => 'View account';
 
   @override
   String get homePlayOffline => 'Play Offline';
@@ -298,6 +475,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelWinner => 'Winner';
 
   @override
+  String get loginButton => 'Log in';
+
+  @override
+  String get loginForgotPassword => 'Forgot password?';
+
+  @override
+  String get loginNoAccount => 'Don\'t have an account? Create one';
+
+  @override
+  String get loginTitle => 'Log in';
+
+  @override
   String get mainMenu => 'Main Menu';
 
   @override
@@ -307,11 +496,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modeLocalDescription => '2–4 players sharing this device.';
 
   @override
+  String get modeLocalSemantics =>
+      'Local multiplayer. 2–4 players sharing this device.';
+
+  @override
   String get modeOnline => 'Online multiplayer';
 
   @override
   String get modeOnlineDescription =>
-      'Rooms, friends and live matches — coming in Phase 5.';
+      'Play a live match with friends in a room, or find a match.';
+
+  @override
+  String get modeOnlineSemantics =>
+      'Online multiplayer. Play a live match with friends in a room, or find a match.';
 
   @override
   String get modeShortVsAi => 'vs AI';
@@ -325,6 +522,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get modeVsAiDescription =>
       'You against computer opponents (Easy, Medium, Hard).';
+
+  @override
+  String get modeVsAiSemantics =>
+      'Play vs AI. You against computer opponents (Easy, Medium, Hard).';
 
   @override
   String get monthApr => 'Apr';
@@ -366,6 +567,245 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ok => 'OK';
 
   @override
+  String get onlineCancelQueue => 'Leave queue';
+
+  @override
+  String get onlineCodeCopied => 'Room code copied';
+
+  @override
+  String get onlineCodeHint => 'Ask the host for the 6-letter code';
+
+  @override
+  String get onlineCodeLabel => 'Room code';
+
+  @override
+  String get onlineConnectionConnecting => 'Connecting to the game server…';
+
+  @override
+  String get onlineConnectionDisconnected =>
+      'You are offline. Moves cannot be sent while you are disconnected — nothing is queued.';
+
+  @override
+  String get onlineConnectionReconnecting =>
+      'Connection lost. Reconnecting… Moves cannot be sent until you are back.';
+
+  @override
+  String get onlineConnectionRetry => 'Retry';
+
+  @override
+  String get onlineCopyCode => 'Copy code';
+
+  @override
+  String get onlineCreateButton => 'Create room';
+
+  @override
+  String get onlineCreateTitle => 'Create a room';
+
+  @override
+  String get onlineErrorAlreadyInMatch => 'You are already in an active match.';
+
+  @override
+  String get onlineErrorAlreadyInMatchmaking =>
+      'You are already in the matchmaking queue.';
+
+  @override
+  String get onlineErrorAlreadyInRoom => 'You are already in a room.';
+
+  @override
+  String get onlineErrorIllegalMove => 'That move is not legal right now.';
+
+  @override
+  String get onlineErrorInvalidState => 'That cannot be done right now.';
+
+  @override
+  String get onlineErrorMatchFinished => 'That match has finished.';
+
+  @override
+  String get onlineErrorMatchNotFound => 'That match no longer exists.';
+
+  @override
+  String get onlineErrorMatchmakingUnavailable =>
+      'Matchmaking is temporarily unavailable.';
+
+  @override
+  String get onlineErrorNetwork =>
+      'Could not reach the server. Check your connection.';
+
+  @override
+  String get onlineErrorNotRoomHost => 'Only the host can do that.';
+
+  @override
+  String get onlineErrorNotMatchPlayer => 'You are not a player in this match.';
+
+  @override
+  String get onlineErrorNotRoomMember => 'You are not a member of this room.';
+
+  @override
+  String get onlineErrorNotYourTurn => 'It is not your turn.';
+
+  @override
+  String get onlineErrorRoomFull => 'That room is full.';
+
+  @override
+  String get onlineErrorRoomNotFound => 'No open room has that code.';
+
+  @override
+  String get onlineErrorRoomStarted => 'That room has already started.';
+
+  @override
+  String get onlineErrorStaleState =>
+      'Your view of the match is out of date. Reconnecting…';
+
+  @override
+  String get onlineErrorTimeout => 'The request timed out.';
+
+  @override
+  String get onlineErrorUnexpected => 'Something went wrong.';
+
+  @override
+  String get onlineGameForfeitConfirm => 'Leave and forfeit';
+
+  @override
+  String get onlineGameForfeitMessage =>
+      'Leaving now forfeits the match for you. The other players keep playing.';
+
+  @override
+  String get onlineGameForfeitTitle => 'Leave match?';
+
+  @override
+  String get onlineGameLeave => 'Leave match';
+
+  @override
+  String get onlineGameLoadFailed => 'Could not load the match. Try again.';
+
+  @override
+  String get onlineGameLoading => 'Loading match…';
+
+  @override
+  String onlineGameMissedTurns(int count) {
+    return 'Missed turns: $count of 3 — if your turn runs out, the server plays your first legal move.';
+  }
+
+  @override
+  String onlineGamePlayerDisconnected(int seconds) {
+    return '${seconds}s left to reconnect';
+  }
+
+  @override
+  String get onlineGamePlayerForfeited => 'Forfeited';
+
+  @override
+  String get onlineGameTitle => 'Online match';
+
+  @override
+  String onlineGameTurnTimeLeft(int seconds) {
+    return '${seconds}s left';
+  }
+
+  @override
+  String onlineGameWaitingFor(String name) {
+    return 'Waiting for $name';
+  }
+
+  @override
+  String get onlineGameYourTurn => 'Your turn';
+
+  @override
+  String get onlineGoToLobby => 'Go to lobby';
+
+  @override
+  String get onlineHost => 'Host';
+
+  @override
+  String get onlineJoinButton => 'Join room';
+
+  @override
+  String get onlineJoinQueue => 'Find a match';
+
+  @override
+  String get onlineJoinTitle => 'Join a room';
+
+  @override
+  String get onlineLeaveRoom => 'Leave room';
+
+  @override
+  String get onlineLobbyTitle => 'Online lobby';
+
+  @override
+  String onlineMatched(String code) {
+    return 'Match found! Room code: $code';
+  }
+
+  @override
+  String get onlineMatchmakingTitle => 'Matchmaking';
+
+  @override
+  String get onlineMatchStarted => 'Match started!';
+
+  @override
+  String get onlineMaxPlayers => 'Players';
+
+  @override
+  String get onlineMembers => 'Players in room';
+
+  @override
+  String get onlineNeedPlayers => 'At least 2 players are needed to start.';
+
+  @override
+  String get onlineNeedReady =>
+      'Every player must be ready before the match starts.';
+
+  @override
+  String get onlineNotHost => 'Only the host can start the match.';
+
+  @override
+  String onlinePlayerDisconnected(String name, int seconds) {
+    return '$name disconnected — ${seconds}s left to reconnect';
+  }
+
+  @override
+  String onlinePlayerForfeited(String name) {
+    return '$name forfeited the match';
+  }
+
+  @override
+  String onlinePlayerReconnected(String name) {
+    return '$name reconnected';
+  }
+
+  @override
+  String onlineQueuePosition(int position) {
+    return 'You are #$position in the queue.';
+  }
+
+  @override
+  String onlineQueueSize(int count) {
+    return '$count players waiting';
+  }
+
+  @override
+  String get onlineReady => 'Ready';
+
+  @override
+  String onlineRulesetSummary(String version) {
+    return 'Ruleset $version — standard DiceUp rules, 4 players max.';
+  }
+
+  @override
+  String get onlineShareCode => 'Share code';
+
+  @override
+  String onlineShareMessage(String code) {
+    return 'Join my DiceUp room! Code: $code';
+  }
+
+  @override
+  String get onlineStartMatch => 'Start match';
+
+  @override
+  String get onlineYou => 'You';
+
+  @override
   String playerName(int number) {
     return 'Player $number';
   }
@@ -382,6 +822,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String playersCountOther(int count) {
     return '$count players';
   }
+
+  @override
+  String get registerButton => 'Create account';
+
+  @override
+  String get registerHaveAccount => 'Already have an account? Log in';
+
+  @override
+  String get registerTitle => 'Create account';
+
+  @override
+  String get resetButton => 'Reset password';
+
+  @override
+  String get resetMessage =>
+      'Enter the code from the reset email and choose a new password.';
+
+  @override
+  String get resetTitle => 'Enter reset code';
 
   @override
   String get resultsEmpty => 'No match result to show.';
@@ -624,6 +1083,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tryAgain => 'Try again';
+
+  @override
+  String get verifyButton => 'Verify';
+
+  @override
+  String verifyMessage(String email) {
+    return 'We sent a verification code to $email. Enter it below.';
+  }
+
+  @override
+  String get verifyResend => 'Resend code';
+
+  @override
+  String get verifyTitle => 'Verify your email';
 
   @override
   String get winnerSuffix => ' — winner';

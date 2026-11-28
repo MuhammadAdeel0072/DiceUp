@@ -320,6 +320,35 @@ void _validateStep(Map<String, Object?> step, String caseId, int index) {
     case 'moveIllegal':
       _exactKeys(step, {'op', 'token'}, where);
       _asTokenIndex(step['token'], '$where.token');
+    case 'nextTurn':
+      // Passes the turn explicitly (FR-19). Only valid between turns.
+      _exactKeys(step, {'op', 'expectCurrentPlayer', 'expectPhase'}, where);
+      _asNonNegativeInt(
+        step['expectCurrentPlayer'],
+        '$where.expectCurrentPlayer',
+      );
+      _asPhase(step['expectPhase'], '$where.expectPhase');
+    case 'rollStateError':
+      // Rolling while a move is pending must throw StateError and
+      // leave the state unchanged (FR-21).
+      _exactKeys(step, {'op'}, where);
+    case 'moveStateError':
+      // Moving before any roll must throw StateError and leave the
+      // state unchanged (FR-21).
+      _exactKeys(step, {'op', 'token'}, where);
+      _asTokenIndex(step['token'], '$where.token');
+    case 'moveWrongPlayer':
+      // A move naming a player other than the active player must
+      // throw ArgumentError and leave the state unchanged (FR-17).
+      _exactKeys(step, {'op', 'playerIndex', 'token'}, where);
+      _asNonNegativeInt(step['playerIndex'], '$where.playerIndex');
+      _asTokenIndex(step['token'], '$where.token');
+    case 'snapshotRoundTrip':
+      // Serialise the current state and restore a fresh game from it;
+      // the restored state must be identical, and play continues from
+      // it (FR-29). The dice sequence restarts on restore, so this op
+      // must precede any roll step in a case.
+      _exactKeys(step, {'op'}, where);
     default:
       throw FormatException('$where: unknown op "$op".');
   }
@@ -329,14 +358,85 @@ void _validateStep(Map<String, Object?> step, String caseId, int index) {
 void _replayCase(Map<String, Object?> c) {
   final id = c['id'] as String;
   final ruleset = RulesetConfig.fromJson(_asMap(c['ruleset'], 'ruleset'));
-  final game = LudoGame.fromState(
+  final dice = _asList(c['dice'], 'dice').cast<int>();
+  var game = LudoGame.fromState(
     GameState.fromJson(_asMap(c['initial'], 'initial')),
     ruleset: ruleset,
-    diceRoller: FixedDiceRoller(_asList(c['dice'], 'dice').cast<int>()),
+    diceRoller: FixedDiceRoller(dice),
   );
   for (final rawStep in _asList(c['steps'], 'steps')) {
     final step = _asMap(rawStep, 'step');
     switch (step['op']) {
+      case 'nextTurn':
+        game.nextTurn();
+        expect(
+          game.state.phase.name,
+          step['expectPhase'],
+          reason: '$id: phase after nextTurn',
+        );
+        expect(
+          game.currentPlayerIndex,
+          step['expectCurrentPlayer'],
+          reason: '$id: current player after nextTurn',
+        );
+      case 'rollStateError':
+        final beforeRoll = game.state.toJson();
+        expect(
+          () => game.rollDice(),
+          throwsStateError,
+          reason: '$id: rolling while a move is pending must throw StateError',
+        );
+        expect(
+          game.state.toJson(),
+          beforeRoll,
+          reason: '$id: state must be unchanged after a rejected roll',
+        );
+      case 'moveStateError':
+        final beforeMove = game.state.toJson();
+        expect(
+          () => game.applyMove(
+            Move(
+              playerIndex: game.currentPlayerIndex,
+              tokenIndex: step['token'] as int,
+            ),
+          ),
+          throwsStateError,
+          reason: '$id: moving before a roll must throw StateError',
+        );
+        expect(
+          game.state.toJson(),
+          beforeMove,
+          reason: '$id: state must be unchanged after a rejected move',
+        );
+      case 'moveWrongPlayer':
+        final beforeWrong = game.state.toJson();
+        expect(
+          () => game.applyMove(
+            Move(
+              playerIndex: step['playerIndex'] as int,
+              tokenIndex: step['token'] as int,
+            ),
+          ),
+          throwsArgumentError,
+          reason: '$id: a move by the wrong player must throw ArgumentError',
+        );
+        expect(
+          game.state.toJson(),
+          beforeWrong,
+          reason: '$id: state must be unchanged after a wrong-player move',
+        );
+      case 'snapshotRoundTrip':
+        final beforeSnapshot = game.state.toJson();
+        game = LudoGame.restore(
+          game.snapshot(),
+          ruleset: ruleset,
+          diceRoller: FixedDiceRoller(dice),
+        );
+        expect(
+          game.state.toJson(),
+          beforeSnapshot,
+          reason: '$id: restored state must equal the snapshot',
+        );
       case 'roll':
         final value = game.rollDice();
         expect(value, step['expectRoll'], reason: '$id: rolled value');

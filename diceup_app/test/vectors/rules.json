@@ -3063,6 +3063,2170 @@
           ]
         ]
       }
+    },
+    {
+      "id": "three-player-turn-passing",
+      "title": "With 3 players a no-legal-move roll passes the turn to the next seat in order (BR-13, FR-19)",
+      "rules": [
+        "BR-13",
+        "FR-19"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Yellow",
+            "colour": "yellow",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        3,
+        3
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 1,
+          "expectLastRollHadNoLegalMove": true
+        },
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 2,
+          "expectLastRollHadNoLegalMove": true
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 2,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 3,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": true,
+        "tokens": [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "four-player-release",
+      "title": "With 4 players a 6 releases a token and grants an extra roll (BR-04, BR-06)",
+      "rules": [
+        "BR-04",
+        "BR-06"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Yellow",
+            "colour": "yellow",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Blue",
+            "colour": "blue",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        6
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 6,
+          "expectLegalMoves": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 0,
+            "toSteps": 1,
+            "captured": [],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": true,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 0
+          }
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 1,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ai-seat-game",
+      "title": "A match with an AI seat (medium) plays normally; a capture still grants an extra turn (BR-01, BR-08)",
+      "rules": [
+        "BR-01",
+        "BR-08"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 20
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "ai",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ],
+            "difficulty": "medium"
+          }
+        ]
+      },
+      "dice": [
+        3
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [
+            0
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 20,
+            "toSteps": 23,
+            "captured": [
+              [
+                1,
+                0
+              ]
+            ],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": true,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 0
+          }
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            23,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "mid-turn-awaiting-move",
+      "title": "A case starting mid-turn (awaitingMove, lastRoll 3) moves the token without rolling (BR-05)",
+      "rules": [
+        "BR-05"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingMove",
+        "lastRoll": 3,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        3
+      ],
+      "steps": [
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 10,
+            "toSteps": 13,
+            "captured": [],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": false,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 1
+          }
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 1,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            13,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "preset-consecutive-sixes-third-six",
+      "title": "With two sixes already banked, a 6 is the third six even though a move exists: shown, not played (BR-07)",
+      "rules": [
+        "BR-07"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 2,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        6
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 6,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 1,
+          "expectLastRollWasThirdSix": true
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 1,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 6,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": true,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            10,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "release-on-one-only",
+      "title": "Release on 1 only: a 6 releases nothing (but keeps the turn), a 1 releases (BR-04)",
+      "rules": [
+        "BR-04"
+      ],
+      "ruleset": {
+        "releaseOnSix": false,
+        "releaseOnOne": true,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": false,
+          "releaseOnOne": true,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        6,
+        1
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 6,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 0,
+          "expectLastRollHadNoLegalMove": true
+        },
+        {
+          "op": "roll",
+          "expectRoll": 1,
+          "expectLegalMoves": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 0,
+            "toSteps": 1,
+            "captured": [],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": false,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 1
+          }
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 1,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "max-consecutive-sixes-two",
+      "title": "maxConsecutiveSixes 2: the second consecutive six is not played (BR-07)",
+      "rules": [
+        "BR-07"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 2,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 2,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 1,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        6
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 6,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 1,
+          "expectLastRollWasThirdSix": true
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 1,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 6,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": true,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "max-consecutive-sixes-five",
+      "title": "maxConsecutiveSixes 5: sixes accumulate across an extra-turn move until the fifth is not played (BR-07)",
+      "rules": [
+        "BR-07"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 5,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 5,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 3,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        6,
+        6
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 6,
+          "expectLegalMoves": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 0,
+            "toSteps": 1,
+            "captured": [],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": true,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 0
+          }
+        },
+        {
+          "op": "roll",
+          "expectRoll": 6,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 1,
+          "expectLastRollWasThirdSix": true
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 1,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 6,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": true,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "combined-variant-release-one-exact-off",
+      "title": "Combined variant (release on 1, no capture extra turn, max sixes 2, exact finish off): release on 1, then an overshoot lands home with an extra turn (BR-04, BR-06, BR-10)",
+      "rules": [
+        "BR-04",
+        "BR-06",
+        "BR-10"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": true,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": false,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 2,
+        "exactFinish": false,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": true,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": false,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 2,
+          "exactFinish": false,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 54
+              },
+              {
+                "stepsTaken": 56
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        1,
+        3,
+        3
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 1,
+          "expectLegalMoves": [
+            0,
+            2,
+            3
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 2,
+          "expect": {
+            "fromSteps": 0,
+            "toSteps": 1,
+            "captured": [],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": false,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 1
+          }
+        },
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 0,
+          "expectLastRollHadNoLegalMove": true
+        },
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [
+            0,
+            2
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 54,
+            "toSteps": 56,
+            "captured": [],
+            "enteredHomePath": false,
+            "reachedHome": true,
+            "extraTurn": true,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 0
+          }
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            56,
+            56,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "capture-two-opponents",
+      "title": "One landing captures tokens of two different opponents on the same cell (BR-06, BR-08)",
+      "rules": [
+        "BR-06",
+        "BR-08"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 20
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Yellow",
+            "colour": "yellow",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 49
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        3
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [
+            0
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 20,
+            "toSteps": 23,
+            "captured": [
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ]
+            ],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": true,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 0
+          }
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            23,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "no-legal-move-exact-finish-blocked",
+      "title": "No legal move: every track token is blocked by exact finish, so a 3 passes the turn (BR-10, BR-13)",
+      "rules": [
+        "BR-10",
+        "BR-13"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 54
+              },
+              {
+                "stepsTaken": 55
+              },
+              {
+                "stepsTaken": 56
+              },
+              {
+                "stepsTaken": 56
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        3
+      ],
+      "steps": [
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [],
+          "expectPhase": "awaitingRoll",
+          "expectCurrentPlayer": 1,
+          "expectLastRollHadNoLegalMove": true
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 1,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 3,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": true,
+        "tokens": [
+          [
+            54,
+            55,
+            56,
+            56
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "next-turn-passes",
+      "title": "nextTurn() between turns passes to the next player clockwise (FR-19)",
+      "rules": [
+        "FR-19"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        1
+      ],
+      "steps": [
+        {
+          "op": "nextTurn",
+          "expectCurrentPlayer": 1,
+          "expectPhase": "awaitingRoll"
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 1,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "roll-while-move-pending-state-error",
+      "title": "Rolling while a move is pending throws StateError and changes nothing (FR-21)",
+      "rules": [
+        "FR-21"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingMove",
+        "lastRoll": 3,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        1
+      ],
+      "steps": [
+        {
+          "op": "rollStateError"
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingMove",
+        "winnerIndex": null,
+        "lastRoll": 3,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            10,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "move-before-roll-state-error",
+      "title": "Moving before any roll throws StateError and changes nothing (FR-21)",
+      "rules": [
+        "FR-21"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        1
+      ],
+      "steps": [
+        {
+          "op": "moveStateError",
+          "token": 0
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            10,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "wrong-player-move-rejected",
+      "title": "A move naming the non-active player throws ArgumentError and changes nothing (FR-17, FR-21)",
+      "rules": [
+        "FR-17",
+        "FR-21"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingMove",
+        "lastRoll": 3,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        1
+      ],
+      "steps": [
+        {
+          "op": "moveWrongPlayer",
+          "playerIndex": 1,
+          "token": 0
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingMove",
+        "winnerIndex": null,
+        "lastRoll": 3,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            10,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "snapshot-round-trip",
+      "title": "Snapshot then restore reproduces the exact state, and play continues from it (FR-29)",
+      "rules": [
+        "FR-29"
+      ],
+      "ruleset": {
+        "releaseOnSix": true,
+        "releaseOnOne": false,
+        "extraTurnOnSix": true,
+        "extraTurnOnCapture": true,
+        "extraTurnOnHome": true,
+        "maxConsecutiveSixes": 3,
+        "exactFinish": true,
+        "version": "1.0.0"
+      },
+      "initial": {
+        "formatVersion": 1,
+        "rulesetVersion": "1.0.0",
+        "ruleset": {
+          "releaseOnSix": true,
+          "releaseOnOne": false,
+          "extraTurnOnSix": true,
+          "extraTurnOnCapture": true,
+          "extraTurnOnHome": true,
+          "maxConsecutiveSixes": 3,
+          "exactFinish": true,
+          "version": "1.0.0"
+        },
+        "startedAt": "2026-11-22T10:00:00",
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "winnerIndex": null,
+        "moveCount": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "players": [
+          {
+            "name": "Red",
+            "colour": "red",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 20
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          },
+          {
+            "name": "Green",
+            "colour": "green",
+            "type": "human",
+            "tokens": [
+              {
+                "stepsTaken": 10
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              },
+              {
+                "stepsTaken": 0
+              }
+            ]
+          }
+        ]
+      },
+      "dice": [
+        3
+      ],
+      "steps": [
+        {
+          "op": "snapshotRoundTrip"
+        },
+        {
+          "op": "roll",
+          "expectRoll": 3,
+          "expectLegalMoves": [
+            0
+          ],
+          "expectPhase": "awaitingMove",
+          "expectCurrentPlayer": 0
+        },
+        {
+          "op": "move",
+          "token": 0,
+          "expect": {
+            "fromSteps": 20,
+            "toSteps": 23,
+            "captured": [
+              [
+                1,
+                0
+              ]
+            ],
+            "enteredHomePath": false,
+            "reachedHome": false,
+            "extraTurn": true,
+            "winnerIndex": null,
+            "expectPhase": "awaitingRoll",
+            "expectCurrentPlayer": 0
+          }
+        }
+      ],
+      "expectFinal": {
+        "currentPlayerIndex": 0,
+        "phase": "awaitingRoll",
+        "winnerIndex": null,
+        "lastRoll": 0,
+        "consecutiveSixes": 0,
+        "lastRollWasThirdSix": false,
+        "lastRollHadNoLegalMove": false,
+        "tokens": [
+          [
+            23,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      }
     }
   ]
 }

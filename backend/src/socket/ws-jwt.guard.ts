@@ -1,8 +1,10 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   Logger,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
@@ -11,6 +13,7 @@ import { ErrorCode } from '../common/errors/error-codes';
 import type { RequestUser } from '../common/guards/request-user';
 import { JwtStrategy } from '../auth/strategies/jwt.strategy';
 import { TokenService } from '../auth/token.service';
+import { MatchService } from '../match/match.service';
 import { type SocketClientData } from './socket.constants';
 import { SocketAuthError, socketWsException } from './socket-error';
 
@@ -51,6 +54,14 @@ export class WsJwtGuard implements CanActivate {
   constructor(
     private readonly tokens: TokenService,
     private readonly strategy: JwtStrategy,
+    /**
+     * Stage 6 (FR-54 heartbeat): the per-message re-validation is
+     * also the heartbeat — every authenticated message refreshes
+     * the player's presence. Optional so unit tests can keep
+     * constructing the guard with two arguments; without it no
+     * presence is written (pre-Stage 6 behaviour).
+     */
+    @Optional() @Inject(MatchService) private readonly matches?: MatchService,
   ) {}
 
   /**
@@ -122,6 +133,10 @@ export class WsJwtGuard implements CanActivate {
       const user = await this.authenticate({ token });
       client.data.user = user;
       client.data.authToken = token;
+      // Stage 6 heartbeat: an authenticated message proves the
+      // player is live — refresh presence (best-effort, never a
+      // failed message).
+      if (this.matches) void this.matches.touchPresence(user.id);
       return true;
     } catch (err) {
       if (err instanceof SocketAuthError) {

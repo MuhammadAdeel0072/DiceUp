@@ -100,7 +100,10 @@ void main() {
   }
 
   /// A finished match's data, as the results screen receives it.
-  MatchResult sampleResult({bool completionFailed = false}) => MatchResult(
+  MatchResult sampleResult({
+    bool completionFailed = false,
+    bool isOnline = false,
+  }) => MatchResult(
     winnerSeat: 0,
     winnerName: 'Adeel',
     winnerColour: PlayerColour.red,
@@ -129,6 +132,7 @@ void main() {
       ruleset: RulesetConfig(releaseOnOne: true),
     ),
     completionFailed: completionFailed,
+    isOnline: isOnline,
   );
 
   List<Token> tokensAt(int player, List<int> steps) => List<Token>.generate(
@@ -292,6 +296,23 @@ void main() {
         findsNothing,
         reason: 'a recorded match carries no failure notice',
       );
+    });
+
+    testWidgets('online result labels the mode and hides Play Again', (
+      tester,
+    ) async {
+      final store = InMemoryStore();
+      final deps = fakeDeps(store);
+      await pumpRoutesApp(
+        tester,
+        deps,
+        ResultsScreen(result: sampleResult(isOnline: true)),
+      );
+
+      expect(find.text('Adeel wins!'), findsOneWidget);
+      expect(find.text('Online multiplayer'), findsOneWidget);
+      expect(find.text('Play Again'), findsNothing);
+      expect(find.text('Main Menu'), findsOneWidget);
     });
 
     testWidgets('premium results (Q5/Q8): winner\'s mark, Home n/4 '
