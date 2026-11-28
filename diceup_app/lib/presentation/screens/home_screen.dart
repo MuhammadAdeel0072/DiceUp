@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
@@ -14,14 +15,18 @@ import '../../domain/repositories/snapshot_repository.dart';
 import '../../l10n/app_strings.dart';
 import '../app_dependencies_scope.dart';
 import '../navigation/app_routes.dart';
+import '../providers/app_providers.dart';
 
 /// Main menu / home screen (SRS UI-01, FR-01).
 ///
 /// Guests reach every offline feature from here with no account and no
 /// internet. Online entries are present but not yet functional: the Play
 /// Online button is enabled and shows the login-prompt dialog (M2.10,
-/// M-13) — online play itself lands in Phase 5, so the dialog is
-/// honest about what exists today rather than navigating anywhere.
+/// M-13) — its Log in action routes to the login screen (Phase 5,
+/// Stage 2), and signed-in players see their account state there;
+/// online play itself (rooms, matches) lands in later stages, so the
+/// dialog stays honest about what exists today rather than navigating
+/// anywhere playable.
 ///
 /// Startup notices (M1.6) are shown here, exactly once, after the
 /// first frame: the database-recovery message, the corrupt-snapshot
@@ -61,6 +66,18 @@ class _HomeScreenState extends State<HomeScreen> {
     super.didChangeDependencies();
     if (_startupHandled) return;
     _startupHandled = true;
+    // Start the auth session restore (Phase 5, Stage 2; FR-09):
+    // Home is the first interactive screen, so the persisted
+    // session restores at launch, not at the first Play Online tap.
+    // Read, not watch — Home renders the same either way, and a
+    // Consumer in build would crash bare-screen tests (no
+    // ProviderScope; see the Play Online note below).
+    try {
+      ProviderScope.containerOf(context).read(authStateProvider);
+    } on StateError {
+      // No scope — a bare-screen test; the online prompt falls back
+      // to the guest dialog.
+    }
     final startup = AppDependenciesScope.maybeOf(context)?.startup;
     if (startup == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -226,15 +243,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         // The online entry stays honest (M-13) and
                         // visually quiet: a muted text row, never a
                         // primary- or secondary-styled button, so it
-                        // never reads as a playable mode. It still
-                        // opens the login-prompt dialog on tap.
+                        // never reads as a playable mode. The tap
+                        // opens the online prompt (Phase 5, Stage 2:
+                        // guests get the login prompt with a Log in
+                        // action; signed-in players get their
+                        // account state). The prompt reads the auth
+                        // state at tap time, not in build — bare
+                        // screens (layout / accessibility tests) run
+                        // without a ProviderScope, and a Consumer
+                        // here would crash them (verified 2026-11-28:
+                        // "No ProviderScope found" in layout_320).
                         TextButton.icon(
                           icon: const Icon(Icons.public_outlined, size: 20),
                           label: Text(l10n.homePlayOnline),
                           style: TextButton.styleFrom(
                             foregroundColor: DiceUpColors.textSecondary,
                           ),
-                          onPressed: () => _showOnlineLoginPrompt(context),
+                          onPressed: () => _showOnlinePrompt(context),
                         ),
                         const Spacer(),
                         Text(
@@ -254,12 +279,68 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Login prompt for the online entry (M2.10, M-13; UI-01/FR-42):
-  /// guests are asked to log in, and told plainly that online play
-  /// arrives in Phase 5 — a dialog, not a transient snackbar, so the
-  /// prompt cannot be missed or mistaken for navigation.
-  void _showOnlineLoginPrompt(BuildContext context) {
+  /// Online entry (M2.10, M-13; UI-01/FR-42; Phase 5, Stage 2):
+  /// guests are asked to log in — the dialog's Log in action routes
+  /// to the login screen — and told plainly that online play
+  /// arrives in Phase 5. Signed-in players see who they are signed
+  /// in as, with account and log-out actions; rooms themselves
+  /// arrive in the next stage, so nothing here pretends a match can
+  /// start. A dialog, not a transient snackbar, so the prompt
+  /// cannot be missed or mistaken for navigation.
+  ///
+  /// The auth state is read at tap time through the enclosing
+  /// [ProviderScope] — never watched in build (see the note on the
+  /// Play Online row): without a scope (bare-screen tests) the
+  /// prompt falls back to the guest dialog instead of crashing.
+  void _showOnlinePrompt(BuildContext context) {
     final l10n = stringsOf(context);
+    AuthState? auth;
+    ProviderContainer? container;
+    try {
+      container = ProviderScope.containerOf(context);
+      auth = container.read(authStateProvider);
+    } on StateError {
+      auth = null;
+      container = null;
+    }
+    final user = auth?.user;
+    if (auth?.status == AuthStatus.signedIn && user != null) {
+      DiceUpDialog.show<void>(
+        context,
+        title: l10n.homePlayOnline,
+        content: Text(l10n.homeOnlineSignedIn(user.displayName)),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await container?.read(authStateProvider.notifier).logout();
+            },
+            child: Text(l10n.homeOnlineLogOut),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushNamed(AppRoutes.account);
+            },
+            child: Text(l10n.homeOnlineViewAccount),
+          ),
+          // Phase 5, Stage 3: rooms are live — the lobby is one tap
+          // from the signed-in prompt.
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushNamed(AppRoutes.onlineLobby);
+            },
+            child: Text(l10n.homeOnlinePlay),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.ok),
+          ),
+        ],
+      );
+      return;
+    }
     DiceUpDialog.show<void>(
       context,
       title: l10n.homePlayOnline,
@@ -268,6 +349,13 @@ class _HomeScreenState extends State<HomeScreen> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.ok),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushNamed(AppRoutes.login);
+          },
+          child: Text(l10n.loginTitle),
         ),
       ],
     );

@@ -246,7 +246,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                             children: [
                               _InfoRow(
                                 label: l10n.labelMode,
-                                value: result.isVsAi
+                                value: result.isOnline
+                                    ? l10n.modeOnline
+                                    : result.isVsAi
                                     ? l10n.modeShortVsAi
                                     : l10n.modeLocal,
                               ),
@@ -309,11 +311,16 @@ class _ResultsScreenState extends State<ResultsScreen>
                         ),
                       ],
                       const SizedBox(height: DiceUpSpacing.lg),
-                      PrimaryButton(
-                        label: l10n.resultsPlayAgain,
-                        onPressed: () => _playAgain(context, result.setup),
-                      ),
-                      const SizedBox(height: DiceUpSpacing.sm),
+                      // Online matches (Phase 5, Stage 7) have no
+                      // Play Again here: a rematch starts from the
+                      // lobby, never by replaying an offline setup.
+                      if (!result.isOnline) ...[
+                        PrimaryButton(
+                          label: l10n.resultsPlayAgain,
+                          onPressed: () => _playAgain(context, result.setup),
+                        ),
+                        const SizedBox(height: DiceUpSpacing.sm),
+                      ],
                       SecondaryButton(
                         label: l10n.mainMenu,
                         onPressed: () => _goHome(context),

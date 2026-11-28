@@ -604,6 +604,11 @@ class DiceUpTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.inputFormatters,
+    this.errorText,
+    this.autofillHints,
+    this.textInputAction,
+    this.onFieldSubmitted,
+    this.enabled = true,
   });
 
   final String label;
@@ -619,6 +624,23 @@ class DiceUpTextField extends StatelessWidget {
   /// after the fact).
   final List<TextInputFormatter>? inputFormatters;
 
+  /// Server-side field error (Phase 5 auth): shown under the field
+  /// when the backend rejected this field's value. Local
+  /// [validator] errors take precedence when both are set.
+  final String? errorText;
+
+  /// Autofill hints for the platform keyboard / password manager
+  /// (auth screens: email, username, password, one-time code).
+  final Iterable<String>? autofillHints;
+
+  /// Keyboard action + submit handler (auth screens: move to the
+  /// next field, submit on the last field).
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
+
+  /// False while an auth request is in flight.
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     return TextFormField(
@@ -628,7 +650,11 @@ class DiceUpTextField extends StatelessWidget {
       validator: validator,
       onChanged: onChanged,
       inputFormatters: inputFormatters,
-      decoration: InputDecoration(labelText: label),
+      autofillHints: autofillHints,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
+      enabled: enabled,
+      decoration: InputDecoration(labelText: label, errorText: errorText),
     );
   }
 }

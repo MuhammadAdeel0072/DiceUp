@@ -101,10 +101,7 @@ void main() {
       await tester.pump();
 
       // The M-13 dialog copy, verbatim; the old snackbar copy is gone.
-      expect(
-        find.text('Log in to play online — online play arrives in Phase 5.'),
-        findsOneWidget,
-      );
+      expect(find.text('Log in to play online with friends.'), findsOneWidget);
       expect(find.text('OK'), findsOneWidget);
       expect(
         find.text('Online play arrives in Phase 5. Offline play is ready now.'),
@@ -113,22 +110,21 @@ void main() {
 
       await tester.tap(find.text('OK'));
       await tester.pump();
-      expect(
-        find.text('Log in to play online — online play arrives in Phase 5.'),
-        findsNothing,
-      );
+      expect(find.text('Log in to play online with friends.'), findsNothing);
     });
 
-    testWidgets('online mode card renders no chevron', (tester) async {
+    testWidgets('online mode card renders a chevron', (tester) async {
       await tester.pumpWidget(const DiceUpApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Play Offline'));
       await tester.pumpAndSettle();
 
-      // Three mode rows, two chevrons: Play vs AI + Local multiplayer.
-      // The non-tappable online card must not imply navigation.
-      expect(find.byIcon(Icons.chevron_right), findsNWidgets(2));
+      // Three mode rows, three chevrons: Play vs AI, Local
+      // multiplayer, and — since Phase 5, Stage 7 — the online card,
+      // which now navigates (lobby for signed-in users, login for
+      // guests) instead of sitting inert.
+      expect(find.byIcon(Icons.chevron_right), findsNWidgets(3));
     });
 
     testWidgets('settings footer reads the pubspec version 0.1.0+1', (

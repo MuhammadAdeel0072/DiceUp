@@ -12,6 +12,20 @@ export const SOCKET_NAMESPACE = '/game';
 export const SOCKET_CLIENT_EVENTS = {
   /** Connectivity/validation probe — NOT a game event (see below). */
   ping: 'ping',
+  /** Join an open room by code (FR-44). */
+  roomJoin: 'room:join',
+  /** Leave a room (FR-59). */
+  roomLeave: 'room:leave',
+  /** Set readiness in a room (FR-46). */
+  roomReady: 'room:ready',
+  /** Start the match (FR-47, host only). */
+  matchStart: 'match:start',
+  /** Roll the dice (FR-49): intent only, no value supplied. */
+  diceRoll: 'dice:roll',
+  /** Move one token (FR-50): the token id, never a position. */
+  tokenMove: 'token:move',
+  /** Request a full snapshot (FR-57): e.g. on a seq gap. */
+  stateRequest: 'state:request',
 } as const;
 
 /**
@@ -20,13 +34,33 @@ export const SOCKET_CLIENT_EVENTS = {
  * allows server broadcasts for the connection lifecycle itself);
  * `pong` answers `ping`; `exception` is Nest's standard error channel
  * (WsException payloads are emitted on it by WsExceptionsHandler).
- * No game broadcasts exist yet (room/match/dice/token events are
- * Phase 5, plan §9.3).
+ * Phase 5, Stage 3 adds `room:updated`, `match:started` and
+ * `matchmaking:matched` (SDD §12.6). Stage 5 adds the gameplay
+ * events (`dice:rolled`, `token:moved`, `turn:changed`,
+ * `match:state`, `match:ended`, `action:rejected`): every one
+ * carries an increasing `seq` (FR-51) except `action:rejected`,
+ * which reports a rejected intent (state unchanged) and echoes the
+ * intent's `requestId` when one was supplied.
  */
 export const SOCKET_SERVER_EVENTS = {
   connected: 'connected',
   pong: 'pong',
   exception: 'exception',
+  roomUpdated: 'room:updated',
+  matchStarted: 'match:started',
+  matchmakingMatched: 'matchmaking:matched',
+  diceRolled: 'dice:rolled',
+  tokenMoved: 'token:moved',
+  turnChanged: 'turn:changed',
+  matchState: 'match:state',
+  matchEnded: 'match:ended',
+  actionRejected: 'action:rejected',
+  /** A player disconnected; grace is running (Stage 6, FR-54). */
+  playerDisconnected: 'player:disconnected',
+  /** A player reconnected inside their grace (Stage 6, FR-55). */
+  playerReconnected: 'player:reconnected',
+  /** A player forfeited per BR-15 (Stage 6, FR-56). */
+  playerForfeited: 'player:forfeited',
 } as const;
 
 /**
@@ -43,6 +77,20 @@ export const SOCKET_EVENT_WINDOW_SECONDS = 1;
  * the SDD's silence, so a small conventional value is picked).
  */
 export const SOCKET_RATE_LIMIT_MAX_VIOLATIONS = 5;
+
+/**
+ * Socket CONNECTION rate limits (Stage 5, L-02). A handshake costs
+ * an RS256 verify + DB lookups, and reconnecting resets the
+ * per-socket event budget — so connections themselves are bounded,
+ * per IP (before auth) and per user (after auth), at generous
+ * values a legitimate client never approaches (a client connects
+ * once per session and reconnects occasionally). Enforced in the
+ * adapter handshake middleware, with an in-process fallback when
+ * Redis is down (see SocketConnectionRateLimitService).
+ */
+export const SOCKET_CONNECTIONS_PER_MINUTE_PER_IP = 120;
+export const SOCKET_CONNECTIONS_PER_MINUTE_PER_USER = 20;
+export const SOCKET_CONNECTION_WINDOW_SECONDS = 60;
 
 /**
  * Maximum socket event payload, 10 KB (SDD §13.4 [Proposed]).

@@ -59,9 +59,12 @@ export class SocketRedisClients implements OnApplicationShutdown {
     // wait instead of rejecting, the server boots, REST keeps working,
     // and the adapter recovers when Redis returns. Trade-off: while
     // Redis is down, adapter publishes queue in memory (unbounded if
-    // broadcasts pile up); Phase 4 has no broadcast traffic, so this
-    // is a bounded queue in practice — revisit if Phase 5 adds heavy
-    // broadcast volume during an outage.
+    // broadcasts pile up). Stage 5 bounds this for game traffic:
+    // RoomBroadcaster.emitGameEvent delivers to local sockets only
+    // while Redis is down and drops + counts the remote fan-out, so
+    // the queue cannot grow from gameplay (assessment risk 5).
+    // Lobby broadcasts stay adapter-queued — they are human-paced
+    // (a few per minute), so their queue stays bounded in practice.
     const options = {
       maxRetriesPerRequest: null,
       retryStrategy: (times: number) => Math.min(times * 50, 2000),
