@@ -860,8 +860,8 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('mode cards are labelled buttons; the online card is '
-        'not a button', (tester) async {
+    testWidgets('mode cards are labelled buttons, including the online '
+        'card', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: ModeSelectionScreen()));
       await tester.pumpAndSettle();
       final handle = tester.ensureSemantics();
@@ -882,18 +882,17 @@ void main() {
         tester.getSemantics(local).getSemanticsData().flagsCollection.isButton,
         isTrue,
       );
-      // The online card is plain text (Phase 5): readable, but with
-      // no button role and no tap action. Its title + subtitle
-      // merge into one semantics node (the card merges its texts),
-      // so the label is the joined string, not the title alone.
+      // The online card became a real button in Phase 5, Stage 7
+      // (it opens the lobby for signed-in users, login for guests):
+      // one labelled button, title + subtitle as a single sentence.
       const onlineLabel =
-          'Online multiplayer\n'
-          'Rooms, friends and live matches — coming in Phase 5.';
+          'Online multiplayer. Play a live match with friends in a room, '
+          'or find a match.';
       final online = find.bySemanticsLabel(onlineLabel);
       expect(online, findsOneWidget);
       expect(
         tester.getSemantics(online).getSemanticsData().flagsCollection.isButton,
-        isFalse,
+        isTrue,
       );
       handle.dispose();
     });

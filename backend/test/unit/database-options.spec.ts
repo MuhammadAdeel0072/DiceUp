@@ -9,22 +9,30 @@ import {
 } from '../../src/database/data-source';
 
 describe('database options (plan §4.4 — synchronize NEVER on)', () => {
-  it('builds options for the four Phase 4 entities only', () => {
+  it('builds options for the Phase 4 entities + the Stage 3 room/match entities', () => {
     const opts = buildDataSourceOptions(
       'postgres://diceup:x@localhost:5432/diceup_dev',
     );
     expect(opts.type).toBe('postgres');
-    expect(PHASE4_ENTITIES).toHaveLength(4);
+    expect(PHASE4_ENTITIES).toHaveLength(10);
     expect(PHASE4_ENTITIES.map((e) => e.name).sort()).toEqual([
       'AuthSession',
       'EmailToken',
+      'GameConfiguration',
+      'Match',
+      'MatchPlayer',
+      'MoveEvent',
       'Profile',
+      'Room',
+      'RoomMember',
       'User',
     ]);
-    expect(PHASE4_MIGRATIONS).toHaveLength(2);
+    expect(PHASE4_MIGRATIONS).toHaveLength(4);
     expect(PHASE4_MIGRATIONS.map((m) => m.name).sort()).toEqual([
       'AddProfilePreferences1764249000000',
       'InitAuth1764240000000',
+      'RoomsMatchmaking1795822100000',
+      'Stage6TimersPresence1796000000000',
     ]);
   });
 

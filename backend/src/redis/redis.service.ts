@@ -29,6 +29,24 @@ end
 `;
 
 /**
+ * Atomically pop the first N members of a sorted set (matchmaking
+ * grouping, FR-45). Returns the popped members (in score order) when
+ * at least N are present, otherwise an empty array — and nothing is
+ * removed. The check-and-remove is one Lua script, so two concurrent
+ * joiners can never both pop the same group (the TOCTOU guard for
+ * grouping; the per-match Redis lock is not needed here because the
+ * script itself is the atomic step).
+ */
+const POP_GROUP_SCRIPT = `
+local members = redis.call('ZRANGE', KEYS[1], 0, ARGV[1] - 1)
+if #members < tonumber(ARGV[1]) then
+  return {}
+end
+redis.call('ZREM', KEYS[1], unpack(members))
+return members
+`;
+
+/**
  * RedisService — the ONLY Redis API the app uses (plan §5.2). Nothing
  * else may import the raw client. ioredis [P4 choice]; SDD names no
  * client library, and ioredis is the Socket.IO Redis adapter's
@@ -131,5 +149,54 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async releaseLock(key: string, token: string): Promise<boolean> {
     const result = await this.client.eval(RELEASE_LOCK_SCRIPT, 1, key, token);
     return Number(result) === 1;
+  }
+
+  // -- Sorted sets (matchmaking queue, FR-45) ---------------------------
+  // One queue entry per player in `matchmaking:queue` (score = enqueue
+  // time in ms). The queue is Redis-only by design (SDD §9.4) — a
+  // queued player holds no PostgreSQL row, so a Redis loss only drops
+  // waiting players (they re-join), never a match (CI-05).
+
+  /** Add `member` with `score` only if absent; true when added. */
+  async zaddNx(key: string, score: number, member: string): Promise<boolean> {
+    const added = await this.client.zadd(key, 'NX', score, member);
+    return added === 1;
+  }
+
+  /** Score of `member`, or null when absent. */
+  async zscore(key: string, member: string): Promise<number | null> {
+    const score = await this.client.zscore(key, member);
+    return score === null ? null : Number(score);
+  }
+
+  /** 0-based rank of `member` (arrival order), or null when absent. */
+  async zrank(key: string, member: string): Promise<number | null> {
+    return this.client.zrank(key, member);
+  }
+
+  /** Number of members in the set. */
+  async zcard(key: string): Promise<number> {
+    return this.client.zcard(key);
+  }
+
+  /** Remove `member`; true when it was present. */
+  async zrem(key: string, member: string): Promise<boolean> {
+    const removed = await this.client.zrem(key, member);
+    return removed === 1;
+  }
+
+  /**
+   * Atomically pop the first `count` members (lowest scores) when at
+   * least that many are present; otherwise returns [] and removes
+   * nothing. Members come back in score (arrival) order.
+   */
+  async popGroup(key: string, count: number): Promise<string[]> {
+    const result = await this.client.eval(
+      POP_GROUP_SCRIPT,
+      1,
+      key,
+      String(count),
+    );
+    return (result as unknown[]).map(String);
   }
 }

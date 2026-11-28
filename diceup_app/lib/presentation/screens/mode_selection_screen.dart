@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design_system/diceup_colors.dart';
 import '../../core/design_system/diceup_components.dart';
 import '../../core/design_system/diceup_spacing.dart';
 import '../../l10n/app_strings.dart';
 import '../navigation/app_routes.dart';
+import '../providers/app_providers.dart';
 
 /// Game mode selection (SRS UI-02, FR-12).
 ///
-/// Offline modes are fully available. The online card is visible but
-/// honestly unavailable until Phase 5 — it explains that instead of
-/// navigating to a dead end.
+/// Offline modes are fully available. The online card opens the
+/// online flow (Phase 5, Stage 7): signed-in players go to the
+/// lobby, guests go to the login screen — the same split the home
+/// screen's Play Online entry makes.
 ///
 /// Presentation (redesign Stage 3A, REDESIGN-PLAN.md §3.2): the two
 /// playable cards are visually distinct from each other — a filled
 /// icon disc in the mode's own accent (teal for Play vs AI, navy
 /// for Local multiplayer) plus the one-line "what happens" subtitle
-/// each already carries — while the online card stays visibly inert
-/// (muted surface, muted text, no chevron, no tap). Content centres
+/// each already carries — and the online card carries its own amber
+/// disc, so all three read as playable modes. Content centres
 /// in a [DiceUpSpacing.maxContentWidth] column on wide screens.
 /// Navigation and semantics behaviour are unchanged.
 class ModeSelectionScreen extends StatelessWidget {
@@ -31,14 +34,32 @@ class ModeSelectionScreen extends StatelessWidget {
     // screen reader hears the mode and what it means, not an icon
     // plus two loose texts plus an unexplained chevron. The tap
     // action is the same navigation the card's InkWell performs.
-    // The online card is not tappable (Phase 5): it keeps its plain
-    // text, with no button role and no tap action.
     void goVsAi() =>
         Navigator.of(context)
             .pushNamed(AppRoutes.offlineSetup, arguments: OfflineMode.vsAi);
     void goLocal() =>
         Navigator.of(context)
             .pushNamed(AppRoutes.offlineSetup, arguments: OfflineMode.local);
+    // Online (Phase 5, Stage 7): the auth state is read at tap
+    // time through the enclosing [ProviderScope] — never watched
+    // in build (see the home screen's Play Online note): bare
+    // screens (layout / accessibility tests) run without a scope,
+    // and without one the card stays inert instead of crashing.
+    void goOnline() {
+      AuthStatus? status;
+      try {
+        final container = ProviderScope.containerOf(context);
+        status = container.read(authStateProvider).status;
+      } on StateError {
+        return;
+      }
+      if (status == AuthStatus.signedIn) {
+        Navigator.of(context).pushNamed(AppRoutes.onlineLobby);
+      } else {
+        Navigator.of(context).pushNamed(AppRoutes.login);
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.modeTitle)),
       // M2.12 (NFR-09): scrolls when the cards cannot fit
@@ -92,18 +113,20 @@ class ModeSelectionScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: DiceUpSpacing.md),
-                DiceUpCard(
-                  child: _ModeRow(
-                    icon: Icons.public_outlined,
-                    iconBackground: DiceUpColors.surfaceMuted,
-                    iconColor: DiceUpColors.textSecondary,
-                    title: l10n.modeOnline,
-                    subtitle: l10n.modeOnlineDescription,
-                    // M2.10 (M-13): no chevron — the card is not tappable
-                    // and must not imply navigation. Muted text as
-                    // well, so the inert card never reads as playable.
-                    showChevron: false,
-                    muted: true,
+                Semantics(
+                  button: true,
+                  label: l10n.modeOnlineSemantics,
+                  onTap: goOnline,
+                  excludeSemantics: true,
+                  child: DiceUpCard(
+                    onTap: goOnline,
+                    child: _ModeRow(
+                      icon: Icons.public_outlined,
+                      iconBackground: DiceUpColors.amber,
+                      iconColor: Colors.white,
+                      title: l10n.modeOnline,
+                      subtitle: l10n.modeOnlineDescription,
+                    ),
                   ),
                 ),
               ],
@@ -122,33 +145,20 @@ class _ModeRow extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.subtitle,
-    this.showChevron = true,
-    this.muted = false,
   });
 
   final IconData icon;
 
   /// The filled 48 dp disc behind the icon (D-09): teal for Play vs
-  /// AI, navy for Local multiplayer, muted ivory for the inert
-  /// online card — the distinct icon treatment that tells the two
-  /// playable modes apart at a glance.
+  /// AI, navy for Local multiplayer, amber for online — the distinct
+  /// icon treatment that tells the three modes apart at a glance.
   final Color iconBackground;
 
-  /// Icon colour on [iconBackground]: white on the filled teal/navy
-  /// discs, secondary on the muted disc.
+  /// Icon colour on [iconBackground]: white on the filled discs.
   final Color iconColor;
 
   final String title;
   final String subtitle;
-
-  /// Whether the trailing navigation chevron renders. Tappable rows
-  /// show it; the non-tappable online card (M2.10) hides it so the
-  /// row never implies a destination it cannot reach.
-  final bool showChevron;
-
-  /// Whether the row is the inert online card: title and subtitle
-  /// render in the secondary colour instead of the primary one.
-  final bool muted;
 
   @override
   Widget build(BuildContext context) {
@@ -171,19 +181,13 @@ class _ModeRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: muted
-                    ? titleStyle?.copyWith(color: DiceUpColors.textSecondary)
-                    : titleStyle,
-              ),
+              Text(title, style: titleStyle),
               const SizedBox(height: DiceUpSpacing.xxs),
               Text(subtitle, style: subtitleStyle),
             ],
           ),
         ),
-        if (showChevron)
-          const Icon(Icons.chevron_right, color: DiceUpColors.textSecondary),
+        const Icon(Icons.chevron_right, color: DiceUpColors.textSecondary),
       ],
     );
   }

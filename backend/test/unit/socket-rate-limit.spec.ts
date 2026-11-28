@@ -60,11 +60,21 @@ describe('SocketRateLimitService (20 events/s per connection)', () => {
     });
   });
 
-  it('fails CLOSED when Redis is unavailable (never runs unthrottled)', async () => {
+  it('falls back to a local per-socket bucket when Redis is unavailable (still throttled, never unthrottled)', async () => {
+    // Stage 5 (assessment risk 5): in-progress matches must keep
+    // working while Redis is down, so the 20/s event limit falls back
+    // to an in-process bucket instead of failing closed. The limit
+    // still holds per socket on this node; only the multi-node
+    // aggregation is lost until Redis returns.
     redis.incrWithExpiry.mockRejectedValue(new Error('Redis is down'));
-    await expect(service.check('socket-1')).rejects.toBeInstanceOf(
-      ServiceUnavailableException,
-    );
+    for (let i = 0; i < SOCKET_EVENTS_PER_SECOND; i++) {
+      await expect(service.check('socket-1')).resolves.toEqual({
+        allowed: true,
+      });
+    }
+    await expect(service.check('socket-1')).resolves.toEqual({
+      allowed: false,
+    });
   });
 });
 

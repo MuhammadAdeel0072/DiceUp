@@ -265,11 +265,17 @@ allows it before any production release.
 - **Rate limiting:** login throttle (5 failures / 15 min per
   account and per IP), per-endpoint limits, 100/min per
   authenticated user, 20/s per socket with disconnect on sustained
-  abuse — all covered by unit + e2e tests. All 429s carry
-  `Retry-After`.
+  abuse, a global 1000/min per-IP limit on all `/v1` except health
+  (L-01, Stage 5), and socket connection limits of 120/min per IP
+  and 20/min per user (L-02, Stage 5) — all covered by unit + e2e
+  tests. All 429s carry `Retry-After`.
 - **Fail-closed where it matters:** Redis down fails closed for
-  auth writes, the login throttle, and the socket rate-limit guard;
-  production boot fails fast without real JWT keys, a real mailer
+  auth writes and the login throttle; the socket rate-limit guard
+  instead falls back to a local per-socket bucket while Redis is
+  down (Stage 5, assessment risk 5 — in-progress matches must keep
+  working, and the 20/s limit still holds per socket on the node;
+  only the multi-node aggregation is lost until Redis returns).
+  Production boot fails fast without real JWT keys, a real mailer
   provider, or a non-localhost database URL.
 - **Boot resilience:** a dead Redis no longer kills the process
   (H-01); a dead database now fails fast (M-02). No bootstrap path
@@ -339,16 +345,18 @@ allows it before any production release.
   lines must be tracked manually.
 - **No MFA, no admin role, no audit log** — none exists in Phase 4
   scope.
-- **L-01 — No global/IP rate limit for unauthenticated requests
-  to protected routes.** `JwtAuthGuard` 401s before
-  `RateLimitGuard`, so floods against protected routes hit RS256
-  verification unbounded. Recommend Phase 5 add a global per-IP
-  limit exempting health. (Medium in effect; Low urgency in
-  Phase 4, no game traffic yet.)
-- **L-02 — No per-IP/per-user socket connection rate limit.**
-  A handshake flood costs an RS256 verify + 2 DB lookups per
-  connection; reconnecting resets the per-socket event budget.
-  Recommend Phase 5 add a connection rate limit keyed on IP.
+- **L-01 — ADDRESSED in Stage 5 (Phase 5).** A global per-IP limit
+  now runs as middleware before the guard chain
+  (`UnauthenticatedRateLimitMiddleware`, 1000/min per IP on all
+  `/v1` except health, 429 with `Retry-After`); it fails open when
+  Redis is down so PostgreSQL-backed reads keep serving. Verified
+  by unit + e2e tests.
+- **L-02 — ADDRESSED in Stage 5 (Phase 5).** Socket connections
+  are now limited to 120/min per IP (checked pre-auth in the
+  adapter handshake) and 20/min per user (post-auth), with Redis
+  counters and an in-process fallback while Redis is down.
+  Verified by unit + e2e tests (the 21st connection for one user
+  and the 121st from one IP are both refused with `RATE_LIMITED`).
 - **L-03 — Concurrent double-present of a refresh token revokes
   the whole family by design** (SDD-prescribed): a client retry
   after a lost response looks like token theft. Documented, not a

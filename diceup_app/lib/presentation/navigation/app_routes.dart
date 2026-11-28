@@ -7,11 +7,19 @@ import '../../domain/ai/ai_player.dart';
 import '../../domain/engine/game_state.dart';
 import '../../domain/engine/player_colour.dart';
 import '../../domain/engine/ruleset_config.dart';
+import '../screens/auth/account_screen.dart';
+import '../screens/auth/forgot_password_screen.dart';
+import '../screens/auth/login_screen.dart';
+import '../screens/auth/register_screen.dart';
+import '../screens/auth/verify_email_screen.dart';
 import '../screens/game_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/mode_selection_screen.dart';
 import '../screens/offline_setup_screen.dart';
+import '../screens/online/matchmaking_screen.dart';
+import '../screens/online/online_game_screen.dart';
+import '../screens/online/online_lobby_screen.dart';
 import '../screens/results_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/splash_screen.dart';
@@ -35,6 +43,30 @@ abstract final class AppRoutes {
   static const String statistics = '/statistics';
   static const String settings = '/settings';
 
+  // Phase 5, Stage 2 (FR-02…FR-06, UI-05): auth screens. Named
+  // routes, as before — go_router stays out of this stage (deep
+  // links land in Stage 7); the route names are stable, so the
+  // switch stays mechanical.
+  static const String login = '/login';
+  static const String register = '/register';
+  static const String verifyEmail = '/verify-email';
+  static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
+  static const String account = '/account';
+
+  // Phase 5, Stage 3 (FR-43…FR-47, FR-59, UI-07): rooms + matchmaking.
+  // Still named routes — deep links from invitations are Stage 7,
+  // so go_router stays out. The lobby accepts an optional room id
+  // as its route argument (matchmaking handoff, see [roomIdArgOf]).
+  static const String onlineLobby = '/online/lobby';
+  static const String matchmaking = '/online/matchmaking';
+
+  // Phase 5, Stage 7 (FR-49…FR-58, UI-07): the online game screen.
+  // The match id travels as the route argument (see
+  // [onlineGameMatchIdOf]); the controller fetches the snapshot
+  // itself, so no state is passed in the arguments.
+  static const String onlineGame = '/online/game';
+
   /// Route table for a completed startup (M1.6): the splash
   /// receives the ready [StartupResult] so it only shows the brand
   /// moment, and the game route reads its arguments itself (see
@@ -52,7 +84,42 @@ abstract final class AppRoutes {
       history: (_) => const HistoryScreen(),
       statistics: (_) => const StatisticsScreen(),
       settings: (_) => const SettingsScreen(),
+      login: (_) => const LoginScreen(),
+      register: (_) => const RegisterScreen(),
+      verifyEmail: (context) => VerifyEmailScreen(email: emailArgOf(context)),
+      forgotPassword: (_) => const ForgotPasswordScreen(),
+      resetPassword: (context) =>
+          ResetPasswordScreen(email: emailArgOf(context)),
+      account: (_) => const AccountScreen(),
+      onlineLobby: (_) => const OnlineLobbyScreen(),
+      matchmaking: (_) => const MatchmakingScreen(),
+      onlineGame: (_) => const OnlineGameScreen(),
     };
+  }
+
+  /// The room-id argument of the online lobby route (a [String]),
+  /// or null when the route was opened without one — the lobby then
+  /// shows the create/join entry instead of a room.
+  static String? roomIdArgOf(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    return args is String ? args : null;
+  }
+
+  /// The match-id argument of the online game route (a [String]),
+  /// or null when the route was opened without one — the game
+  /// screen then shows its empty state instead of inventing a
+  /// match.
+  static String? onlineGameMatchIdOf(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    return args is String ? args : null;
+  }
+
+  /// The email argument of the verify / reset routes (a [String]),
+  /// or null when the route was opened without one — the screens
+  /// fall back to the signed-in user's email then.
+  static String? emailArgOf(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    return args is String ? args : null;
   }
 
   /// Route factory for the results route only (M3 premium, §2.7.2):
@@ -261,6 +328,7 @@ class MatchResult {
     required this.finishedAt,
     required this.setup,
     this.completionFailed = false,
+    this.isOnline = false,
   });
 
   /// Winning seat (0–3).
@@ -292,6 +360,13 @@ class MatchResult {
   /// the screen carries the failure notice instead of presenting the
   /// win as if recording had succeeded.
   final bool completionFailed;
+
+  /// True for an online match (Phase 5, Stage 7): the results
+  /// screen then hides Play Again — an online rematch starts from
+  /// the lobby, never by replaying the offline setup — and labels
+  /// the mode "Online". Defaults to false; offline call sites are
+  /// unaffected.
+  final bool isOnline;
 
   /// True when any seat is AI — the mode label.
   bool get isVsAi => players.any((player) => player.isAi);
